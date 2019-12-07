@@ -1,0 +1,5 @@
+tar_file = argtable2-12.tar.gz
+download_url := http://prdownloads.sourceforge.net/argtable/$(tar_file)
+package_zip_format = gzip
+unpack_dir := argtable2-12
+config_options = 
