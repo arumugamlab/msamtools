@@ -1,12 +1,133 @@
-# msamtools:  microbiome-related extension to samtools
+# msamtools:  microbiome-related extension to samtools 
 
 **msamtools** provides useful functions that are commonly used in microbiome
 data analysis, especially when analyzing shotgun metagenomics 
 or metatranscriptomics data.
 
-## msamtools
+# Table of Contents
+ 1. [Installation](#installation)   
+  1.1. [For normal users](#normal-users)   
+  1.2. [For advanced users](#advanced-users)   
+   1.2.1. [Getting the source code](#source-code)   
+    1.2.1.1. [Cloning the git repository](#git-clone)   
+    1.2.1.2. [Downloading the ZIP file from github](#git-zip)   
+    1.2.2. [Running autoconf and automake](#automake)   
+    1.2.3. [Building the program](#build)   
+ 2. [msamtools](#msamtools)   
+ 3. [msamtools filter](#msamtools-filter)   
+ 4. [msamtools profile](#msamtools-profile)   
+  4.1. [Keeping track of unmapped reads](#track-unmapped)   
+ 5. [msamtools coverage](#msamtools-coverage)   
+ 6. [msamtools summary](#msamtools-summary)   
+## 1. Installation <a name="installation"></a>
 
-This is the master program that you call with the subprogram options.
+### 1.1. For normal users <a name="normal-users"></a>
+
+If you are a normal user, then the easiest way is to obtain the package file
+and build the program right away. The following commands were written when
+version 0.9 was the latest, so please update the version number in the
+commands below.
+
+~~~
+$wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
+$cd msamtools-0.9
+$./configure
+$make
+~~~
+
+This should create `msamtools` executable amond others.
+
+### 1.2. For advanced users <a name="advanced-users"></a>
+
+If you are an advanced user who would like to contribute to the code base
+or if you just like to do things the hard way, you can check out the source
+code and build the program in a series of steps involving `autoconf` and
+`automake`. If these names confuse you or scare you, then please follow the
+instructions for [normal users](#normal-users).
+
+#### 1.2.1. Getting the source code <a name="source-code"></a>
+
+You can get **msamtools** code from github at 
+<https://github.com/arumugamlab/msamtools>. 
+You can either `git clone` it or download the ZIP file and extract the 
+package.
+
+##### 1.2.1.1. Cloning the git repository <a name="git-clone"></a>
+
+You can get a clone of the repository if you wish to keep it up-to-date when
+we release new versions or updates.
+
+~~~
+$git clone https://github.com/arumugamlab/msamtools.git
+Cloning into 'msamtools'...
+remote: Enumerating objects: 41, done.
+remote: Counting objects: 100% (41/41), done.
+remote: Compressing objects: 100% (40/40), done.
+remote: Total 41 (delta 0), reused 37 (delta 0), pack-reused 0
+Unpacking objects: 100% (41/41), done.
+$cd msamtools-master
+~~~
+
+You can check the contents of the repository in *msamtools* directory.
+
+##### 1.2.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
+
+You can download the repository's snapshot as on the day of download by:
+~~~
+$wget https://github.com/arumugamlab/msamtools/archive/master.zip
+--2020-02-10 16:45:39--  https://github.com/arumugamlab/msamtools/archive/master.zip
+Resolving github.com (github.com)... 140.82.118.4
+Connecting to github.com (github.com)|140.82.118.4|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://codeload.github.com/arumugamlab/msamtools/zip/master [following]
+--2020-02-10 16:45:39--  https://codeload.github.com/arumugamlab/msamtools/zip/master
+Resolving codeload.github.com (codeload.github.com)... 192.30.253.120
+Connecting to codeload.github.com (codeload.github.com)|192.30.253.120|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: unspecified [application/zip]
+Saving to: 'master.zip'
+
+    [ <=>                                   ] 55,635       280K/s   in 0.2s
+$unzip master.zip
+$cd msamtools-master
+~~~
+
+##### 1.2.2. Running autoconf and automake <a name="automake"></a>
+
+You can check the contents of the repository in the package directory.
+~~~
+$ls
+configure.ac    mBamVector.h    mMatrix.h        msamtools.c  splitSeq.c
+deps            mCommon.c       msam_coverage.c  mSequence.c  versions.txt
+filterSeq.c     mCommon.h       msam_filter.c    mSequence.h  zoeTools.c
+LICENSE         mCompress.c     msam.h           mSimulate.c  zoeTools.h
+Makefile.am     mCompress.h     msam_helper.c    mSimulate.h
+make_readme.sh  mDefinitions.h  msam_profile.c   README.md
+mBamVector.c    mMatrix.c       msam_summary.c   seqUtils.c
+~~~
+
+You will note that the `configure` script does not exist in the package.
+This is because you need to generate the `configure` script using 
+`aclocal`, `autoconf` and `automake`.
+~~~
+aclocal
+autoconf
+mkdir build-aux
+automake --add-missing
+~~~
+
+##### 1.2.3. Building the program <a name="build"></a>
+
+You can then build msamtools as follows:
+~~~
+./configure
+make
+~~~
+
+## 2. msamtools <a name="msamtools"></a>
+
+This is the master program that you call with the subprogram options. There 
+are currently 4 subprograms that you can call as shown below.
 ~~~
 
 msamtools: Metagenomics-related extension to samtools.
@@ -23,7 +144,10 @@ Command:  filter         filter alignments based on alignment statistics
           summary        summarize alignment statistics per read in a table format
 ~~~
 
-## msamtools filter
+These represent the different analysis of SAM/BAM files you can perform using
+**msamtools**.
+
+## 3. msamtools filter <a name="msamtools-filter"></a>
 
 **filter** program provides alignment filtering based on percent identity,
 read length, aligned fraction of read length, or combinations thereof.
@@ -114,7 +238,7 @@ files yourself and modified things, it could affect output from **filter**.
 In such cases, you should sort them again using `samtools sort -n` so they
 are sorted by **QNAME** again.
 
-## msamtools profile
+## 4. msamtools profile <a name="msamtools-profile"></a>
 
 **profile** program provides sequence abundance profiling functionality.
 Relative abundance of each sequence in the BAM file is reported. Abundance
@@ -131,7 +255,7 @@ does not look at alignment quality, for example).
 Here is an example profiling command one would use after mapping metagenomic
 reads to IGC.
 ~~~
-msamtools profile --multi=proportional --label=sample1 -z -o sample1.profile.txt.gz sample1.IGC.filtered.bam
+msamtools profile --multi=proportional --label=sample1 -z -o sample1.IGC.profile.txt.gz sample1.IGC.filtered.bam
 ~~~
 The above command estimates relative abundance of IGC genes after sharing
 multi-mapper reads proportionately between the genes (see below).
@@ -140,10 +264,10 @@ In the spirit of **samtools** programs, **msamtools** programs can also
 stream between each other. Therefore, a single command to **filter** and **profile** 
 would look like:
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.profile.txt.gz -z -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z -
 ~~~
 
-#### Keeping track of unmapped reads
+### 4.1. Keeping track of unmapped reads <a name="track-unmapped"></a>
 
 By default, **profile** command will generate relative abundances that sum to `100%` or `1` 
 across the sequences in the BAM file. In metagenomic data, sometimes we need
@@ -186,23 +310,18 @@ in the two samples, ignoring the **Unknown** fraction leads to a different
 estimation of their relative abundances. In these situations, it is useful
 to keep track of the **unmapped** reads from the metagenome.
 
-If you do not have the number of unmapped reads handy, here is one way to
-estimate it using **summary** command (see Section 
-**msamtools summary** for more details):
+If you would like to include the Unknown fraction in the profile, you should
+tell the profiler how many reads were originally sequenced. Then the profiler will estimate
+the unmapped reads based on how many reads are in the bam/sam file, and then use
+it in the profiling stage.
 
 ~~~
-# Get number of entries in the fwd fastq file = number of inserts
+ # Get number of entries in the fwd fastq file = number of inserts
 lines=$(zcat sample1.1.fq.gz | wc -l)
 entries=$(expr $lines / 4)   # There are 4 lines per entry
 
-# Get number of inserts in the BAM file
-mapped=$(msamtools summary --count sample1.IGC.filtered.bam)
-
-# Get unmapped
-unmapped=$(expr $entries - $mapped)
-
-# Use unmapped in profiler
-msamtools profile --label sample1 -o sample1.IGC.profile --unmapped=$unmapped sample1.IGC.filtered.bam
+ # Use total reads in profiler
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z--total=$entries -
 ~~~
 
 A full description is given below:
@@ -210,7 +329,7 @@ A full description is given below:
 Usage:
 ------
 
-msamtools profile [-Sz] <bamfile> [--help] -o <file> --label=<string> [--multi=<string>] [--unmapped=<int>]
+msamtools profile [-Sz] <bamfile> [--help] -o <file> --label=<string> [--multi=<string>] [--total=<int>]
 
 General options:
 ----------------
@@ -227,7 +346,7 @@ Specific options:
   -o <file>                 name of output file (required)
   --label=<string>          label to use for the profile; typically the sample id (required)
   --multi=<string>          how to deal with multi-mappers {all | equal | proportional} (default: proportional)
-  --unmapped=<int>          number of inserts (mate-pairs/paired-ends) that were unmapped (default: 0)
+  --total=<int>             number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)
   -z, --gzip                compress output file using gzip (default: false)
 
 Description
@@ -264,7 +383,7 @@ Multi-mapper reads:  Reads mapping to multiple references need to be considered
                           mapped reads.
 ~~~
 
-## msamtools coverage
+## 5. msamtools coverage <a name="msamtools-coverage"></a>
 
 **coverage** program estimates per-position coverage of each sequence in
 the BAM file. The output file is in the format of old Sanger quality files
@@ -318,21 +437,108 @@ If using '-z', output file does NOT automatically get '.gz' extension. This is
 up to the user to specify the correct full output file name.
 ~~~
 
-## msamtools summary
+## 6. msamtools summary <a name="msamtools-summary"></a>
 
 **summary** program summarizes alignments given in the BAM file. It can
 also provide distributions of certain features across alignments.
 
 Here is an example summary command that reports all alignments:
 ~~~
-msamtools summary sample1.IGC.bam
+mani@host:~/src/git/msamtools> ./msamtools summary input.bam | head
+ERR688505.1_FCD1R4CACXX:7:1101:1787:2090#CAGCGGCG       93      MH0153_GL0123525        93      93      100.0
+ERR688505.1_FCD1R4CACXX:7:1101:1787:2090#CAGCGGCG       73      MH0153_GL0123525        73      73      100.0
+ERR688505.2_FCD1R4CACXX:7:1101:1892:2123#CAGCGGCG       93      MH0455_GL0055430        93      93      100.0
+ERR688505.2_FCD1R4CACXX:7:1101:1892:2123#CAGCGGCG       89      MH0060_GL0037700        89      60      67.4
+ERR688505.3_FCD1R4CACXX:7:1101:1752:2179#CAGCGGCN       92      O2.UC22-2_GL0054026     92      33      35.9
+ERR688505.3_FCD1R4CACXX:7:1101:1752:2179#CAGCGGCN       92      O2.UC22-2_GL0054026     92      92      100.0
+ERR688505.4_FCD1R4CACXX:7:1101:1788:2199#CAGCGGCG       93      MH0204_GL0114410        93      91      97.8
+ERR688505.4_FCD1R4CACXX:7:1101:1788:2199#CAGCGGCG       62      MH0204_GL0114410        62      62      100.0
+ERR688505.5_FCD1R4CACXX:7:1101:1765:2211#CAGCGGCN       91      MH0188_GL0130879        91      91      100.0
+ERR688505.5_FCD1R4CACXX:7:1101:1765:2211#CAGCGGCN       78      MH0188_GL0130879        78      78      100.0
+
 ~~~
 
 Here is another example summary command that reports the distribution
-of mapped bases:
+of unmapped bases:
 ~~~
-msamtools summary --stats=mapped sample1.IGC.bam
+mani@host:~/src/git/msamtools> ./msamtools summary --stats=unmapped input.bam
+0       50033
+1       24425
+2       12495
+3       6548
+4       3426
+5       1913
+6       1241
+7       828
+8       609
+9       499
+10      481
+11      432
+12      405
+13      313
+14      327
+15      339
+16      337
+17      318
+18      301
+19      304
+20      285
+21      256
+22      261
+23      279
+24      257
+25      272
+26      269
+27      259
+28      265
+29      243
+30      265
+31      254
+32      241
+33      261
+34      248
+35      220
+36      226
+37      229
+38      258
+39      241
+40      223
+41      239
+42      236
+43      239
+44      236
+45      257
+46      226
+47      229
+48      246
+49      250
+50      205
+51      238
+52      234
+53      200
+54      218
+55      226
+56      227
+57      208
+58      212
+59      195
+60      166
+61      158
+62      167
+63      174
+64      12
+65      11
+66      9
+67      4
+68      6
+69      2
+70      5
+71      3
+72      2
+73      5
+74      1
 ~~~
+It shows that 50033 reads had 0 unmapped bases (meaning full mapping), 24425 reads had 1 unmapped base, etc.
 
 A full description is given below:
 ~~~
