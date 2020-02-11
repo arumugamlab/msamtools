@@ -34,31 +34,31 @@ void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool);
 #define _FILTER_P_NEG(a) (1000*(a->edit - a->length) < a->length*global->PPT)
 #define _FILTER_P(a)     ((global->PPT<0)?_FILTER_P_NEG(a):_FILTER_P_POS(a))
 
-inline int filter_l(mAlignmentSummary* a) {
+static int filter_l(mAlignmentSummary* a) {
 	return _FILTER_L(a); 
 }
 
-inline int filter_p(mAlignmentSummary* a) {
+static int filter_p(mAlignmentSummary* a) {
 	return _FILTER_P(a);
 }
 
-inline int filter_z(mAlignmentSummary* a) {
+static int filter_z(mAlignmentSummary* a) {
 	return _FILTER_Z(a);
 }
 
-inline int filter_lp(mAlignmentSummary* a) {
+static int filter_lp(mAlignmentSummary* a) {
 	return _FILTER_L(a) || _FILTER_P(a);
 }
 
-inline int filter_lz(mAlignmentSummary* a) {
+static int filter_lz(mAlignmentSummary* a) {
 	return _FILTER_L(a) || _FILTER_Z(a);
 }
 
-inline int filter_pz(mAlignmentSummary* a) {
+static int filter_pz(mAlignmentSummary* a) {
 	return _FILTER_P(a) || _FILTER_Z(a);
 }
 
-inline int filter_lpz(mAlignmentSummary* a) {
+static int filter_lpz(mAlignmentSummary* a) {
 	return _FILTER_L(a) || _FILTER_P(a) || _FILTER_Z(a);
 }
 
