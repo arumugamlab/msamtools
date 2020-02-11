@@ -28,11 +28,21 @@ and build the program right away. The following commands were written when
 version 0.9 was the latest, so please update the version number in the
 commands below.
 
+**Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
+not tested as my gcc version is quite outdated with `-std=gnu89` as default.
+This leads to files not compiling when running `make` with new compilers. The
+current fix for using the tarball for version 0.9 is to tell the compiler which
+standard to use, using `CFLAGS="-std=gnu89"`. This extra option is a 
+temporary fix only, and will not be needed in subsequent releases as the code 
+gets upgraded to be compatible with `-std=gnu99`. 
+(Thanks [Russel88](https://github.com/Russel88) for reporting this).
+
 ~~~
-$wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
-$cd msamtools-0.9
-$./configure
-$make
+$ wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
+$ tar xfz msamtools-0.9.tar.gz
+$ cd msamtools-0.9
+$ ./configure
+$ make CFLAGS="-std=gnu89 -O2"
 ~~~
 
 This should create `msamtools` executable amond others.
@@ -58,14 +68,14 @@ You can get a clone of the repository if you wish to keep it up-to-date when
 we release new versions or updates.
 
 ~~~
-$git clone https://github.com/arumugamlab/msamtools.git
+$ git clone https://github.com/arumugamlab/msamtools.git
 Cloning into 'msamtools'...
 remote: Enumerating objects: 41, done.
 remote: Counting objects: 100% (41/41), done.
 remote: Compressing objects: 100% (40/40), done.
 remote: Total 41 (delta 0), reused 37 (delta 0), pack-reused 0
 Unpacking objects: 100% (41/41), done.
-$cd msamtools-master
+$ cd msamtools-master
 ~~~
 
 You can check the contents of the repository in *msamtools* directory.
@@ -74,7 +84,7 @@ You can check the contents of the repository in *msamtools* directory.
 
 You can download the repository's snapshot as on the day of download by:
 ~~~
-$wget https://github.com/arumugamlab/msamtools/archive/master.zip
+$ wget https://github.com/arumugamlab/msamtools/archive/master.zip
 --2020-02-10 16:45:39--  https://github.com/arumugamlab/msamtools/archive/master.zip
 Resolving github.com (github.com)... 140.82.118.4
 Connecting to github.com (github.com)|140.82.118.4|:443... connected.
@@ -88,15 +98,15 @@ Length: unspecified [application/zip]
 Saving to: 'master.zip'
 
     [ <=>                                   ] 55,635       280K/s   in 0.2s
-$unzip master.zip
-$cd msamtools-master
+$ unzip master.zip
+$ cd msamtools-master
 ~~~
 
 ##### 1.2.2. Running autoconf and automake <a name="automake"></a>
 
 You can check the contents of the repository in the package directory.
 ~~~
-$ls
+$ ls
 configure.ac    mBamVector.h    mMatrix.h        msamtools.c  splitSeq.c
 deps            mCommon.c       msam_coverage.c  mSequence.c  versions.txt
 filterSeq.c     mCommon.h       msam_filter.c    mSequence.h  zoeTools.c
