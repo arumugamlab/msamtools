@@ -385,6 +385,7 @@ int generic(int seq_type, int mode, int count, const char* files[], int gzip, in
 				case CLIP:
 					sub = mSubSeq(seq, arg1, seq->length - arg1 - arg2);
 					WRITESEQWIN(stdout, sub);
+					break;
 				case SUBSEQ:
 					sub = mSubSeq(seq, arg1, arg2-arg1+1);
 					WRITESEQWIN(stdout, sub);

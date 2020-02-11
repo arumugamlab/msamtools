@@ -133,10 +133,13 @@ FILE* mInitCompressedOutputStream(const char *filename) {
 	int   *pipe_fd = (int*) mMalloc(2*sizeof(int));
 	FILE  *compressor = NULL;
 
-	pipe(pipe_fd);
+	if (pipe(pipe_fd) == -1) {
+		perror("Error creating compressor using pipe()");
+		exit(1);
+	}
 
 	if ((child = fork()) == -1) {
-		perror("Error creating compressor child");
+		perror("Error creating compressor child using fork()");
 		exit(1);
 	}
 

@@ -82,9 +82,15 @@ void mWriteUIntArrayBinary(FILE *stream, uint32_t size, uint32_t *array) {
 
 void mReadUIntArrayBinary(FILE *stream, uint32_t *size, uint32_t **array) {
 	size_t bit32 = sizeof(uint32_t);
-	fread(size, bit32, 1, stream);
-	*array = (uint32_t*) mMalloc((*size)*bit32);
-	fread(*array, bit32, *size, stream);
+	size_t asize;
+	if (fread(size, bit32, 1, stream) != bit32) {
+		mDie("Could not read the header bytes in mUIntArrayBinary file");
+	}
+	asize = (*size)*bit32;
+	*array = (uint32_t*) mMalloc(asize);
+	if (fread(*array, bit32, *size, stream) != asize) {
+		mDie("Could not read %d bytes in mUIntArrayBinary file", asize);
+	}
 }
 
 /***************************************************** 

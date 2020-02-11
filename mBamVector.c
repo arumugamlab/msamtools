@@ -221,10 +221,14 @@ void bam_get_extended_summary(const bam1_t *b, mAlignmentSummary *summary) {
 				alen  += w;
 				break;
 
-			/* WATCH THE RUN THROUGH - THERE'S NO BREAK HERE FOR EFFICIENCY */
 			/* Insertion in reference */
 			case BAM_CINS:
 				qlen  += w;
+				gapopen++;
+				gapextend += (w-1);
+				alen  += w;
+				break;
+
 			/* Deletion in reference */
 			case BAM_CDEL:
 				gapopen++;

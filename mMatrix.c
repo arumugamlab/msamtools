@@ -290,31 +290,39 @@ void mReadMatrix(FILE *stream, mMatrix *m, int nrows, int ncols) {
 	int i, j;
 	for (i=0; i<nrows; i++) {
 		for (j=0; j<ncols; j++) {
-			fscanf(stream, "%lf", m->elem[i]+j);
+			if (fscanf(stream, "%lf", m->elem[i]+j) == EOF) {
+				perror("mReadMatrix encountered unexpected EOF");
+			}
 		}
 	}
 }
 
-/* label_source&01 == 01 => each row has label for itself, &&10 == 10 => top row has labels for every column */
+/* label_source&01 == 01 => each row has label for itself, label_source&10 == 10 => top row has labels for every column */
 void mReadMatrixWithLabels(FILE *stream, mMatrix *m, int nrows, int ncols, int label_source, mVector *labels) {
 	int i, j;
 	char *label;
 	char *buffer = (char*) mMalloc(64*sizeof(char));
 	if (label_source == 2) {
 		for (i=0; i<ncols; i++) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadMatrixWithLabels encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc(strlen(buffer)*sizeof(char));
 			mPushVector(labels, label);
 		}
 	}
 	for (i=0; i<nrows; i++) {
 		if (label_source == 1) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadMatrixWithLabels encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc(strlen(buffer)*sizeof(char));
 			mPushVector(labels, label);
 		}
 		for (j=0; j<ncols; j++) {
-			fscanf(stream, "%lf", m->elem[i]+j);
+			if (fscanf(stream, "%lf", m->elem[i]+j) == EOF) {
+				perror("mReadMatrixWithLabels encountered unexpected EOF while reading Data");
+			}
 		}
 	}
 	mFree(buffer);
@@ -337,7 +345,9 @@ void mReadRMatrix(FILE *stream, mMatrix *m, int nrows, int ncols, int header, in
 	char *buffer = (char*) mMalloc(128*sizeof(char));
 	if (header == 1) {
 		for (i=0; i<ncols; i++) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadRMatrix encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
 			strcpy(label, buffer);
 			m->col_names[i] = label;
@@ -345,13 +355,17 @@ void mReadRMatrix(FILE *stream, mMatrix *m, int nrows, int ncols, int header, in
 	}
 	for (i=0; i<nrows; i++) {
 		if (row_names == 1) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadRMatrix encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
 			strcpy(label, buffer);
 			m->row_names[i] = label;
 		}
 		for (j=0; j<ncols; j++) {
-			fscanf(stream, "%lf", m->elem[i]+j);
+			if (fscanf(stream, "%lf", m->elem[i]+j) == EOF) {
+				perror("mReadRMatrix encountered unexpected EOF while reading Data");
+			}
 		}
 	}
 	mFree(buffer);
@@ -424,7 +438,9 @@ void mReadRMatrixI(FILE *stream, mMatrixI *m, int nrows, int ncols, int header, 
 	char *buffer = (char*) mMalloc(128*sizeof(char));
 	if (header == 1) {
 		for (i=0; i<ncols; i++) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadRMatrixI encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
 			strcpy(label, buffer);
 			m->col_names[i] = label;
@@ -433,13 +449,17 @@ void mReadRMatrixI(FILE *stream, mMatrixI *m, int nrows, int ncols, int header, 
 	for (i=0; i<nrows; i++) {
 		int *elem = m->elem[i];
 		if (row_names == 1) {
-			fscanf(stream, "%s", buffer);
+			if (fscanf(stream, "%s", buffer) == EOF) {
+				perror("mReadRMatrixI encountered unexpected EOF while reading Labels");
+			}
 			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
 			strcpy(label, buffer);
 			m->row_names[i] = label;
 		}
 		for (j=0; j<ncols; j++) {
-			fscanf(stream, "%d", elem+j);
+			if (fscanf(stream, "%d", elem+j) == EOF) {
+				perror("mReadRMatrixI encountered unexpected EOF while reading Data");
+			}
 		}
 	}
 	mFree(buffer);

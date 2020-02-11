@@ -108,8 +108,8 @@ AC_CANONICAL_HOST
 # 10.11.2019. Removed static builds in linux, so removed -static.
 
 case $host_os in
-   *linux*) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings"]) ;;
-         *) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings"]) ;;
+   *linux*) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"]) ;;
+         *) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"]) ;;
 esac
 
 AC_SUBST([MACHINE_TYPE], [$host_cpu])
