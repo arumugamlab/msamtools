@@ -48,6 +48,8 @@ FILE* mSafeOpenFile(const char *filename, const char *mode, int gzip) {
 	if (strcmp(filename, "-") == 0) {
 		if (gzip == 0 && strcmp(mode, "r") == 0) {
 			stream = stdin;
+		} else if (gzip == 0 && strcmp(mode, "w") == 0) {
+			stream = stdout;
 		} else {
 			mDie("Cannot open %s for mode %s with gzip=%d", filename, mode, gzip);
 		}
