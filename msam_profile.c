@@ -231,10 +231,13 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	}
 
 	/* normalization factor for length normalization */
+	/* instead of dividing by length every time, we divide once and multiply it every time */
 
 	for (i=0; i<n_targets; i++) {
 		normalize[i] = 1.0f / target_len[i];
 	}
+
+	/* 1. Get abundance based on uniquely mapped reads -- U(i) for each refseq i */
 
 	/* Get insert_counts and length-normalize */
 
@@ -265,32 +268,54 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 			break;
 		}
 
+		/********
+		 * 2. Iteratively adjust U(i) by going through all multi-mappers and sharing them between hits 
+		 ********/
 		case SHARE_PROPORTIONAL: /* Proportional sharing! */ 
 		{
 			int j, k;
 			double *abundance_t_k         = (double*) mMalloc(n_targets*sizeof(double));
 			double *abundance_t_k_minus_1 = (double*) mMalloc(n_targets*sizeof(double));
 
+			/* 2.1. Initialize Abundance at t(k), denoted a(i, k), with U(i): *
+			 *                     a(i, k) = U(i), for each i                 */
+
 			memcpy(abundance_t_k, abundance, n_targets*sizeof(double));
+
+			/* 2.2. Iterate for max 20 times */
+
 			fprintf(stderr, "# Start PropSharing:\n"); 
 			for (k=1; k<20; k++) {
 				double delta = 0;
 				double *increment = (double*) mMalloc(n_targets*sizeof(double));
 
 				for (j=0; j<n_targets; j++) increment[j] = 0.0f;
+
+				/* 2.2.1. In a new iteration, a(i,k-1) <-- a(i,k) */
 				memcpy(abundance_t_k_minus_1, abundance_t_k, n_targets*sizeof(double));
 
+				/* 2.2.2. Go through all multi-mappers */
 				for (j=0; j<multi_mappers->size; j++) {
 					mIVector* multi = (mIVector*) multi_mappers->elem[j];
 					int* elem = multi->elem;
 
+					/* 2.2.2.1. Get S = Sigma{ a(i,k) } for all the hits of this multimapper */
 					double sum = 0;
 					for (i=0; i<multi->size; i++) {
 						sum += abundance_t_k[elem[i]];
 					}
-					if (sum != 0) {
+
+					/* 2.2.2.2. Share this multi-mapper proportionately according to a(i,k)/S
+					 *          Let F(i) = Fraction(read belonging to refseq i)
+					 *          It will depend on the abundance of i, and also its length
+					 *                      a(i)            1
+					 *          F(i) =  -------------  x  ------
+					 *                  Sigma{ a(i) }     len(i)
+					 */
+					if (sum > 0) {
 						for (i=0; i<multi->size; i++) {
 							/* Division is to get the weighted fraction. Length-normalization is done by multiplying */
+							/* delta(i) += a_t(k) / Sigma(a_t(k)) / */
 							increment[elem[i]] += (normalize[elem[i]] * abundance_t_k[elem[i]] / sum);
 						}
 					} else {
@@ -343,7 +368,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 int mCompareTemplate(const void *a, const void *b) {
 	const int *ia = (const int *)a;
 	const int *ib = (const int *)b;
-	int ret = strcmp(global->header->target_name[*ia],global->header->target_name[*ib]);
+	int ret = strcmp(global->header->target_name[*ia], global->header->target_name[*ib]);
 	return ret;
 }
 
@@ -390,12 +415,11 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	char             outfile[256];
 	const char      *infile;
-	char            *headerfile = NULL;
 	const char      *inmode;
 	samfile_t       *input  = NULL;
 	mMatrix         *abundance;
 	int              share_type = -1;
-	int              total_inserts = 0;
+	int              total_inserts = -1;
 	int              mapped_inserts = 0;
 	int              this_sample = 0; /* index of this sample in the matrix is 0 */
 
@@ -535,15 +559,11 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	inmode = M_INPUT_MODE(arg_samin);
 
-	/* Init() */
-
-	mHeaderCheck(arg_samfile->count, arg_samfile->filename, inmode);
-
 	/* General operations */
 
 	infile = arg_samfile->filename[0];
 	fprintf(stderr, "%s\n", infile);
-	input = mOpenSamFile(infile, inmode, headerfile);
+	input = mOpenSamFile(infile, inmode, NULL);
 	strcpy(outfile, arg_out->sval[0]);
 	global->header = input->header;
 
@@ -578,6 +598,11 @@ int msam_profile_main(int argc, char* argv[]) {
 	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type); /* Normalize for sequence length and make abundance */
 
 	/* Introduce unmapped if necessary */
+
+	if (total_inserts > 0 && total_inserts < mapped_inserts) {
+		fprintf(stderr, "# Ignoring 'unknown' fraction, as total inserts (%d) < mapped inserts (%d)!\n", total_inserts, mapped_inserts);
+		total_inserts = -1;
+	}
 
 	if (total_inserts > 0) {
 		int       i;
