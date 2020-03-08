@@ -6,13 +6,16 @@ or metatranscriptomics data.
 
 # Table of Contents
  1. [Installation](#installation)   
-  1.1. [For normal users](#normal-users)   
-  1.2. [For advanced users](#advanced-users)   
-   1.2.1. [Getting the source code](#source-code)   
-    1.2.1.1. [Cloning the git repository](#git-clone)   
-    1.2.1.2. [Downloading the ZIP file from github](#git-zip)   
-    1.2.2. [Running autoconf and automake](#automake)   
-    1.2.3. [Building the program](#build)   
+  1.1. [System requirements](#sys-requirements)   
+   1.1.1. [External packages](#required-packages)   
+   1.1.2. [Required tools](#required-tools)   
+  1.2. [For normal users](#normal-users)   
+  1.3. [For advanced users](#advanced-users)   
+   1.3.1. [Getting the source code](#source-code)   
+    1.3.1.1. [Cloning the git repository](#git-clone)   
+    1.3.1.2. [Downloading the ZIP file from github](#git-zip)   
+    1.3.2. [Running autoconf and automake](#automake)   
+    1.3.3. [Building the program](#build)   
  2. [msamtools](#msamtools)   
  3. [msamtools filter](#msamtools-filter)   
  4. [msamtools profile](#msamtools-profile)   
@@ -21,7 +24,39 @@ or metatranscriptomics data.
  6. [msamtools summary](#msamtools-summary)   
 ## 1. Installation <a name="installation"></a>
 
-### 1.1. For normal users <a name="normal-users"></a>
+### 1.1. System requirements <a name="sys-requirements"></a>
+
+You should be able to use **msamtools** on any flavor of linux and UNIX. 
+Although I have not tested it, it should also work on macOS. **msamtools** has
+two dependencies (argtable2 and samtools), which it will automatically 
+download and build. These two packages have their own requirements even though
+I have tuned their configurations to a minimum. 
+
+#### 1.1.1. External packages <a name="required-packages"></a>
+
+The following packages are required to build **msamtools**:
+
+ 1. **zlib** development version
+ 2. **curses** development version (required by samtools)
+
+Please make sure that these are installed in your system before trying to 
+build.
+
+#### 1.1.2. Required tools <a name="required-tools"></a>
+
+While building **msamtools**, you will need some standard tools that are 
+most likely installed in your system by default. I will still list them here
+anyway to be sure:
+
+ 1. gcc
+ 2. gzip
+ 3. tar
+ 4. wget
+
+If any of these is missing in your system, or cannot be found in your 
+application path, please fix that first.
+
+### 1.2. For normal users <a name="normal-users"></a>
 
 If you are a normal user, then the easiest way is to obtain the package file
 and build the program right away. The following commands were written when
@@ -38,16 +73,16 @@ gets upgraded to be compatible with `-std=gnu99`.
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ~~~
-$ wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
-$ tar xfz msamtools-0.9.tar.gz
-$ cd msamtools-0.9
-$ ./configure
-$ make CFLAGS="-std=gnu89 -O2"
+wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
+tar xfz msamtools-0.9.tar.gz
+cd msamtools-0.9
+./configure
+make CFLAGS="-std=gnu89 -O2"
 ~~~
 
 This should create `msamtools` executable amond others.
 
-### 1.2. For advanced users <a name="advanced-users"></a>
+### 1.3. For advanced users <a name="advanced-users"></a>
 
 If you are an advanced user who would like to contribute to the code base
 or if you just like to do things the hard way, you can check out the source
@@ -55,14 +90,14 @@ code and build the program in a series of steps involving `autoconf` and
 `automake`. If these names confuse you or scare you, then please follow the
 instructions for [normal users](#normal-users).
 
-#### 1.2.1. Getting the source code <a name="source-code"></a>
+#### 1.3.1. Getting the source code <a name="source-code"></a>
 
 You can get **msamtools** code from github at 
 <https://github.com/arumugamlab/msamtools>. 
 You can either `git clone` it or download the ZIP file and extract the 
 package.
 
-##### 1.2.1.1. Cloning the git repository <a name="git-clone"></a>
+##### 1.3.1.1. Cloning the git repository <a name="git-clone"></a>
 
 You can get a clone of the repository if you wish to keep it up-to-date when
 we release new versions or updates.
@@ -80,7 +115,7 @@ $ cd msamtools-master
 
 You can check the contents of the repository in *msamtools* directory.
 
-##### 1.2.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
+##### 1.3.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
 
 You can download the repository's snapshot as on the day of download by:
 ~~~
@@ -102,7 +137,7 @@ $ unzip master.zip
 $ cd msamtools-master
 ~~~
 
-##### 1.2.2. Running autoconf and automake <a name="automake"></a>
+##### 1.3.2. Running autoconf and automake <a name="automake"></a>
 
 You can check the contents of the repository in the package directory.
 ~~~
@@ -126,7 +161,7 @@ mkdir build-aux
 automake --add-missing
 ~~~
 
-##### 1.2.3. Building the program <a name="build"></a>
+##### 1.3.3. Building the program <a name="build"></a>
 
 You can then build msamtools as follows:
 ~~~
@@ -331,7 +366,7 @@ lines=$(zcat sample1.1.fq.gz | wc -l)
 entries=$(expr $lines / 4)   # There are 4 lines per entry
 
  # Use total reads in profiler
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z--total=$entries -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z --total=$entries -
 ~~~
 
 A full description is given below:
