@@ -60,6 +60,7 @@ void  mFreeOutputStream(FILE *output, int gzip);
 #define M_INPUT_MODE(arg_samin) ((arg_samin->count == 0)?"rb":"r")
 
 void mPrintHelp (const char *subprogram, void **argtable);
+void mPrintCommandLine(FILE *output, int argc, char *argv[]);
 
 /* Main functions for the subprograms */
 

@@ -5,8 +5,17 @@ void mInitGlobal() {
 	global->MIN_LENGTH = 0;
 	global->PPT = 0;
 	global->MAX_CLIP = 0;
-	global->header = NULL;
 	global->multiple_input = 0;
+
+	/* Init all pointers to NULL */
+	global->header = NULL;
+	global->f_coverage = NULL;
+	global->seq_touched = NULL;
+	global->ui_insert_count = NULL;
+	global->d_insert_count = NULL;
+	global->multi_mappers = NULL;
+	global->ub_target_hit = NULL;
+	global->pipe_fd = NULL;
 }
 
 void mFreeGlobal() {
@@ -31,6 +40,17 @@ void mPrintHelp (const char *subprogram, void **argtable) {
 				"These options specify the input/output formats of BAM/SAM files \n"
 				"(same meaning as in 'samtools view'):\n");
 	arg_print_glossary(stdout, argtable, "  %-25s %s\n");
+}
+
+void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
+	int i;
+	if (strlen(BUILD) > 0)
+		fprintf(output, "# %s version %s build %s\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
+	else
+		fprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	fprintf(output, "# Command: msamtools");
+	for (i=0; i<argc; i++) fprintf(output, " %s", argv[i]);
+	fprintf(output, "\n");
 }
 
 void mMultipleFileError(const char *subprogram, void **argtable) {
@@ -135,12 +155,12 @@ FILE* mInitCompressedOutputStream(const char *filename) {
 
 	if (pipe(pipe_fd) == -1) {
 		perror("Error creating compressor using pipe()");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	if ((child = fork()) == -1) {
 		perror("Error creating compressor child using fork()");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	if (child == 0) { /* Child will read in 'reader' and exit when it gets EOF */
@@ -153,7 +173,10 @@ FILE* mInitCompressedOutputStream(const char *filename) {
 		fclose(reader);
 		fclose(outstream);
 
-		exit(0);
+		mFree(pipe_fd);
+		mFreeGlobal();
+
+		exit(EXIT_SUCCESS);
 	} 
 
 	/* Parent just moves on */
