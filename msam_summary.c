@@ -15,6 +15,7 @@ void mSummarizeAlignmentsHQ(samfile_t *input, FILE *output) {
 	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
 	char  **target_name = global->header->target_name;
 
+	prev_read[0] = '\0';
 	while (samread(input, b) >= 0) {
 
 		int edit;
@@ -58,6 +59,7 @@ void mSummarizeAlignments_v1(samfile_t *input, FILE *output) {
 	char  **target_name = global->header->target_name;
 	uint32_t *target_len = global->header->target_len;
 
+	prev_read[0] = '\0';
 	while (samread(input, b) >= 0) {
 
 		bam1_core_t *core = &b->core;
@@ -360,7 +362,6 @@ int msam_summary_main(int argc, char* argv[]) {
 	/* General operations */
 
 	infile = arg_samfile->filename[0];
-	fprintf(stderr, "%s\n", infile);
 	input = mOpenSamFile(infile, inmode, headerfile);
 	global->header = input->header;
 

@@ -122,13 +122,13 @@ void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSu
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = NULL;
+	char     *prev_read = (char*) mCalloc(128, sizeof(char));
 
 	/* features to filter on */
 
 	uint8_t  *nm;
 	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
-	uint32_t  prev_flag;
+	uint32_t  prev_flag = 0;
 	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
 
 	/* init pool */
@@ -136,14 +136,15 @@ void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSu
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
 
+	prev_read[0] = '\0';
 	while (samread(input, current) >= 0) {
 		bam1_core_t  core = current->core;
 /*
 fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
 */
-		if ( ( prev_read != NULL) && 
-		     ( (strcmp(bam1_qname(current), prev_read) != 0) || 
-		       (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
+		if ( (prev_read[0] != '\0') && 
+		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
 			writer(output, pool);
@@ -191,7 +192,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 		}
 
 		prev_flag = core.flag;
-		prev_read = bam1_qname(current);
+		strncpy(prev_read, bam1_qname(current), 127);
 
 		/***
 		 * Do I pass the filter? "filter(alignment) == 1" means failed.
@@ -210,6 +211,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 	mFreeBamPool(pool);
 	mFree(pool);
 	mFree(alignment);
+	mFree(prev_read);
 }
 
 void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile_t*, mBamPool*)) {
@@ -219,26 +221,27 @@ void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = NULL;
+	char     *prev_read = (char*) mCalloc(128, sizeof(char));
 
 	/* features to filter on */
 
 	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
-	uint32_t  prev_flag;
+	uint32_t  prev_flag = 0;
 
 	/* init pool */
 
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
 
+	prev_read[0] = '\0';
 	while (samread(input, current) >= 0) {
 		bam1_core_t  core = current->core;
 /*
 fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
 */
-		if ( ( prev_read != NULL) && 
-		     ( (strcmp(bam1_qname(current), prev_read) != 0) || 
-		       (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
+		if ( (prev_read[0] != '\0') && 
+		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
 			writer(output, pool);
@@ -247,11 +250,11 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 		}
 
 		prev_flag = core.flag;
-		prev_read = bam1_qname(current);
+		strncpy(prev_read, bam1_qname(current), 127);
 
 		/* Ignore an unmapped read */
 
-		if (current->core.flag & BAM_FUNMAP)
+		if (core.flag & BAM_FUNMAP)
 			continue;
 
 		current = mAdvanceBamPool(pool);
@@ -259,6 +262,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 	writer(output, pool);
 	mFreeBamPool(pool);
 	mFree(pool);
+	mFree(prev_read);
 }
 
 void mWriteBestHitBamPool(samfile_t *stream, mBamPool *pool) {
@@ -521,7 +525,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	/* General operations */
 
 	infile = arg_samfile->filename[0];
-	fprintf(stderr, "%s\n", infile);
 	input = mOpenSamFile(infile, inmode, NULL);
 	global->header = input->header;
 	output = samopen("-", outmode, global->header);
