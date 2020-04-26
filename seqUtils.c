@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <argtable2.h>
 #include "mSequence.h"
 
@@ -100,25 +101,27 @@ int separate(int seq_type, int count, const char* files[], int gzip, int size) {
 	return 0;
 }
 
-#define LIMIT 5000
+#define LIMIT 50000
 int length_dist(int seq_type, int file_count, const char* files[], int gzip) {
 	mSeq *seq = (mSeq*) mMalloc(sizeof(mSeq));
 	FILE *stream;
 	int i;
-	int counts[LIMIT];
-	int count = 0;
+	int *counts = (int*) mCalloc(LIMIT, sizeof(int));
+	int total_read_count = 0;
 	int status;
-	float cumulative = 0.0;
-	int sum = 0;
-
-	for (i=0; i<LIMIT; i++) counts[i] = 0;
+	int sum_reads = 0;
+	long sum_bases = 0;
 
 	seq->type = seq_type;
 	for (i=0; i<file_count; i++) {
 		stream = mSafeOpenFile(files[i], "r", gzip);
 		while((status = mReadSeq(stream, seq))) {
-			counts[seq->length]++;
-			count++;
+			if (seq->length < LIMIT) {
+				counts[seq->length]++;
+			} else {
+				counts[LIMIT-1]++;
+			}
+			total_read_count++;
 			if (status == END_OF_STREAM) { /* Last entry */
 				break;
 			}
@@ -129,12 +132,17 @@ int length_dist(int seq_type, int file_count, const char* files[], int gzip) {
 	mFree(seq);
 
 	for (i=0; i<LIMIT; i++) {
-		float this = 1.0*counts[i]/count;
-		cumulative += this;
-		sum += (counts[i]*i);
-		if (counts[i] > 0) printf("%d\t%d\t%.6f\t%.6f\n", i, counts[i], this, cumulative);
+		if (counts[i] > 0) {
+			float cumulative;
+			sum_reads += counts[i];
+			cumulative = 1.0*sum_reads/total_read_count;
+			sum_bases += 1L*i* counts[i];
+			printf("%d\t%d\t%.6f\t%.6f\t%.6f\n", i, counts[i], 1.0*counts[i]/total_read_count, cumulative, 1-cumulative);
+		}
 	}
-	printf("Total\t%d\n", sum);
+	printf("# Total reads:\t%d\n", total_read_count);
+	printf("# Total bases:\t%ld\n", sum_bases);
+	mFree(counts);
 	exit(0);
 }
 
@@ -329,15 +337,15 @@ int generic(int seq_type, int mode, int count, const char* files[], int gzip, in
 	mSeq *sub = (mSeq*) mMalloc(sizeof(mSeq));
 	FILE *stream;
 	int i;
-	int j;
 	int status;
 	char *new_header;
 
 	seq->type = seq_type;
 
 	for (i=0; i<count; i++) {
+		int j = 0;
+		char *sdef = (char*) mMalloc(LINE_MAX*sizeof(char));
 		stream = mSafeOpenFile(files[i], "r", gzip);
-		j = 0;
 		while((status = mReadSeq(stream, seq))) {
 			j++;
 			switch(mode) {
@@ -350,6 +358,9 @@ int generic(int seq_type, int mode, int count, const char* files[], int gzip, in
 					break;
 				case REVCOMP:
 					mReverseComplementSeq(seq);
+					mGetFirstWord(seq->def, sdef);
+					strcat(sdef, "_rc");
+					strcpy(seq->def, sdef);
 					WRITESEQWIN(stdout, seq);
 					break;
 				case TRIM:
@@ -373,7 +384,8 @@ int generic(int seq_type, int mode, int count, const char* files[], int gzip, in
 					}
 					break;
 				case LENGTH:
-					fprintf(stdout, "%s\t%ld\n", seq->def, seq->length);
+					mGetFirstWord(seq->def, sdef);
+					fprintf(stdout, "%s\t%ld\n", sdef, seq->length);
 					break;
 				case LENGTHNOGAP:
 					mDnaCalculateStats(seq);
@@ -401,6 +413,7 @@ int generic(int seq_type, int mode, int count, const char* files[], int gzip, in
 			}
 		}
 		mSafeCloseFile(stream, gzip);
+		mFree(sdef);
 	}
 	mFree(sub);
 	mFree(seq);
