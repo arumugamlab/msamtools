@@ -1,13 +1,18 @@
 #include "msam.h"
 
-#define ADD_ALL (1)
-#define SHARE_EQUAL (2)
-#define SHARE_PROPORTIONAL (3)
+#define MULTI_ADD_ALL (1)
+#define MULTI_SHARE_EQUAL (2)
+#define MULTI_SHARE_PROPORTIONAL (3)
+
+#define UNIT_REL (1)
+#define UNIT_FPKM (2)
+#define UNIT_TPM (3)
+#define UNIT_ABN (4)
 
 void mInitInsertCounts(int share_type);
 int  mEstimateInsertCountOnFile(samfile_t *input, int share_type);
 void mWriteCompressedSeqAbundance();
-mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type);
+mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type, int length_normalize);
 
 void mInitInsertCounts(int share_type) {
 	int n_targets  = global->header->n_targets;
@@ -15,21 +20,21 @@ void mInitInsertCounts(int share_type) {
 	global->ui_insert_count = (uint32_t*) mCalloc(n_targets, sizeof(uint32_t));
 	global->ub_target_hit   = (uint8_t*) mCalloc(n_targets, sizeof(uint8_t));
 
-	if (share_type == SHARE_EQUAL) {
+	if (share_type == MULTI_SHARE_EQUAL) {
 		int i;
 		double *f = (double*) mMalloc(n_targets*sizeof(double));
 		for (i=0; i<n_targets; i++) f[i] = 0.0f;
 		global->d_insert_count = f;
 	}
 
-	if (share_type == SHARE_PROPORTIONAL) {
+	if (share_type == MULTI_SHARE_PROPORTIONAL) {
 		global->multi_mappers = (mVector*) mMalloc(sizeof(mVector));
 		mInitVector(global->multi_mappers, 65536);
 	}
 }
 
 void mFreeInsertCounts(int share_type) {
-	if (share_type == SHARE_PROPORTIONAL) {
+	if (share_type == MULTI_SHARE_PROPORTIONAL) {
 		int i;
 		mVector *mm = global->multi_mappers;
 		for (i=0; i<mm->size; i++) {
@@ -41,7 +46,7 @@ void mFreeInsertCounts(int share_type) {
 		mFree(mm);
 	}
 
-	if (share_type == SHARE_EQUAL) {
+	if (share_type == MULTI_SHARE_EQUAL) {
 		mFree(global->d_insert_count);
 	}
 
@@ -77,20 +82,20 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 			/* If we are here, tid0 and tid1 are different, so multi-mappers */
 	/* TO DO: Should I differentiate between mate-types? Probably not! */
 			switch(share_type) {
-				case ADD_ALL:     /* For 2 distinct hits, SHARE_EQUAL adds 1 to each independent of mate status */
+				case MULTI_ADD_ALL:     /* For 2 distinct hits, MULTI_ADD_ALL adds 2 to each independent of mate status */
 					global->ui_insert_count[tid0]+=2;
 					global->ui_insert_count[tid1]+=2;
 					break;
-				case SHARE_EQUAL:     /* For 2 distinct hits, SHARE_EQUAL adds 1 to each independent of mate status */
+				case MULTI_SHARE_EQUAL:     /* For 2 distinct hits, MULTI_SHARE_EQUAL adds 1 to each independent of mate status */
 					global->ui_insert_count[tid0]++;
 					global->ui_insert_count[tid1]++;
 					break;
-				case SHARE_PROPORTIONAL:
+				case MULTI_SHARE_PROPORTIONAL:
 				{
 					int fmate = (BAM_FREAD1 | BAM_FREAD2); /* Test which mates are these, so capture these two flags */
 					int mate1 = elem[0]->core.flag & fmate;
 					int mate2 = elem[1]->core.flag & fmate;
-					if (mate1 != mate2) { /* Unique    : Mate-pairs, so this is still unique. Add 1 each for SHARE_PROPORTIONAL and SHARE_EQUAL*/
+					if (mate1 != mate2) { /* Unique    : Mate-pairs, so this is still unique. Add 1 each for MULTI_SHARE_PROPORTIONAL and MULTI_SHARE_EQUAL*/
 						global->ui_insert_count[tid0]++;
 						global->ui_insert_count[tid1]++;
 					} else {              /* Non-unique: Same read twice; works also for mate1=mate2=0 when mapped in unpaired mode */
@@ -113,6 +118,8 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 		{
 			uint8_t  *ub_target_hit = global->ub_target_hit;
 			mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
+
+			/* Make a list of all targets hit by this insert */
 			mInitIVector(mappers, size);
 			for (i=0; i<size; i++) {
 				int tid = elem[i]->core.tid;
@@ -121,23 +128,25 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 					ub_target_hit[tid] = 1;
 				}
 			}
+
+			/* Share or add the value 1 (for d_insert_count) or 2 (for ui_insert_count) across all mappers depending on the share type */
 			switch(share_type) {
-				case ADD_ALL:
+				case MULTI_ADD_ALL:
 					for (i=0; i<mappers->size; i++) {
 						global->ui_insert_count[mappers->elem[i]] += 2;
 					}
 					break;
 
-				case SHARE_EQUAL:
+				case MULTI_SHARE_EQUAL:
 				{
-					double share = 1.0f/mappers->size;
+					double share = 1.0/mappers->size;
 					for (i=0; i<mappers->size; i++) {
 						global->d_insert_count[mappers->elem[i]] += share;
 					}
 					break;
 				}
 
-				case SHARE_PROPORTIONAL:
+				case MULTI_SHARE_PROPORTIONAL:
 					mPushVector(global->multi_mappers, mappers);
 					break;
 
@@ -150,7 +159,7 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 			for (i=0; i<mappers->size; i++) ub_target_hit[mappers->elem[i]] = 0;
 
 			/* Free mappers IVector */
-			if (share_type != SHARE_PROPORTIONAL) { /* For SHARE_PROPORTIONAL, will be freed by main */
+			if (share_type != MULTI_SHARE_PROPORTIONAL) { /* For MULTI_SHARE_PROPORTIONAL, will be freed by main */
 				mFreeIVector(mappers);
 				mFree(mappers);
 			}
@@ -166,22 +175,29 @@ int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
 	uint32_t  insert_count = 0;
 
 	bam1_t   *current;
-	bam1_t   *prev         = NULL;
-	mBamPool *pool         = (mBamPool*) mCalloc(1, sizeof(mBamPool));
+	mBamPool *pool      = (mBamPool*) mCalloc(1, sizeof(mBamPool));
+	char     *prev_read = (char*) mCalloc(128, sizeof(char));
 
 	/* init pool */
 
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
 
+	/* In all other apps we also differentiate between mate-pairs. */
+	/* But here, mate-pairs are considered together as inserts.    */
+	/* So no need to check for mate-pair differences. Only qnames. */
+	prev_read[0] = '\0';
 	while (samread(input, current) >= 0) {
-		if (prev != NULL && (bam1_templatecmp(current, prev) != 0)) {
+		if (current->core.tid == -1) {
+			continue;
+		}
+		if ( prev_read[0] != '\0' && strcmp(bam1_qname(current), prev_read) != 0) {
 			mEstimateInsertCountOnPool(pool, share_type);
 			mReOriginateBamPool(pool);
 			current = pool_current(pool);
 			insert_count++;
 		}
-		prev    = current;
+		strncpy(prev_read, bam1_qname(current), 127);
 		current = mAdvanceBamPool(pool);
 	}
 	mEstimateInsertCountOnPool(pool, share_type);
@@ -189,14 +205,14 @@ int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
 
 	mFreeBamPool(pool);
 	mFree(pool);
-	/*fprintf(stderr, "Insert Count=%d\n", insert_count);*/
+	mFree(prev_read);
 	return insert_count;
 }
 
 /* We will always reserve the first column in abundance for unmapped.
  * For normal calculations to work properly, array will be hacked 
  * so that 0th element is a real sequence by doing ++ on array */
-mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_type) {
+mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_type, int length_normalize) {
 	int        i;
 	int        n_targets       = global->header->n_targets;
 	uint32_t  *target_len      = global->header->target_len;
@@ -233,8 +249,14 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	/* normalization factor for length normalization */
 	/* instead of dividing by length every time, we divide once and multiply it every time */
 
-	for (i=0; i<n_targets; i++) {
-		normalize[i] = 1.0f / target_len[i];
+	if (length_normalize == 1) {
+		for (i=0; i<n_targets; i++) {
+			normalize[i] = 1.0 / target_len[i];
+		}
+	} else {
+		for (i=0; i<n_targets; i++) {
+			normalize[i] = 1.0;
+		}
 	}
 
 	/* 1. Get abundance based on uniquely mapped reads -- U(i) for each refseq i */
@@ -243,21 +265,21 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 	for (i=0; i<n_targets; i++) {
 		/* Since we used 2 for each insert, now let us divide by 2 */
-		abundance[i] = 0.5 * ui_insert_count[i] * normalize[i];
+		abundance[i] = 1.0 * ui_insert_count[i] * normalize[i] / 2;
 		/* also reset insert_count so that it can be reused */
 		ui_insert_count[i] = 0;
 	}
 
 	switch(share_type) {
 
-		case ADD_ALL:
+		case MULTI_ADD_ALL:
 			memcpy(m->elem[row], abundance, n_targets*sizeof(double));
 			break;
 
-		case SHARE_EQUAL:
+		case MULTI_SHARE_EQUAL:
 		{
 			double *d_insert_count = global->d_insert_count;
-			/* Add the SHARE_EQUAL double values in the d_insert_count array */
+			/* Add the MULTI_SHARE_EQUAL double values in the d_insert_count array */
 			for (i=0; i<n_targets; i++) {
 				/* Since we used only 1 for each insert in double mode, no need to divide by 2 */
 				abundance[i] += d_insert_count[i] * normalize[i];
@@ -271,7 +293,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 		/********
 		 * 2. Iteratively adjust U(i) by going through all multi-mappers and sharing them between hits 
 		 ********/
-		case SHARE_PROPORTIONAL: /* Proportional sharing! */ 
+		case MULTI_SHARE_PROPORTIONAL: /* Proportional sharing! */ 
 		{
 			int j, k;
 			double *abundance_t_k         = (double*) mMalloc(n_targets*sizeof(double));
@@ -360,6 +382,12 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 			break;
 	}
 
+	/* Unhide the hidden row and set Unknown abundance to 0 */
+	m->elem[row]--;
+	m->col_names--;
+	m->ncols++;
+	m->elem[row][0] = 0.0;
+
 	mFree(abundance);
 	mFree(normalize);
 	return(m);
@@ -418,10 +446,13 @@ int msam_profile_main(int argc, char* argv[]) {
 	const char      *inmode;
 	samfile_t       *input  = NULL;
 	mMatrix         *abundance;
-	int              share_type = -1;
+	int              share_type    = -1;
+	int              unit_type     = -1;
+	int              length_normalize = 1;
 	int              total_inserts = -1;
 	int              mapped_inserts = 0;
 	int              this_sample = 0; /* index of this sample in the matrix is 0 */
+	int              n_targets;
 
 	/* argtable related */
 
@@ -433,8 +464,10 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	struct arg_str  *arg_out;
 	struct arg_str  *arg_label;
-	struct arg_str  *arg_multi;
 	struct arg_int  *arg_total;
+	struct arg_str  *arg_unit;
+	struct arg_lit  *arg_skiplen;
+	struct arg_str  *arg_multi;
 	struct arg_lit  *arg_gzip;
 	int              set_argcount = 0;
 
@@ -455,14 +488,16 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Specific args */
 	arg_out             = arg_str1("o",  NULL,     "<file>", "name of output file (required)");
 	arg_label           = arg_str1(NULL, "label",  NULL,     "label to use for the profile; typically the sample id (required)");
-	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)");
 	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
-	arg_gzip            = arg_lit0("z", "gzip",              "compress output file using gzip (default: false)\n"
+	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
+	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (ab or rel) for sequence length (default: normalize)");
+	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)");
+	arg_gzip            = arg_lit0("z",  "gzip",             "compress output file using gzip (default: false)\n"
                                                                  "\n"
                                                                  "Description\n"
                                                                  "-----------\n"
                                                                  "\n"
-                                                                 "Produces a relative abundance profile of all reference sequences in a BAM file\n"
+                                                                 "Produces an abundance profile of all reference sequences in a BAM file\n"
                                                                  "based on the number of read-pairs (inserts) mapping to each reference sequence.\n"
                                                                  "It can work with genome-scale reference sequences while mapping to a database \n"
                                                                  "of sequenced genomes, but can also work with gene-scale sequences such as in the\n"
@@ -475,7 +510,22 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "If using '-z', output file does NOT automatically get '.gz' extension. This is \n"
                                                                  "up to the user to specify the correct full output file name.\n"
                                                                  "\n"
-                                                                 "Alignment filtering: It expects that every alignment listed is considered \n"
+                                                                 "--total option:      In metagenomics, an unmapped read could still be a valid\n"
+                                                                 "                     sequence, just missing in the database being mapped against.\n"
+                                                                 "                     This is the purpose of the '--total' option to track the\n"
+                                                                 "                     fraction of 'unknown' entities in the sample. If --total\n"
+                                                                 "                     is ignored or specified as --total=0, then tracking the \n"
+                                                                 "                     'unknown' fraction is disabled. However, if the total \n"
+                                                                 "                     sequenced inserts were given, then there will be a new\n"
+                                                                 "                     feature added to denote the 'unknown' fraction.\n"
+                                                                 "Units of abundance:  Currently three different units are available.\n"
+                                                                 "                         'rel': relative abundance\n"
+                                                                 "                        'fpkm': fragments per kilobase of sequence per million reads\n"
+                                                                 "                         'tpm': transcripts per million\n"
+                                                                 "                     If number of reads input to the aligner is given via --total,\n"
+                                                                 "                     fpkm and tpm will behave differently than in RNAseq data,\n"
+                                                                 "                     as there is now a new entity called 'unknown'.\n"
+                                                                 "Alignment filtering: 'profile' expects that every alignment listed is considered \n"
                                                                  "                     valid. For example, if one needs to filter alignments \n"
                                                                  "                     based on alignment length, read length, alignment percent\n"
                                                                  "                     identity, etc, this should have been done prior to \n"
@@ -492,9 +542,9 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                          abundance estimated only based on uniquely\n"
                                                                  "                          mapped reads."
                                                                  );
-	end    = arg_end(9); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
+	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(9, sizeof(void*));
+	argtable = (void**) mCalloc(11, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -505,8 +555,10 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Specific args */
 	argtable[set_argcount++] = arg_out;
 	argtable[set_argcount++] = arg_label;
-	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = arg_total;
+	argtable[set_argcount++] = arg_unit;
+	argtable[set_argcount++] = arg_skiplen;
+	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = arg_gzip;
 	argtable[set_argcount++] = end;
 
@@ -529,8 +581,8 @@ int msam_profile_main(int argc, char* argv[]) {
 
 		/* parse error? */
 		if (nerrors > 0) {
-			arg_print_errors(stderr, end, PROGRAM);
-			fprintf(stderr, "Use --help for usage instructions!\n");
+			arg_print_errors(stdout, end, PROGRAM);
+			fprintf(stdout, "Use --help for usage instructions!\n");
 			mQuit("");
 		}
 
@@ -554,28 +606,30 @@ int msam_profile_main(int argc, char* argv[]) {
 		}
 	}
 
-
 	/* Set input/output modes */
 
 	inmode = M_INPUT_MODE(arg_samin);
 
-	/* General operations */
-
-	infile = arg_samfile->filename[0];
-	fprintf(stderr, "%s\n", infile);
-	input = mOpenSamFile(infile, inmode, NULL);
-	strcpy(outfile, arg_out->sval[0]);
-	global->header = input->header;
-
-	/* Specific operations */
+	/* Set output stream */
+	/* I set this early enough, because gzip output uses a fork/pipe where a child exits. */
+	/* Memory allocated before the fork is all reported as lost. */
+	/* To minimize the reported loss, I now open the output stream as early as possible */
 
 	if (arg_gzip->count > 0) {
 		gzip = 1;
 	}
+	strcpy(outfile, arg_out->sval[0]);
+	output = mInitOutputStream(outfile, gzip);
+
+	infile = arg_samfile->filename[0];
+	input = mOpenSamFile(infile, inmode, NULL);
+	global->header = input->header;
+
+	/* multi-mapper share type */
 
 	share_type = -1;
 	if (arg_multi->count > 0) {
-		/* Check with #defines ADD_ALL=1; SHARE_EQUAL=2; SHARE_PROPORTIONAL=3; */
+		/* Check with #defines MULTI_ADD_ALL=1; MULTI_SHARE_EQUAL=2; MULTI_SHARE_PROPORTIONAL=3; */
 		const char *types[4] = {"", "all", "equal", "proportional"};
 		int         i;
 		for (i=1; i<=3; i++) {
@@ -589,13 +643,42 @@ int msam_profile_main(int argc, char* argv[]) {
 			mDie("Do not understand --multi=%s", arg_multi->sval[0]);
 		}
 	} else {
-		share_type = SHARE_PROPORTIONAL;
+		share_type = MULTI_SHARE_PROPORTIONAL;
 	}
 
+	/* unit of measurement */
+
+	unit_type = -1;
+	if (arg_unit->count > 0) {
+		/* Check with #defines UNIT_REL=1; UNIT_FPKM=2; UNIT_TPM=3; */
+		const char *types[5] = {"", "relative", "fpkm", "tpm", "abundance"};
+		int         i;
+		for (i=1; i<=4; i++) {
+			/* Any prefix of the options will work. Make sure that the options don't share a prefix. */
+			if (strncmp(arg_unit->sval[0], types[i], strlen(arg_unit->sval[0])) == 0) {
+				unit_type = i;
+				break;
+			}
+		}
+		if (unit_type == -1) {
+			mDie("Do not understand --unit=%s", arg_unit->sval[0]);
+		}
+	} else {
+		unit_type = UNIT_REL;
+	}
+
+	/* Should I normalize for length */
+
+	length_normalize = 1;
+	if (unit_type == UNIT_REL || unit_type == UNIT_ABN) {
+		length_normalize = (arg_skiplen->count == 0);
+	}
+		
 	/* Calculate abundance */
+	n_targets = global->header->n_targets;
 	mInitInsertCounts(share_type);
 	mapped_inserts = mEstimateInsertCountOnFile(input, share_type);
-	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type); /* Normalize for sequence length and make abundance */
+	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type, length_normalize); /* Normalize for sequence length and make abundance */
 
 	/* Introduce unmapped if necessary */
 
@@ -604,61 +687,76 @@ int msam_profile_main(int argc, char* argv[]) {
 		total_inserts = -1;
 	}
 
+	/* Print command-line for book-keeping */
+	mPrintCommandLine(output, argc, argv);
+
+	/* Create new feature for 'unknown' if total_inserts is valid */
 	if (total_inserts > 0) {
 		int       i;
 		int       count = 0;
 		uint32_t  sum   = 0;
 
-		int       this_sample = 0; /* This sample is row 0 in matrix */
-		double   *this_elem = abundance->elem[this_sample];
-
+		double   *this_elem  = abundance->elem[this_sample];
 		uint32_t *target_len = global->header->target_len;
-		int       n_targets  = global->header->n_targets;
-
 		int       unmapped   = total_inserts - mapped_inserts;
 		uint32_t  unknown_size;
 
+		/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
 		for (i=0; i<n_targets; i++) {
-			if (this_elem[i] > 0) {
+			if (this_elem[i+1] > 0) {
 				sum += target_len[i];
 				count++;
 			}
 		}
 
-		/* Unhide the hidden row */
-		abundance->elem[this_sample]--;
-		abundance->col_names--;
-		abundance->ncols++;
-
-		unknown_size = sum / count;
-		fprintf(stderr, "# Estimated seq. length for 'Unknown': %dbp\n", unknown_size);
-		abundance->elem[this_sample][0] = 1.0f * unmapped / unknown_size ;
+		if (length_normalize) {
+			unknown_size = sum / count;
+			fprintf(output, "# Estimated seq. length for 'Unknown': %dbp\n", unknown_size);
+			abundance->elem[this_sample][0] = 1.0 * unmapped / unknown_size ;
+		} else {
+			abundance->elem[this_sample][0] = 1.0 * unmapped ;
+		}
 	}
 
-	/* Normalize to relative abundance */
+	switch(unit_type) {
+		case UNIT_FPKM:  /* Convert to FPKM */
+			/* We have fragments divided by seq length */
+			/* So multiply by 1000 to get per kb seq length */
+			/* To get per million reads, divide by total/10^6 */
+			/* Altogether, *10^9/total */
+			if (total_inserts > 0) {
+				mMultiplyMatrixByScalar(abundance, 1.0E9/total_inserts);
+			} else {
+				mMultiplyMatrixByScalar(abundance, 1.0E9/mapped_inserts);
+			}
+			break;
 
-	mRowNormalizeMatrix(abundance);
+		case UNIT_TPM:  /* Normalize to relative abundance and them multiple by 1E06 */
+			mRowNormalizeMatrix(abundance);
+			mMultiplyMatrixByScalar(abundance, 1.0E6);
+			break;
+
+		case UNIT_REL:  /* Normalize abundance to relative abundance */
+			mRowNormalizeMatrix(abundance);
+			break;
+
+		case UNIT_ABN:  /* Do nothing */
+		default:
+			break;
+	}
 
 	/* Write output */
-	output = mInitOutputStream(outfile, gzip);
 	mWriteRMatrixTransposed(output, abundance);
 	mFreeOutputStream(output, gzip);
 
 	/* Wind-up operations */
 
 	mFreeInsertCounts(share_type);
-
-	/* Unhide hidden element, if it is not hidden already */
-	if (total_inserts <= 0) {
-		abundance->elem[this_sample]--; 
-		abundance->col_names--; 
-		abundance->ncols++;
-	}
 	mFreeMatrix(abundance);
 	mFree(abundance);
 
 	samclose(input);
-	arg_freetable(argtable, set_argcount);
+	arg_freetable(argtable, 11);
 	mFree(argtable);
 
 	mFreeGlobal();
