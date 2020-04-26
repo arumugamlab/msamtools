@@ -134,11 +134,20 @@ mMatrix* mMultiplyMatrices(mMatrix *a, mMatrix *b) {
 	return product;
 }
 
-void mDivideMatrixByScalar(mMatrix *m, double n) {
+void mMultiplyMatrixByScalar(mMatrix *m, double d) {
 	int i, j;
 	for (i=0; i<m->nrows; i++) {
 		for (j=0; j<m->ncols; j++) {
-			m->elem[i][j] /= n;
+			m->elem[i][j] *= d;
+		}
+	}
+}
+
+void mDivideMatrixByScalar(mMatrix *m, double d) {
+	int i, j;
+	for (i=0; i<m->nrows; i++) {
+		for (j=0; j<m->ncols; j++) {
+			m->elem[i][j] /= d;
 		}
 	}
 }
@@ -189,10 +198,6 @@ void mLogTransformMatrix(mMatrix *m) {
 			m->elem[i][j] = log(m->elem[i][j]);
 		}
 	}
-}
-
-mMatrix* mMatrixInverse(mMatrix *m) {
-	return m;
 }
 
 /***********
@@ -258,20 +263,6 @@ double mJensenShannonDivergence(mMatrix *a, mMatrix *b) {
 
 double mJensenShannonDistance(mMatrix *a, mMatrix *b) {
 	return sqrt(mJensenShannonDivergence(a, b));
-}
-
-mMatrix* mMahalanobisDistance(mMatrix *a, mMatrix *b, mMatrix *covar) {
-	mMatrix* inv = mMatrixInverse(covar);
-	mMatrix* buf = mSubtractMatrices(a, b);
-	mMatrix* buft = mMatrixTranspose(buf);
-	mMatrix* maha1 = mMultiplyMatrices(buft, inv);
-	mMatrix* maha2 = mMultiplyMatrices(maha1, buf);
-	mFreeMatrix(inv); mFree(inv);
-	mFreeMatrix(buf); mFree(buf);
-	mFreeMatrix(buft); mFree(buft);
-	mFreeMatrix(maha1); mFree(maha1);
-
-	return maha2;
 }
 
 /***********
@@ -426,9 +417,11 @@ void mFreeMatrixI(mMatrixI *m) {
 		mFree(m->elem[i]);
 		mFree(m->row_names[i]);
 	}
+	mFree(m->row_names);
 	for (i=0; i<m->ncols; i++) {
 		mFree(m->col_names[i]);
 	}
+	mFree(m->col_names);
 	mFree(m->elem);
 }
 

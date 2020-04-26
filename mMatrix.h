@@ -26,7 +26,8 @@ void mWriteRMatrixTransposed(FILE *stream, mMatrix *m);
 
 /* destructive - change the matrix that is passed */
 void mAddToMatrix(mMatrix *a, mMatrix *b);
-void mDivideMatrixByScalar(mMatrix *m, double n);
+void mMultiplyMatrixByScalar(mMatrix *m, double d);
+void mDivideMatrixByScalar(mMatrix *m, double d);
 void mZerofyMatrix(mMatrix *m);
 void mFillMatrix(mMatrix *m, double x);
 void mSquareMatrixElements(mMatrix *a);
@@ -40,7 +41,6 @@ mMatrix* mAddMatrices(mMatrix *a, mMatrix *b);
 mMatrix* mSubtractMatrices(mMatrix *a, mMatrix *b);
 mMatrix* mMultiplyMatrices(mMatrix *a, mMatrix *b);
 mMatrix* mMatrixElementsSquared(mMatrix *a);
-mMatrix* mMatrixInverse(mMatrix *m);
 
 /* mMatrixI */
 struct mMatrixI {
@@ -63,7 +63,5 @@ double mEuclideanDistance(mMatrix *a, mMatrix *b);
 double mBinaryEuclideanDistance(mMatrix *a, mMatrix *b);
 double mJensenShannonDistance(mMatrix *a, mMatrix *b);
 double mKullbackLeiblerDivergence(mMatrix *a, mMatrix *b);
-
-mMatrix* mMahalanobisDistance(mMatrix *a, mMatrix *b, mMatrix *covar);
 
 #endif
