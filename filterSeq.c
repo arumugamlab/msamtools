@@ -30,14 +30,14 @@ int main(int argc, char* argv[]) {
 	struct arg_lit  *help;
 	struct arg_end  *end;
 
-	seq_type            = arg_str1("t", "type",   "<string>", "input sequence type or format (fasta|qual|fastq|alpha)");
-	in_file             = arg_str1("i", "input",  "<file>",   "input fasta file");
-	out_file            = arg_str1("o", "output", "<file>",   "output fasta file");
-	list_file           = arg_str1("l", "list",   "<file>",   "file containing list of fasta identifiers");
-	arg_exclude         = arg_lit0("v", "exclude",            "exclude sequences in this list (default is false)");
-	arg_pair            = arg_lit0("p", "paired",             "get both reads from a pair corresponding to the entry; needs pairs to be marked with /1 and /2 (default is false)");
-	arg_gzip            = arg_lit0("z", "gzip",               "compressed input/output using gzip (default is false)");
-	help                = arg_lit0("h", "help",               "print this help and exit");
+	seq_type            = arg_str1("t", "type",   "<string>",       "input sequence type or format (fasta|qual|fastq|alpha)");
+	in_file             = arg_str1("i", "input",  "<file>",         "input fasta file");
+	out_file            = arg_str1("o", "output", "<file>",         "output fasta file");
+	list_file           = arg_str1("l", "list",   "<file>",         "file containing list of fasta identifiers");
+	arg_exclude         = arg_lit0("v", "exclude",                  "exclude sequences in this list (default is false)");
+	arg_pair            = arg_lit0("p", "paired",                   "get both reads from a pair corresponding to the entry; needs pairs to be marked with /1 and /2 (default is false)");
+	arg_gzip            = arg_lit0("z", "gzip",                     "compressed input/output using gzip (default is false)");
+	help                = arg_lit0("h", "help",                     "print this help and exit");
 	end                 = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
 
@@ -87,10 +87,8 @@ int main(int argc, char* argv[]) {
 		mDie("Unknown type %s", seq_type->sval[0]);
 	}
 	
+	/* Make a hash of sequence names from the list file */
 	list_stream = mSafeOpenFile(list_file->sval[0], "r", 0);
-	stream      = mSafeOpenFile(in_file->sval[0], "r", arg_gzip->count > 0);
-	out         = mSafeOpenFile(out_file->sval[0], "w", arg_gzip->count > 0);
-
 	keep = zoeNewHash();
 	key  = (char*) mMalloc(LINE_MAX*sizeof(char));
 	while (fgets(line, LINE_MAX, list_stream) != NULL) {
@@ -110,26 +108,31 @@ int main(int argc, char* argv[]) {
 			zoeSetHash(keep, def, code);
 		}
 	}
+	mSafeCloseFile(list_stream, 0);
 
+	/* Process the input files one by one */
+	out = mSafeOpenFile(out_file->sval[0], "w", arg_gzip->count > 0);
 	seq = (mSeq*) mMalloc(sizeof(mSeq));
 	seq->type = type;
-	while ((status=mReadSeq(stream, seq))) {
-		int  *ptr;
-		if (pair && mGetIlluminaTemplate(seq->def, key)) {
-			ptr = (int*)zoeGetHash(keep, key);
-		} else {
-			mGetFirstWord(seq->def, key);
-			ptr = (int*)zoeGetHash(keep, key);
+	for (i=0; i<in_file->count; i++) {
+		stream = mSafeOpenFile(in_file->sval[i], "r", arg_gzip->count > 0);
+		while ((status=mReadSeq(stream, seq))) {
+			int  *ptr;
+			if (pair && mGetIlluminaTemplate(seq->def, key)) {
+				ptr = (int*)zoeGetHash(keep, key);
+			} else {
+				mGetFirstWord(seq->def, key);
+				ptr = (int*)zoeGetHash(keep, key);
+			}
+			if ((ptr != NULL) != exclude) { 
+				mWriteSeq(out, seq);
+			} else {
+			}
+			mFreeSeq(seq);
+			if (status==END_OF_STREAM) break;
 		}
-		if ((ptr != NULL) != exclude) { 
-			mWriteSeq(out, seq);
-		} else {
-		}
-		mFreeSeq(seq);
-		if (status==END_OF_STREAM) break;
+		mSafeCloseFile(stream, arg_gzip->count > 0);
 	}
-	mSafeCloseFile(list_stream, 0);
-	mSafeCloseFile(stream, arg_gzip->count > 0);
 	mSafeCloseFile(out, arg_gzip->count > 0);
 
 	/* Free memory etc */
