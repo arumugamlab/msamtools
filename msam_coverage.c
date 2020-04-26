@@ -91,21 +91,22 @@ void mEstimateCoverageOnFile(samfile_t *input) {
 
 	int       pool_limit = 64;
 	bam1_t   *current;
-	char     *prev_read = NULL;
-	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
+	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	mBamPool *pool      = (mBamPool*) mCalloc(1, sizeof(mBamPool));
 
 	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
-	uint32_t  prev_flag;
+	uint32_t  prev_flag    = 0;
 
 	/* init pool */
 
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
 
+	prev_read[0] = '\0';
 	while (samread(input, current) >= 0) {
-		if ( ( prev_read != NULL) && 
-		     ( (strcmp(bam1_qname(current), prev_read) != 0) || 
-		       (((current->core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
+		if ( (prev_read[0] != '\0') && 
+		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		      (((current->core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
 			mEstimateCoverageOnPool(pool);
@@ -113,43 +114,66 @@ void mEstimateCoverageOnFile(samfile_t *input) {
 			current = pool_current(pool);
 		}
 		prev_flag = current->core.flag;
-		prev_read = bam1_qname(current);
+		strncpy(prev_read, bam1_qname(current), 127);
 		current   = mAdvanceBamPool(pool);
 	}
 	mEstimateCoverageOnPool(pool);
 	mFreeBamPool(pool);
 	mFree(pool);
-
+	mFree(prev_read);
 }
 
 /* Write compressed coverage data using pipe: child is the compressor */
 
 void mWriteCoverageToStream(FILE* outstream, int skip_uncovered, int wordsize) {
-	int32_t  tlen;
 	int      tid;
 	int      n_targets  = global->header->n_targets;
 	int     *covered    = global->covered;
 	float  **f_coverage = global->f_coverage;
+	char    *s1         = (char*) mMalloc(sizeof(char) * 20);
+	char    *s2;
 
 	for (tid=0; tid<n_targets; tid++) {
-		int32_t i;
-		float sum = 0.0;
+		int32_t  i;
+		float    sum  = 0.0;
+		int32_t  tlen = global->header->target_len[tid];
+		int      integer_length;
 
-		if (skip_uncovered && !covered[tid]) continue;
+		/* If this target is not covered, deal with it */
 
+		if (!covered[tid]) {
+			/*****
+			 * global->f_coverage[tid] will only be initialized if covered[tid]==1.
+			 * We will print 0's for the tlen if skip_uncovered==0, or do nothing if skip_uncovered==1.
+			 */
+			if (!skip_uncovered) {
+				for (i=0; i<tlen-1; i++) {
+					if ((i+1)%wordsize == 0) {
+						fprintf(outstream, "0\n");
+					} else {
+						fprintf(outstream, "0 ");
+					}
+				}
+				fprintf(outstream, "0\n");
+			}
+			continue;
+		}
 
 		/* Write to the given output stream */
+		/* We use 2 decimal precision when the number is not an integer, and thus integer_length+2 for %g */
 
-		tlen = global->header->target_len[tid];
 		fprintf(outstream, ">%s\n", global->header->target_name[tid]);
 		for (i=0; i<tlen-1; i++) {
 			float val = f_coverage[tid][i];
 			sum += val;
 			if (val > 0) {
+				sprintf(s1, "%f", val);
+				s2 = strchr(s1, '.');
+				integer_length = s2 - s1;
 				if ((i+1)%wordsize == 0) {
-					fprintf(outstream, "%.4f\n", val);
+					fprintf(outstream, "%.*g\n", integer_length+2, val);
 				} else {
-					fprintf(outstream, "%.4f ",  val);
+					fprintf(outstream, "%.*g ",  integer_length+2, val);
 				}
 			} else {
 				if ((i+1)%wordsize == 0) {
@@ -159,9 +183,10 @@ void mWriteCoverageToStream(FILE* outstream, int skip_uncovered, int wordsize) {
 				}
 			}
 		}
-		fprintf(outstream, "%.0f\n", f_coverage[tid][tlen-1]);
+		fprintf(outstream, "%.4f\n", f_coverage[tid][tlen-1]);
 		/*fprintf(stderr, "%s\t%f\n", global->header->target_name[tid], sum/tlen);*/
 	}
+	mFree(s1);
 }
 
 #define subprogram "coverage"
@@ -233,7 +258,7 @@ int msam_coverage_main(int argc, char* argv[]) {
                                                                  "If using '-z', output file does NOT automatically get '.gz' extension. This is \n"
                                                                  "up to the user to specify the correct full output file name."
                                                                  );
-	end    = arg_end(8); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
+	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
 	argtable = (void**) mCalloc(8, sizeof(void*));
 
@@ -289,22 +314,23 @@ int msam_coverage_main(int argc, char* argv[]) {
 		mQuit("");
 	}
 
-	/* Set input/output modes */
-
-	inmode = M_INPUT_MODE(arg_samin);
-
-	/* General operations */
-
-	infile = arg_samfile->filename[0];
-	fprintf(stderr, "%s\n", infile);
-	input = mOpenSamFile(infile, inmode, headerfile);
-	global->header = input->header;
+	/* Set output stream */
+	/* I set this early enough, because gzip output uses a fork/pipe where a child exits. */
+	/* Memory allocated before the fork is all reported as lost. */
+	/* To minimize the reported loss, I now open the output stream as early as possible */
 
 	if (arg_gzip->count > 0) {
 		gzip = 1;
 	}
-
 	strcpy(outfile, arg_out->sval[0]);
+	output = mInitOutputStream(outfile, gzip);
+
+	/* Setup input operations */
+
+	inmode = M_INPUT_MODE(arg_samin);
+	infile = arg_samfile->filename[0];
+	input = mOpenSamFile(infile, inmode, headerfile);
+	global->header = input->header;
 
 	if (arg_wordsize->count > 0) {
 		wordsize = arg_wordsize->ival[0];
@@ -317,7 +343,6 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	/* Write output */
 
-	output = mInitOutputStream(outfile, gzip);
 	mWriteCoverageToStream(output, arg_skip_uncovered->count > 0, wordsize);
 	mFreeOutputStream(output, gzip);
 
@@ -325,7 +350,7 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	mFreeCoverage();
 	samclose(input);
-	arg_freetable(argtable, set_argcount);
+	arg_freetable(argtable, 8);
 	mFree(argtable);
 
 	mFreeGlobal();
