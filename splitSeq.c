@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
 	struct arg_lit  *arg_gzip;
 	struct arg_int  *arg_maxlength;
 	struct arg_int  *arg_size;
+	struct arg_lit  *arg_need_qual;
 	struct arg_lit  *help;
 	struct arg_end  *end;
 
@@ -42,15 +43,16 @@ int main(int argc, char* argv[]) {
 									"\tfilesize    : Creates several approximately equal-sized files, \n"
 									"\t              each containing at most <size> bytes.\n"
 									"\t              Files are named <prefix>.<nnn>.fa or such.\n"
-									"\tfastq2fasta : Reads in a fastq file and writes out fasta and quality files.\n"
+									"\tfastq2fasta : Reads in a fastq file and writes out fasta and optionally quality files.\n"
 									"\t              Files are named <prefix>.fa and <prefix>.qual.\n"
+									"\t              Use '-' as prefix to write fasta sequence to stdout.\n"
 									"\t              Assumes that fastq quality scores are in Sanger scale.\n"
 									"Input/output options:\n"
 									"---------------------\n\n"
 									"These options specify the input/output formats of fasta/fastq files:\n");
 	arg_infile          = arg_str1("i", "input",  "<file>",   "input sequence file");
 	arg_type            = arg_str1("t", "type",   "<string>", "input sequence type or format (fasta|qual|fastq)");
-	arg_gzip            = arg_lit0("z", "gzip",               "input is compressed using gzip (default is false)");
+	arg_gzip            = arg_lit0("z", "gzip",               "input is compressed using gzip (default: false)");
 	arg_prefix          = arg_str1("p", "prefix", "<string>", "prefix for output fasta files\n\n"
 									"Mode-specific options:\n"
 									"----------------------\n\n"
@@ -58,12 +60,14 @@ int main(int argc, char* argv[]) {
 	arg_maxlength       = arg_int0(NULL,"max",    "<int>",    "sequences longer than this will be lumped together (default: 100)\n\n"
 									"2. filesize : Creates several files, each containing at most <size>bp of sequence.\n");
 	arg_size            = arg_int0("s", "size",   "<int>",    "number of basepairs (approx.) that will be in each file (default: 1000000)\n\n"
+									"3. fastq2fasta : convert input fastq to fasta/qual files.\n");
+	arg_need_qual       = arg_lit0(NULL,"qual",               "also write a quality file (default: false) "
 									"General options:\n"
 									"----------------\n");
 	help                = arg_lit0("h", "help",               "print this help and exit");
 	end                 = arg_end(10); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable          = (void**) mCalloc(9, sizeof(void*));
+	argtable          = (void**) mCalloc(10, sizeof(void*));
 	argtable[argcount++] = arg_mode;
 	argtable[argcount++] = arg_infile;
 	argtable[argcount++] = arg_type;
@@ -71,6 +75,7 @@ int main(int argc, char* argv[]) {
 	argtable[argcount++] = arg_prefix;
 	argtable[argcount++] = arg_maxlength;
 	argtable[argcount++] = arg_size;
+	argtable[argcount++] = arg_need_qual;
 	argtable[argcount++] = help;
 	argtable[argcount++] = end;
 
@@ -147,17 +152,7 @@ int main(int argc, char* argv[]) {
 	
 	/* open input stream */
 
-	if (arg_gzip->count > 0) {
-		char command[512];
-		sprintf(command, "gzip --stdout --decompress %s", infile);
-		if ((stream = popen(command, "r")) == NULL) {
-			mDie("Cannot open gzipped fasta file %s for reading", infile);
-		}
-	} else {
-		if ((stream = fopen(infile, "r")) == NULL) {
-			mDie("Cannot open fasta file %s for reading", infile);
-		}
-	}
+	stream = mSafeOpenFile(infile, "r", arg_gzip->count > 0);
 
 	seq = (mSeq*) mCalloc(1, sizeof(mSeq));
 	seq->type = type;
@@ -244,32 +239,48 @@ int main(int argc, char* argv[]) {
 		char sname[256];
 		char qname[256];
 		FILE *sout;
-		FILE *qout;
+		FILE *qout = NULL;
 
-		sprintf(sname, "%s.fa", prefix);
-		if ((sout = fopen(sname, "w")) == NULL) {
-			mDie("Cannot open output file %s for writing", sname);
+		if (arg_gzip->count > 0) strcpy(suffix, ".gz");
+		else                     strcpy(suffix, "");
+
+		if (strcmp(prefix, "-") == 0) {
+			strcpy(sname, "-");
+		} else {
+			sprintf(sname, "%s.fa%s", prefix, suffix);
 		}
-		sprintf(qname, "%s.qual", prefix);
-		if ((qout = fopen(qname, "w")) == NULL) {
-			mDie("Cannot open output file %s for writing", qname);
+		sout = mSafeOpenFile(sname, "w", arg_gzip->count > 0);
+		if (arg_need_qual->count > 0) {
+			if (strcmp(prefix, "-") == 0) {
+				mDie("Error: Cannot use - as prefix with --qual", arg_type->sval[0]);
+			}
+			sprintf(qname, "%s.qual%s", prefix, suffix);
+			qout = mSafeOpenFile(qname, "w", arg_gzip->count > 0);
 		}
 
 		while ((status=mReadSeq(stream, seq))) {
+
+			/* Write fasta seq */
 			seq->window = 500; /* line length equal to fastq line length */
 			seq->type = FASTA_DNA;
 			mWriteSeq(sout, seq);
 
-			seq->window = QUAL_WORDS;
-			seq->type = FASTA_QUAL;
-			mWriteHeader(qout, seq, '>');
-			mWriteFixedWordsChar(qout, seq->length, seq->qual, QUAL_WORDS);
+			/* Write qual if needed */
+			if (arg_need_qual->count > 0) {
+				seq->window = QUAL_WORDS;
+				seq->type = FASTA_QUAL;
+				mWriteHeader(qout, seq, '>');
+				mWriteFixedWordsChar(qout, seq->length, seq->qual, QUAL_WORDS);
+			}
+
 			seq->type = FASTQ;
 			mFreeSeq(seq);
 			if (status==END_OF_STREAM) break;
 		}
-		fclose(sout);
-		fclose(qout);
+		mSafeCloseFile(sout, arg_gzip->count > 0);
+		if (arg_need_qual->count > 0) {
+			mSafeCloseFile(qout, arg_gzip->count > 0);
+		}
 	}
 
 	/* close input stream */
