@@ -6,7 +6,7 @@ void mQuit(const char *format, ...) {
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fprintf(stderr, "\n");
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void mWarn(const char *format, ...) {
@@ -27,7 +27,7 @@ void mDie(const char *format, ...) {
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fprintf(stderr, "\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void PROGRESS_PRINT(const char *format, ...) {
@@ -58,7 +58,7 @@ FILE* mSafeOpenFile(const char *filename, const char *mode, int gzip) {
 		if (strcmp(mode, "r") == 0) {
 			sprintf(command, "gzip --stdout --decompress %s", filename);
 		} else if (strcmp(mode, "w") == 0) {
-			sprintf(command, "gzip -2 --stdout > %s", filename);
+			sprintf(command, "gzip -4 --stdout > %s", filename);
 		}
 		if ((stream = popen(command, mode)) == NULL) {
 			mDie("Cannot open gzipped file %s for mode %s", filename, mode);

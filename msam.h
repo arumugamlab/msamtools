@@ -1,6 +1,7 @@
 #ifndef M_SAM_H
 #define M_SAM_H
 
+#include <stdlib.h>
 #include <limits.h>
 #include <argtable2.h>
 #include <regex.h>
