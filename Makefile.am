@@ -1,72 +1,69 @@
-## Process this file with automake to produce Makefile.in
-
+# Version info
 include versions.txt
 
+# We need argtable and samtools dependencies to be built first
 SUBDIRS = deps
 
-# installed programs
-
+# These are the installed programs
 mymaui_PROGRAMS = seqUtils splitSeq filterSeq msamtools
 
+# We will also distribute a README.md markdown file
 EXTRA_DIST = README.md
 
-# figure out where to install the programs
+# Where to install the programs
+mymauidir = $(bindir)
 
-if MULTI_ARCH_SUPPORT
-mymauidir = $(datadir)/$(host)/maui
-else
-mymauidir = $(datadir)/maui
-endif
-
-# not-installed maui library, but its sources should be distributed
+# maui library will be built and not distributed nor installed, 
+# but its sources should be distributed
 
 noinst_LIBRARIES = libmaui.a
-
-# Copy the dependencies from the deps/ directory.
-# The Makefile.am inside deps/ figures out what to do to
-# make sure that these files are available at the top
-# level of deps/ directory. The "SUBDIRS = deps" call
-# will make sure that make is run inside deps/.
-# Here, you just copy it.
-
-argtable_headers = argtable2.h
-
-libargtable2.a $(argtable_headers):
-	@cp deps/$@ .
-
-libbam.a libhts.a:
-	@cp deps/$@ .
-
-mBamVector.c: libbam.a libhts.a
-
-mCommon.c: libargtable2.a $(argtable_headers)
-
-msamtools_DEPENDENCIES  = libargtable2.a $(argtable_headers) libmaui.a libbam.a libhts.a
-dist_libmaui_a_SOURCES  = mCommon.c mCommon.h mDefinitions.h mMatrix.c mMatrix.h mSequence.c mSequence.h mCompress.c mCompress.h zoeTools.c zoeTools.h mBamVector.h mBamVector.c msam.h msam_coverage.c msam_filter.c msam_helper.c msam_profile.c msam_summary.c
+dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
+                         $(srcdir)/mCommon.h \
+                         $(srcdir)/mDefinitions.h \
+                         $(srcdir)/mMatrix.c \
+                         $(srcdir)/mMatrix.h \
+                         $(srcdir)/mSequence.c \
+                         $(srcdir)/mSequence.h \
+                         $(srcdir)/mCompress.c \
+                         $(srcdir)/mCompress.h \
+                         $(srcdir)/zoeTools.c \
+                         $(srcdir)/zoeTools.h \
+                         $(srcdir)/mBamVector.h \
+                         $(srcdir)/mBamVector.c \
+                         $(srcdir)/msam.h \
+                         $(srcdir)/msam_coverage.c \
+                         $(srcdir)/msam_filter.c \
+                         $(srcdir)/msam_helper.c \
+                         $(srcdir)/msam_profile.c \
+                         $(srcdir)/msam_summary.c
 
 # Specify CFLAGS and LDFLAGS
 
-# maui library and argtable are added statically to every program
+# All programs need some include directories. 
+# It's ok to include even useless ones, so be more inclusive here!
+AM_CFLAGS = $(MYCFLAGS) -DBUILD=\"@BUILD@\" -DPROGRAM=\"msamtools\" -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) -I$(builddir)/deps/samtools/samtools-$(samtools_version) 
 
-LDADD = libmaui.a libargtable2.a
+# maui and argtable libraries are added to every program
+LDADD = $(builddir)/libmaui.a \
+        $(builddir)/deps/argtable/libargtable2.a
 
-# bam and hts library are added statically to msamtools
-
-msamtools_LDADD = libmaui.a libargtable2.a libbam.a libhts.a
-AM_CFLAGS = $(MYCFLAGS) -DBUILD=\"@BUILD@\" -DPROGRAM=\"msamtools\" -Ideps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) -Ideps/samtools/samtools-$(samtools_version) 
-
-uninstall-hook:
-	if [ -d $(mymauidir) ]; then rmdir $(mymauidir); fi
+# Additionally, bam and hts libraries are added to msamtools
+msamtools_LDADD = $(builddir)/libmaui.a \
+                  $(builddir)/deps/argtable/libargtable2.a \
+                  $(builddir)/deps/samtools/samtools-$(samtools_version)/libbam.a \
+                  $(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/libhts.a
 
 clean-local:
-	for file in libbam.a libhts.a libargtable2.a $(argtable_headers); do \
+	for file in libmaui.a; do \
 		if [ -f "$$file" ]; then \
 			rm $$file; \
 		fi; \
 	done
 
 maintainer-clean-local:
-	for file in Makefile.in $(argtable_tar_file) $(samtools_tar_file); do \
+	@echo 'This command is intended for maintainers to use; it'
+	@echo 'deletes files that may need special tools to rebuild.'
+	for file in Makefile.in; do \
 		if [ -f "$$file" ]; then \
 			rm $$file; \
 		fi; \

@@ -4,9 +4,9 @@
 
 
 AC_PREREQ(2.62)
-AC_REVISION([$Revision: 1.0 $])
+AC_REVISION([$Revision: 1.1 $])
 AC_COPYRIGHT()
-AC_INIT([msamtools], [0.9], [http://www.arumugamlab.org])
+AC_INIT([msamtools], [0.9.5], [http://www.arumugamlab.org])
 
 # we need the aux_dir for installing config.guess to bin/ later.
 # So store it in a variable now, and use AC_SUBST later
@@ -28,7 +28,6 @@ AC_DEFUN([AS_VAR_APPEND],[as_fn_append $1 $2])])dnl
 
 AM_INIT_AUTOMAKE([-Wall gnu foreign tar-pax])
 
-#######################################################
 #######################################################
 # programs for external file download and installation
 #######################################################
@@ -65,7 +64,9 @@ fi
 AC_ARG_VAR(BUILD, [Build ID for the programs])
 AC_SUBST(BUILD, [$BUILD])
 
+#######################################################
 # programs for installation
+#######################################################
 
 AC_PROG_SED
 AC_PROG_GREP
@@ -75,16 +76,22 @@ AC_PROG_INSTALL
 # C dependencies
 #######################################################
 
+# libz
+
 AC_CHECK_LIB(z, inflate,  [], [zlib_devel=notfound])
 if test "x$zlib_devel" = "xnotfound"; then
     AC_MSG_ERROR([zlib-devel not found])
 fi
+
+# log from libm
 
 AC_SEARCH_LIBS([log], [m], [],
   [AC_MSG_ERROR([log() not found
 
 msamtools requires a working floating-point math library.
 FAILED.  This error must be resolved in order to build msamtools successfully.])])
+
+# pthread for samtools
 
 AC_SEARCH_LIBS([pthread_create], [pthread], [],
   [AC_MSG_ERROR([pthread_create() not found
@@ -93,11 +100,8 @@ msamtools requires a working pthread library.
 FAILED.  This error must be resolved in order to build msamtools successfully.])])
 
 #######################################################
-# multiple architecture support?
-# --enable-multi-arch=yes   installs external software and maui under software_dir/architecture/software
+# Figure out host type
 #######################################################
-
-# figure out host type
 
 # We use AC_CANONICAL_HOST to figure it out.
 # It requires that we distribute config.guess, config.sub and install.sh with the distro.
@@ -116,23 +120,8 @@ AC_SUBST([MACHINE_TYPE], [$host_cpu])
 kernel_name=`uname -s`
 AC_SUBST([KERNEL_NAME], [$kernel_name])
 
-AC_ARG_ENABLE([multi-arch], 
-  [AS_HELP_STRING([--enable-multi-arch=ARG], [add support to multiple architectures in a common installation point @<:@default=no@:>@])],
-  [],
-  [enable_multi_arch=no])
-
-case $enable_multi_arch in
-   yes|no)  AC_SUBST([MULTIARCH], [$enable_multi_arch]);;
-        *)  AC_MSG_ERROR([Unknown option --enable-multi-arch=$enable_multi_arch]);;
-esac
-
-AM_CONDITIONAL([MULTI_ARCH_SUPPORT], [test "x$enable_multi_arch" = "xyes"])
-if test "x$enable_multi_arch" = "xyes"; then
-	SOFTWAREDIR="$datarootdir/$host"
-else
-	SOFTWAREDIR="$datarootdir"
-fi
-AC_SUBST([SOFTWAREDIR], [$SOFTWAREDIR])
+#SOFTWAREDIR="$datarootdir"
+#AC_SUBST([SOFTWAREDIR], [$SOFTWAREDIR])
 
 #######################################################
 # user specified input through environmental variables
@@ -145,7 +134,9 @@ AC_SUBST([SOFTWAREDIR], [$SOFTWAREDIR])
 AC_SUBST([HOST],    [generic])
 AC_SUBST([AUX_DIR], [$aux_files_dir])
 
-# make outputs
+#######################################################
+# Make outputs
+#######################################################
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([deps/Makefile])
@@ -153,15 +144,17 @@ AC_CONFIG_FILES([deps/argtable/Makefile])
 AC_CONFIG_FILES([deps/samtools/Makefile])
 AS_IF([test -f "data/samtools/Makefile"], [rm data/samtools/Makefile])
 
-
 AC_OUTPUT
+
+#######################################################
+# Tell the user you are done!
+#######################################################
 
 echo "
 -------------------------------------------------------------------------------
 msamtools was successfully configured with the following options:
 
    Host type          : $host
-   Multi-architecture : $enable_multi_arch
    Install directory  : $prefix
 
 You can build msamtools executables by typing:
@@ -171,4 +164,7 @@ You can build msamtools executables by typing:
 You can install msamtools now by typing:
 
    make install
+
+This will install the executables in $prefix/bin
+-------------------------------------------------------------------------------
 "
