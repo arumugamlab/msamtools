@@ -1,7 +1,7 @@
 #include <limits.h>
 #include "mSequence.h"
 #include "zoeTools.h"
-#include <argtable2.h>
+#include "argtable2.h"
 
 int main(int argc, char* argv[]) {
 	mSeq   *seq;

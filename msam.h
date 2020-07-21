@@ -3,8 +3,8 @@
 
 #include <stdlib.h>
 #include <limits.h>
-#include <argtable2.h>
 #include <regex.h>
+#include "argtable2.h"
 #include "bam.h"
 #include "sam.h"
 #include "mSequence.h"

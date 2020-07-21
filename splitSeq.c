@@ -1,7 +1,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include "mSequence.h"
-#include <argtable2.h>
+#include "argtable2.h"
 
 #define FILE_SIZE   (1)
 #define SEQ_LENGTH  (2)

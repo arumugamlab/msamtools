@@ -1,5 +1,5 @@
 #include <inttypes.h>
-#include <argtable2.h>
+#include "argtable2.h"
 #include "mSequence.h"
 
 #define REVCOMP  (0)

@@ -41,7 +41,7 @@ dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
 
 # All programs need some include directories. 
 # It's ok to include even useless ones, so be more inclusive here!
-AM_CFLAGS = $(MYCFLAGS) -DBUILD=\"@BUILD@\" -DPROGRAM=\"msamtools\" -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) -I$(builddir)/deps/samtools/samtools-$(samtools_version) 
+AM_CFLAGS = $(MYCFLAGS) -DBUILD=\"@BUILD@\" -DPROGRAM=\"msamtools\" -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) -I$(builddir)/deps/samtools/samtools-$(samtools_version) -I$(builddir)/deps/argtable/argtable2-$(argtable_version)/src
 
 # maui and argtable libraries are added to every program
 LDADD = $(builddir)/libmaui.a \
