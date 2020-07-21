@@ -372,7 +372,7 @@ void mWriteRMatrix(FILE *stream, mMatrix *m) {
 	for (i=0; i<m->nrows; i++) {
 		fprintf(stream, "%s", m->row_names[i]);
 		for (j=0; j<m->ncols; j++) {
-			fprintf(stream, "\t%g", m->elem[i][j]);
+			fprintf(stream, "\t%.8g", m->elem[i][j]);
 		}
 		fprintf(stream, "\n");
 	}
@@ -388,7 +388,7 @@ void mWriteRMatrixTransposed(FILE *stream, mMatrix *m) {
 	for (i=0; i<m->ncols; i++) {
 		fprintf(stream, "%s", m->col_names[i]);
 		for (j=0; j<m->nrows; j++) {
-			fprintf(stream, "\t%g", m->elem[j][i]);
+			fprintf(stream, "\t%.8g", m->elem[j][i]);
 		}
 		fprintf(stream, "\n");
 	}
