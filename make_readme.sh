@@ -219,8 +219,9 @@ Relative abundance of each sequence in the BAM file is reported. Abundance
 of a sequence is estimated as number of inserts (mate-pairs/paired-ends) 
 mapped to that sequence, divided by its length. Reads mapping to multiple 
 sequences can be shared across the sequences in three different ways 
-(please see below).  Finally, relative abundance
-is estimated by normalizing the total abundances across the BAM file.
+(please see below). Finally, abundance is estimated in one of four units:
+abundance (ab), relative abundance (rel), fragments per kilobase of sequence per million reads (fpkm),
+or transcripts per million (tpm). 
 
 We highly recommend that you filter the alignments before sending to the
 **profile** program, as it considers each alignment to be important (it 
@@ -229,7 +230,7 @@ does not look at alignment quality, for example).
 Here is an example profiling command one would use after mapping metagenomic
 reads to IGC.
 ~~~
-msamtools profile --multi=proportional --label=sample1 -z -o sample1.IGC.profile.txt.gz sample1.IGC.filtered.bam
+msamtools profile --multi=proportional --label=sample1 --unit=rel -z -o sample1.IGC.profile.txt.gz sample1.IGC.filtered.bam
 ~~~
 The above command estimates relative abundance of IGC genes after sharing
 multi-mapper reads proportionately between the genes (see below).
@@ -238,12 +239,27 @@ In the spirit of **samtools** programs, **msamtools** programs can also
 stream between each other. Therefore, a single command to **filter** and **profile** 
 would look like:
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel -z -o sample1.IGC.profile.txt.gz -
 ~~~
 
-### 4.1. Keeping track of unmapped reads <a name="track-unmapped"></a>
+### 4.1. Units of abundance <a name="abundance-units"></a>
 
-By default, **profile** command will generate relative abundances that sum to \`100%\` or \`1\` 
+By default, **profile** command will generate relative abundances that sum to or \`1\` 
+across the sequences in the BAM file. Four options to measure
+the abundance are available:
+*  **ab** - number of inserts mapped to the sequence
+*  **rel** - relative abundance, which is **ab** normalized by sum
+* **fpkm** - fragments per kilobase of sequence per million reads
+* **tpm** - transcripts per million
+
+An optional \`--nolen\` flag turns off sequence length correction for ab and rel.
+When combining \`--unit=ab --nolen\`, you get the raw number of inserts mapped
+to each sequence, and summing them up will match the total number of inserts in
+the BAM file (or what was passed via \`--total\`).
+
+### 4.2. Keeping track of unmapped reads <a name="track-unmapped"></a>
+
+By default, **profile** command will generate relative abundances that sum to \`1\` 
 across the sequences in the BAM file. In metagenomic data, sometimes we need
 to identify the fraction of the reads that were not mapped to our database
 and only assign the remaining fraction to the sequences in the BAM file.
@@ -292,11 +308,40 @@ it in the profiling stage.
 ~~~
  # Get number of entries in the fwd fastq file = number of inserts
 lines=\$(zcat sample1.1.fq.gz | wc -l)
-entries=\$(expr \$lines / 4)   # There are 4 lines per entry
+entries=\$(expr \$lines / 4)   # There are 4 lines per fastq entry
 
  # Use total reads in profiler
 msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z --total=\$entries -
 ~~~
+
+### 4.3. Useful information in the output file <a name="profile-output"></a>
+
+The header section of the output file includes a few lines of comment that 
+are hopefully useful. Here is an example:
+
+~~~
+# msamtools version 0.9.5
+# Command: msamtools profile --label test --unit rel --multi prop --total 3519692 --gzip -o test.profile.txt test.bam 
+#   Total inserts: 3519692
+#  Mapped inserts: 334063
+# Mapped fraction: 0.0949
+# Estimated seq. length for 'Unknown': 6234bp
+001-02
+Unknown 0.809179
+001-02_NODE_90_length_5676_cov_189.052854_circular_reoriented   0.0109423
+001-04_NODE_36_length_4618_cov_68.000866_circular_reoriented    0
+...
+~~~
+
+The commented lines are self-explanatory, and could be useful in getting 
+quick summary of the profiling process. Since length-normalization is not
+turned off, the average sequence length for the entire database is used
+as a proxy sequence length for the "Unknown" fraction.
+
+The first line includes the name of the sample provided via \`--label\`. 
+This is for conveniently combining output from multiple files. A script that
+combines output does not need external information to create a table with the
+right sample name in a row/column.
 
 A full description is given below:
 ~~~
