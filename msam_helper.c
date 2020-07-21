@@ -14,6 +14,8 @@ void mInitGlobal() {
 	global->ui_insert_count = NULL;
 	global->d_insert_count = NULL;
 	global->multi_mappers = NULL;
+	global->multi_mapper_count = 0;
+	global->uniq_mapper_count = 0;
 	global->ub_target_hit = NULL;
 	global->pipe_fd = NULL;
 }

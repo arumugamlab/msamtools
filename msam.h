@@ -23,6 +23,8 @@ struct msam_global {
 	int          **seq_touched;      /* part of the sequence that is covered */
 
 	/* PROFILE */
+	uint32_t       uniq_mapper_count;
+	uint32_t       multi_mapper_count;
 	uint32_t      *ui_insert_count;
 	double        *d_insert_count;
 	mVector       *multi_mappers;    /* A vector of integer vectors */

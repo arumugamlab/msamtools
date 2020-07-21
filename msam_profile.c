@@ -67,6 +67,7 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 	switch(size) {
 		case 1: /* With one hit, you got to be unique hit, so add 2 no matter what share_type */
 			global->ui_insert_count[elem[0]->core.tid] += 2;
+			global->uniq_mapper_count++;
 			return;
 
 		case 2: /* could be 2 mate-pairs, or 1 mate mapped twice*/
@@ -76,11 +77,13 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 
 			if (tid0 == tid1) { /* Hits twice the same target, so add 2 independent of share_type and mate status */
 				global->ui_insert_count[tid0] += 2;
+				global->uniq_mapper_count++;
 				return;
 			}
 
 			/* If we are here, tid0 and tid1 are different, so multi-mappers */
 	/* TO DO: Should I differentiate between mate-types? Probably not! */
+			global->multi_mapper_count++;
 			switch(share_type) {
 				case MULTI_ADD_ALL:     /* For 2 distinct hits, MULTI_ADD_ALL adds 2 to each independent of mate status */
 					global->ui_insert_count[tid0]+=2;
@@ -118,6 +121,8 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 		{
 			uint8_t  *ub_target_hit = global->ub_target_hit;
 			mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
+
+			global->multi_mapper_count++;
 
 			/* Make a list of all targets hit by this insert */
 			mInitIVector(mappers, size);
@@ -490,7 +495,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_label           = arg_str1(NULL, "label",  NULL,     "label to use for the profile; typically the sample id (required)");
 	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
 	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (ab or rel) for sequence length (default: normalize)");
+	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
 	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)");
 	arg_gzip            = arg_lit0("z",  "gzip",             "compress output file using gzip (default: false)\n"
                                                                  "\n"
@@ -518,8 +523,9 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                     'unknown' fraction is disabled. However, if the total \n"
                                                                  "                     sequenced inserts were given, then there will be a new\n"
                                                                  "                     feature added to denote the 'unknown' fraction.\n"
-                                                                 "Units of abundance:  Currently three different units are available.\n"
-                                                                 "                         'rel': relative abundance\n"
+                                                                 "Units of abundance:  Currently four different units are available.\n"
+                                                                 "                         'rel': relative abundance (default)\n"
+                                                                 "                          'ab': raw insert-count abundance\n"
                                                                  "                        'fpkm': fragments per kilobase of sequence per million reads\n"
                                                                  "                         'tpm': transcripts per million\n"
                                                                  "                     If number of reads input to the aligner is given via --total,\n"
@@ -612,7 +618,7 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	/* Set output stream */
 	/* I set this early enough, because gzip output uses a fork/pipe where a child exits. */
-	/* Memory allocated before the fork is all reported as lost. */
+	/* Memory allocated before the fork is all reported as lost by valgrind. */
 	/* To minimize the reported loss, I now open the output stream as early as possible */
 
 	if (arg_gzip->count > 0) {
@@ -690,11 +696,24 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Print command-line for book-keeping */
 	mPrintCommandLine(output, argc, argv);
 
+	if (total_inserts > 0) {
+		fprintf(output, "#   Total inserts: %d\n", total_inserts);
+		fprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts, 100.0*mapped_inserts/total_inserts);
+		fprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
+		fprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
+	} else {
+		fprintf(output, "#   Total inserts: NA\n");
+		fprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts);
+		fprintf(output, "# Uniquely mapped: %d (NA%%)\n", global->uniq_mapper_count);
+		fprintf(output, "# Multiple mapped: %d (NA%%)\n", global->multi_mapper_count);
+		fprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
+	}
+
 	/* Create new feature for 'unknown' if total_inserts is valid */
 	if (total_inserts > 0) {
 		int       i;
 		int       count = 0;
-		uint32_t  sum   = 0;
+		uint64_t  sum   = 0;
 
 		double   *this_elem  = abundance->elem[this_sample];
 		uint32_t *target_len = global->header->target_len;
@@ -703,10 +722,8 @@ int msam_profile_main(int argc, char* argv[]) {
 
 		/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
 		for (i=0; i<n_targets; i++) {
-			if (this_elem[i+1] > 0) {
-				sum += target_len[i];
-				count++;
-			}
+			sum += target_len[i];
+			count++;
 		}
 
 		if (length_normalize) {
@@ -715,6 +732,7 @@ int msam_profile_main(int argc, char* argv[]) {
 			abundance->elem[this_sample][0] = 1.0 * unmapped / unknown_size ;
 		} else {
 			abundance->elem[this_sample][0] = 1.0 * unmapped ;
+			fprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
 		}
 	}
 
