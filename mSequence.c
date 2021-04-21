@@ -11,7 +11,7 @@ void mInitSeq(mSeq *seq) {
 		case FASTA_DNA:
 		case FASTA_PROT:
 			strcpy(type_string, "fasta");
-			seq->window = 60;
+			seq->window = 80;
 			break;
 		case FASTQ:
 			strcpy(type_string, "fastq");

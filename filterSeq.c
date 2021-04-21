@@ -9,6 +9,7 @@ int main(int argc, char* argv[]) {
 	char    line[LINE_MAX];
 	int     status;
 	int     i;
+	int     window=0;
 	int     exclude;
 	int     pair;
 	int     type;
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
 	struct arg_str  *out_file;
 	struct arg_str  *list_file;
 	struct arg_lit  *arg_gzip;
+	struct arg_int  *arg_window;
 	struct arg_lit  *arg_exclude;
 	struct arg_lit  *arg_pair;
 	struct arg_lit  *help;
@@ -37,11 +39,12 @@ int main(int argc, char* argv[]) {
 	arg_exclude         = arg_lit0("v", "exclude",                  "exclude sequences in this list (default is false)");
 	arg_pair            = arg_lit0("p", "paired",                   "get both reads from a pair corresponding to the entry; needs pairs to be marked with /1 and /2 (default is false)");
 	arg_gzip            = arg_lit0("z", "gzip",                     "compressed input/output using gzip (default is false)");
+	arg_window          = arg_int0("w", "window", "<int>",          "number of chars/words per line (default: 80 for fasta, 500 for fastq, 17 for qual)");
 	help                = arg_lit0("h", "help",                     "print this help and exit");
 	end                 = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
 
-	argtable          = (void**) mMalloc(9*sizeof(void*));
+	argtable          = (void**) mMalloc(10*sizeof(void*));
 	argtable[argcount++] = seq_type;
 	argtable[argcount++] = in_file;
 	argtable[argcount++] = out_file;
@@ -49,6 +52,7 @@ int main(int argc, char* argv[]) {
 	argtable[argcount++] = arg_exclude;
 	argtable[argcount++] = arg_pair;
 	argtable[argcount++] = arg_gzip;
+	argtable[argcount++] = arg_window;
 	argtable[argcount++] = help;
 	argtable[argcount++] = end;
 
@@ -73,6 +77,9 @@ int main(int argc, char* argv[]) {
 
 	exclude = (arg_exclude->count > 0);
 	pair    = (arg_pair->count > 0);
+
+	if (arg_window->count > 0) 
+		window = arg_window->ival[0];
 
 	if (strcmp(seq_type->sval[0], "fasta") == 0) {
 		type = FASTA_DNA;
@@ -125,7 +132,7 @@ int main(int argc, char* argv[]) {
 				ptr = (int*)zoeGetHash(keep, key);
 			}
 			if ((ptr != NULL) != exclude) { 
-				mWriteSeq(out, seq);
+				mWriteSeqN(out, seq, window);
 			} else {
 			}
 			mFreeSeq(seq);
