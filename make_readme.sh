@@ -57,27 +57,27 @@ application path, please fix that first.
 
 If you are a normal user, then the easiest way is to obtain the package file
 and build the program right away. The following commands were written when
-version 0.9 was the latest, so please update the version number in the
+version 0.9.6 was the latest, so please update the version number in the
 commands below.
 
 **Note:** Newer C compilers from gcc use \`-std=gnu99\` by default, which I had
-not tested as my gcc version is quite outdated with \`-std=gnu89\` as default.
-This leads to files not compiling when running \`make\` with new compilers. The
-current fix for using the tarball for version 0.9 is to tell the compiler which
-standard to use, using \`CFLAGS="-std=gnu89"\`. This extra option is a 
-temporary fix only, and will not be needed in subsequent releases as the code 
-gets upgraded to be compatible with \`-std=gnu99\`. 
+not tested on version 0.9 as my gcc version is quite outdated with \`-std=gnu89\` as default.
+This leads to version 0.9 not compiling when running \`make\` with new compilers. The
+current fix for using the release tarball for version 0.9 is to tell the compiler which
+standard to use, using \`CFLAGS="-std=gnu89"\`. This extra option was a 
+temporary fix only, and is not needed from version 0.9.6 as the code has been
+upgraded to be compatible with \`-std=gnu99\`. 
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ~~~
-wget https://github.com/arumugamlab/msamtools/releases/download/0.9/msamtools-0.9.tar.gz
-tar xfz msamtools-0.9.tar.gz
-cd msamtools-0.9
+wget https://github.com/arumugamlab/msamtools/releases/download/0.9.6/msamtools-0.9.6.tar.gz
+tar xfz msamtools-0.9.6.tar.gz
+cd msamtools-0.9.6
 ./configure
-make CFLAGS="-std=gnu89 -O2"
+make
 ~~~
 
-This should create \`msamtools\` executable amond others.
+This should create \`msamtools\` executable among others.
 
 ### 1.3. For advanced users <a name="advanced-users"></a>
 
@@ -244,16 +244,16 @@ msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools p
 
 ### 4.1. Units of abundance <a name="abundance-units"></a>
 
-By default, **profile** command will generate relative abundances that sum to or \`1\` 
+By default, **profile** command will generate relative abundances that sum to \`1\` 
 across the sequences in the BAM file. Four options to measure
 the abundance are available:
-*  **ab** - number of inserts mapped to the sequence
-*  **rel** - relative abundance, which is **ab** normalized by sum
+*  **ab** - number of inserts mapped to the sequence, normalized by sequence length
+*  **rel** - relative abundance, which is **ab** normalized by sum across all sequences
 * **fpkm** - fragments per kilobase of sequence per million reads
 * **tpm** - transcripts per million
 
-An optional \`--nolen\` flag turns off sequence length correction for ab and rel.
-When combining \`--unit=ab --nolen\`, you get the raw number of inserts mapped
+An optional \`--nolen\` flag turns off sequence length normalization for **ab** and **rel**.
+When combining \`--unit=ab\` and \` --nolen\`, you get the raw number of inserts mapped
 to each sequence, and summing them up will match the total number of inserts in
 the BAM file (or what was passed via \`--total\`).
 
@@ -320,7 +320,7 @@ The header section of the output file includes a few lines of comment that
 are hopefully useful. Here is an example:
 
 ~~~
-# msamtools version 0.9.5
+# msamtools version 0.9.6
 # Command: msamtools profile --label test --unit rel --multi prop --total 3519692 --gzip -o test.profile.txt test.bam 
 #   Total inserts: 3519692
 #  Mapped inserts: 334063
