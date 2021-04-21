@@ -45,10 +45,10 @@ void PROGRESS_PRINT(const char *format, ...) {
 
 FILE* mSafeOpenFile(const char *filename, const char *mode, int gzip) {
 	FILE *stream;
-	if (strcmp(filename, "-") == 0) {
-		if (gzip == 0 && strcmp(mode, "r") == 0) {
+	if (strcmp(filename, "-") == 0 && gzip == 0) {
+		if (strcmp(mode, "r") == 0) {
 			stream = stdin;
-		} else if (gzip == 0 && strcmp(mode, "w") == 0) {
+		} else if (strcmp(mode, "w") == 0) {
 			stream = stdout;
 		} else {
 			mDie("Cannot open %s for mode %s with gzip=%d", filename, mode, gzip);
