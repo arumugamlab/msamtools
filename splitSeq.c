@@ -6,6 +6,7 @@
 #define FILE_SIZE   (1)
 #define SEQ_LENGTH  (2)
 #define FASTQ2FASTA (3)
+#define SEQ_COUNT   (4)
 
 int main(int argc, char* argv[]) {
 	mSeq   *seq;
@@ -40,6 +41,9 @@ int main(int argc, char* argv[]) {
 									"\t              Files are named <prefix>.<n>bp.fa or such.\n"
 									"\t              All sequences longer than <max> are lumped into one\n"
 									"\t              file so that you dont end up a few hundred files!\n"
+									"\tseqcount    : Creates several files, \n"
+									"\t              each containing exactly <size> sequences.\n"
+									"\t              Files are named <prefix>.<nnn>.fa or such.\n"
 									"\tfilesize    : Creates several approximately equal-sized files, \n"
 									"\t              each containing at most <size> bytes.\n"
 									"\t              Files are named <prefix>.<nnn>.fa or such.\n"
@@ -113,6 +117,8 @@ int main(int argc, char* argv[]) {
 		mode = FILE_SIZE;
 	} else if (strcmp(arg_mode->sval[0], "seqlength") == 0) {
 		mode = SEQ_LENGTH;
+	} else if (strcmp(arg_mode->sval[0], "seqcount") == 0) {
+		mode = SEQ_COUNT;
 	} else if (strcmp(arg_mode->sval[0], "fastq2fasta") == 0) {
 		mode = FASTQ2FASTA;
 	} else {
@@ -195,6 +201,50 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		mFree(out);
+	} else if (mode == SEQ_COUNT) {
+
+		char name[256];
+		struct stat statbuf;
+		int current_size = 0;
+		int counter = 0;
+		off_t filesize;
+		off_t size;
+		int padding;
+		FILE *out;
+
+		out = (FILE*) mCalloc(1, sizeof(FILE));
+		stat(infile, &statbuf);
+		filesize = statbuf.st_size;
+		size     = (off_t) arg_size->ival[0];
+		/* Assume a sequence takes 1000 bytes */
+		if (arg_gzip->count > 0) {
+			padding  = 1+(int)log10(7.0*filesize/size/1000); /* assuming gzip compresses 7-fold */
+		} else {
+			padding  = 1+(int)log10(1.0*filesize/size/1000);
+		}
+
+		/* start reading fasta files */
+
+		sprintf(name, "%s%0*d.%s", prefix, padding, counter, suffix);
+		if ((out = fopen(name, "w")) == NULL) {
+			mDie("Cannot open output file %s for writing", name);
+		}
+
+		while ((status=mReadSeq(stream, seq))) {
+			if (current_size == size) {
+				fclose(out);
+				counter++;
+				sprintf(name, "%s%0*d.%s", prefix, padding, counter, suffix);
+				if ((out = fopen(name, "w")) == NULL) {
+					mDie("Cannot open output file %s for writing", name);
+				}
+				current_size = 0;
+			}
+			mWriteSeq(out, seq);
+			current_size++ ;
+			mFreeSeq(seq);
+			if (status==END_OF_STREAM) break;
+		}
 	} else if (mode == FILE_SIZE) {
 
 		char name[256];
@@ -210,7 +260,11 @@ int main(int argc, char* argv[]) {
 		stat(infile, &statbuf);
 		filesize = statbuf.st_size;
 		size     = (off_t) arg_size->ival[0];
-		padding  = 1+(int)log10(7.0*filesize/size); /* assuming gzip compresses 7-fold */
+		if (arg_gzip->count > 0) {
+			padding  = 1+(int)log10(7.0*filesize/size); /* assuming gzip compresses 7-fold */
+		} else {
+			padding  = 1+(int)log10(1.0*filesize/size);
+		}
 
 		/* start reading fasta files */
 
