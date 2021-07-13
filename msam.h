@@ -14,8 +14,15 @@
 #include "zoeTools.h"
 
 struct msam_global {
-	bam_header_t  *header;
 	int            multiple_input;
+
+	/* features to count vs sequences in bam file */
+	bam_header_t  *header;
+	int           *fmap; /* feature map: seq-->feature*/
+	int            n_features;
+	uint32_t      *feature_len;
+	char         **feature_name;
+	
 
 	/* COVERAGE */
 	float        **f_coverage;        /* read coverage per target_seq position */
@@ -63,6 +70,7 @@ void  mFreeOutputStream(FILE *output, int gzip);
 
 void mPrintHelp (const char *subprogram, void **argtable);
 void mPrintCommandLine(FILE *output, int argc, char *argv[]);
+void mPrintCommandLineGzip(gzFile output, int argc, char *argv[]);
 
 /* Main functions for the subprograms */
 

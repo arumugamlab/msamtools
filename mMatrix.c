@@ -1,3 +1,4 @@
+#include <zlib.h>
 #include "mMatrix.h"
 
 /* BEGIN MATRIX */
@@ -391,6 +392,38 @@ void mWriteRMatrixTransposed(FILE *stream, mMatrix *m) {
 			fprintf(stream, "\t%.8g", m->elem[j][i]);
 		}
 		fprintf(stream, "\n");
+	}
+}
+
+void mWriteRMatrixGzip(gzFile stream, mMatrix *m) {
+	int i, j;
+	gzprintf(stream, "%s", m->col_names[0]);
+	for (j=1; j<m->ncols; j++) {
+		gzprintf(stream, "\t%s", m->col_names[j]);
+	}
+	gzprintf(stream, "\n");
+	for (i=0; i<m->nrows; i++) {
+		gzprintf(stream, "%s", m->row_names[i]);
+		for (j=0; j<m->ncols; j++) {
+			gzprintf(stream, "\t%.8g", m->elem[i][j]);
+		}
+		gzprintf(stream, "\n");
+	}
+}
+
+void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m) {
+	int i, j;
+	gzprintf(stream, "%s", m->row_names[0]);
+	for (j=1; j<m->nrows; j++) {
+		gzprintf(stream, "\t%s", m->row_names[j]);
+	}
+	gzprintf(stream, "\n");
+	for (i=0; i<m->ncols; i++) {
+		gzprintf(stream, "%s", m->col_names[i]);
+		for (j=0; j<m->nrows; j++) {
+			gzprintf(stream, "\t%.8g", m->elem[j][i]);
+		}
+		gzprintf(stream, "\n");
 	}
 }
 

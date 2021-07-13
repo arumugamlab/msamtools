@@ -9,6 +9,7 @@ void mInitGlobal() {
 
 	/* Init all pointers to NULL */
 	global->header = NULL;
+	global->fmap = NULL;
 	global->f_coverage = NULL;
 	global->seq_touched = NULL;
 	global->ui_insert_count = NULL;
@@ -21,6 +22,9 @@ void mInitGlobal() {
 }
 
 void mFreeGlobal() {
+	if (global->fmap != NULL) {
+		mFree(global->fmap);
+	}
 	mFree(global);
 	global = NULL;
 }
@@ -53,6 +57,17 @@ void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
 	fprintf(output, "# Command: msamtools");
 	for (i=0; i<argc; i++) fprintf(output, " %s", argv[i]);
 	fprintf(output, "\n");
+}
+
+void mPrintCommandLineGzip(gzFile output, int argc, char *argv[]) {
+	int i;
+	if (strlen(BUILD) > 0)
+		gzprintf(output, "# %s version %s build %s\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
+	else
+		gzprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	gzprintf(output, "# Command: msamtools");
+	for (i=0; i<argc; i++) gzprintf(output, " %s", argv[i]);
+	gzprintf(output, "\n");
 }
 
 void mMultipleFileError(const char *subprogram, void **argtable) {

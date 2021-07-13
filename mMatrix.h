@@ -23,6 +23,8 @@ void mWriteMatrix(FILE *stream, mMatrix *m);
 void mReadRMatrix(FILE *stream, mMatrix *m, int nrows, int ncols, int header, int row_names);
 void mWriteRMatrix(FILE *stream, mMatrix *m);
 void mWriteRMatrixTransposed(FILE *stream, mMatrix *m);
+void mWriteRMatrixGzip(gzFile stream, mMatrix *m);
+void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m);
 
 /* destructive - change the matrix that is passed */
 void mAddToMatrix(mMatrix *a, mMatrix *b);

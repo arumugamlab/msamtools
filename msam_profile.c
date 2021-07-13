@@ -1,4 +1,6 @@
+#include <zlib.h>
 #include "msam.h"
+#include "zoeTools.h"
 
 #define MULTI_ADD_ALL (1)
 #define MULTI_SHARE_EQUAL (2)
@@ -15,15 +17,15 @@ void mWriteCompressedSeqAbundance();
 mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type, int length_normalize);
 
 void mInitInsertCounts(int share_type) {
-	int n_targets  = global->header->n_targets;
+	int n_features  = global->n_features;
 
-	global->ui_insert_count = (uint32_t*) mCalloc(n_targets, sizeof(uint32_t));
-	global->ub_target_hit   = (uint8_t*) mCalloc(n_targets, sizeof(uint8_t));
+	global->ui_insert_count = (uint32_t*) mCalloc(n_features, sizeof(uint32_t));
+	global->ub_target_hit   = (uint8_t*) mCalloc(n_features, sizeof(uint8_t));
 
 	if (share_type == MULTI_SHARE_EQUAL) {
 		int i;
-		double *f = (double*) mMalloc(n_targets*sizeof(double));
-		for (i=0; i<n_targets; i++) f[i] = 0.0f;
+		double *f = (double*) mMalloc(n_features*sizeof(double));
+		for (i=0; i<n_features; i++) f[i] = 0.0f;
 		global->d_insert_count = f;
 	}
 
@@ -58,6 +60,7 @@ void mFreeInsertCounts(int share_type) {
 /* It shares a total count of 1 among the seen sequences */
 void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 	bam1_t **elem  = pool->elem;
+	int     *fmap  = global->fmap;
 	int      size  = pool->size;
 	int      i;
 
@@ -66,48 +69,48 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 
 	switch(size) {
 		case 1: /* With one hit, you got to be unique hit, so add 2 no matter what share_type */
-			global->ui_insert_count[elem[0]->core.tid] += 2;
+			global->ui_insert_count[fmap[elem[0]->core.tid]] += 2;
 			global->uniq_mapper_count++;
 			return;
 
 		case 2: /* could be 2 mate-pairs, or 1 mate mapped twice*/
 		{
-			int tid0  = elem[0]->core.tid;
-			int tid1  = elem[1]->core.tid;
+			/* Doing this separately so that unique-mapping count can be correctly estimated */
+			/* Otherwise it is similar to what happens in "default:" */
+			int fid0  = fmap[elem[0]->core.tid];
+			int fid1  = fmap[elem[1]->core.tid];
 
-			if (tid0 == tid1) { /* Hits twice the same target, so add 2 independent of share_type and mate status */
-				global->ui_insert_count[tid0] += 2;
+			if (fid0 == fid1) { /* Hits twice the same target, so add 2 independent of share_type and mate status */
+				global->ui_insert_count[fid0] += 2;
 				global->uniq_mapper_count++;
 				return;
 			}
 
-			/* If we are here, tid0 and tid1 are different, so multi-mappers */
+			/* If we are here, fid0 and fid1 are different, so multi-mappers */
 	/* TO DO: Should I differentiate between mate-types? Probably not! */
 			global->multi_mapper_count++;
 			switch(share_type) {
 				case MULTI_ADD_ALL:     /* For 2 distinct hits, MULTI_ADD_ALL adds 2 to each independent of mate status */
-					global->ui_insert_count[tid0]+=2;
-					global->ui_insert_count[tid1]+=2;
+					global->ui_insert_count[fid0]+=2;
+					global->ui_insert_count[fid1]+=2;
 					break;
 				case MULTI_SHARE_EQUAL:     /* For 2 distinct hits, MULTI_SHARE_EQUAL adds 1 to each independent of mate status */
-					global->ui_insert_count[tid0]++;
-					global->ui_insert_count[tid1]++;
+					global->ui_insert_count[fid0]++;
+					global->ui_insert_count[fid1]++;
 					break;
 				case MULTI_SHARE_PROPORTIONAL:
 				{
-					int fmate = (BAM_FREAD1 | BAM_FREAD2); /* Test which mates are these, so capture these two flags */
-					int mate1 = elem[0]->core.flag & fmate;
-					int mate2 = elem[1]->core.flag & fmate;
-					if (mate1 != mate2) { /* Unique    : Mate-pairs, so this is still unique. Add 1 each for MULTI_SHARE_PROPORTIONAL and MULTI_SHARE_EQUAL*/
-						global->ui_insert_count[tid0]++;
-						global->ui_insert_count[tid1]++;
-					} else {              /* Non-unique: Same read twice; works also for mate1=mate2=0 when mapped in unpaired mode */
-						mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
-						mInitIVector(mappers, 2);
-						mPushIVector(mappers, tid0);
-						mPushIVector(mappers, tid1);
-						mPushVector(global->multi_mappers, mappers);
-					}
+					/******************************************************************************
+					 * 12.07.2021:                                                                *
+					 * I used to treat two-ends mapping to different sequences as unique hits.    *
+					 * But after some thought, I decided to change this behavior to treating them *
+					 * as ambiguous hits.                                                         *
+					 ******************************************************************************/
+					mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
+					mInitIVector(mappers, 2);
+					mPushIVector(mappers, fid0);
+					mPushIVector(mappers, fid1);
+					mPushVector(global->multi_mappers, mappers);
 					break;
 				}
 				default:
@@ -127,10 +130,10 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 			/* Make a list of all targets hit by this insert */
 			mInitIVector(mappers, size);
 			for (i=0; i<size; i++) {
-				int tid = elem[i]->core.tid;
-				if (!ub_target_hit[tid]) {
-					mPushIVector(mappers, tid);
-					ub_target_hit[tid] = 1;
+				int fid = global->fmap[elem[i]->core.tid];
+				if (!ub_target_hit[fid]) {
+					mPushIVector(mappers, fid);
+					ub_target_hit[fid] = 1;
 				}
 			}
 
@@ -219,16 +222,16 @@ int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
  * so that 0th element is a real sequence by doing ++ on array */
 mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_type, int length_normalize) {
 	int        i;
-	int        n_targets       = global->header->n_targets;
-	uint32_t  *target_len      = global->header->target_len;
+	int        n_features      = global->n_features;
+	char     **feature_name    = global->feature_name;
+	uint32_t  *feature_len     = global->feature_len;
 	uint32_t  *ui_insert_count = global->ui_insert_count;
-	double    *abundance       = (double*) mMalloc(n_targets*sizeof(double));
-	double    *normalize       = (double*) mMalloc(n_targets*sizeof(double));
-	char     **target_name     = global->header->target_name;
+	double    *abundance       = (double*) mMalloc(n_features*sizeof(double));
+	double    *normalize       = (double*) mMalloc(n_features*sizeof(double));
 	mVector   *multi_mappers   = global->multi_mappers;
 
 	mMatrix  *m       = (mMatrix*) mMalloc(sizeof(mMatrix));
-	mInitMatrix(m, 1, n_targets+1);
+	mInitMatrix(m, 1, n_features+1);
 
 	m->row_names[row] = (char*) mCalloc(strlen(label)+1, sizeof(char));
 	strcpy(m->row_names[row], label);
@@ -246,20 +249,20 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 	/* End hack */
 
-	for (i=0; i<n_targets; i++) {
-		m->col_names[i] = (char*) mMalloc((strlen(target_name[i])+1)*sizeof(char));
-		strcpy(m->col_names[i], target_name[i]);
+	for (i=0; i<n_features; i++) {
+		m->col_names[i] = (char*) mMalloc((strlen(feature_name[i])+1)*sizeof(char));
+		strcpy(m->col_names[i], feature_name[i]);
 	}
 
 	/* normalization factor for length normalization */
 	/* instead of dividing by length every time, we divide once and multiply it every time */
 
 	if (length_normalize == 1) {
-		for (i=0; i<n_targets; i++) {
-			normalize[i] = 1.0 / target_len[i];
+		for (i=0; i<n_features; i++) {
+			normalize[i] = 1.0 / feature_len[i];
 		}
 	} else {
-		for (i=0; i<n_targets; i++) {
+		for (i=0; i<n_features; i++) {
 			normalize[i] = 1.0;
 		}
 	}
@@ -268,7 +271,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 	/* Get insert_counts and length-normalize */
 
-	for (i=0; i<n_targets; i++) {
+	for (i=0; i<n_features; i++) {
 		/* Since we used 2 for each insert, now let us divide by 2 */
 		abundance[i] = 1.0 * ui_insert_count[i] * normalize[i] / 2;
 		/* also reset insert_count so that it can be reused */
@@ -278,20 +281,20 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	switch(share_type) {
 
 		case MULTI_ADD_ALL:
-			memcpy(m->elem[row], abundance, n_targets*sizeof(double));
+			memcpy(m->elem[row], abundance, n_features*sizeof(double));
 			break;
 
 		case MULTI_SHARE_EQUAL:
 		{
 			double *d_insert_count = global->d_insert_count;
 			/* Add the MULTI_SHARE_EQUAL double values in the d_insert_count array */
-			for (i=0; i<n_targets; i++) {
+			for (i=0; i<n_features; i++) {
 				/* Since we used only 1 for each insert in double mode, no need to divide by 2 */
 				abundance[i] += d_insert_count[i] * normalize[i];
 				/* also reset insert_count so that it can be reused */
 				d_insert_count[i] = 0;
 			}
-			memcpy(m->elem[row], abundance, n_targets*sizeof(double));
+			memcpy(m->elem[row], abundance, n_features*sizeof(double));
 			break;
 		}
 
@@ -301,25 +304,25 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 		case MULTI_SHARE_PROPORTIONAL: /* Proportional sharing! */ 
 		{
 			int j, k;
-			double *abundance_t_k         = (double*) mMalloc(n_targets*sizeof(double));
-			double *abundance_t_k_minus_1 = (double*) mMalloc(n_targets*sizeof(double));
+			double *abundance_t_k         = (double*) mMalloc(n_features*sizeof(double));
+			double *abundance_t_k_minus_1 = (double*) mMalloc(n_features*sizeof(double));
 
 			/* 2.1. Initialize Abundance at t(k), denoted a(i, k), with U(i): *
 			 *                     a(i, k) = U(i), for each i                 */
 
-			memcpy(abundance_t_k, abundance, n_targets*sizeof(double));
+			memcpy(abundance_t_k, abundance, n_features*sizeof(double));
 
 			/* 2.2. Iterate for max 20 times */
 
 			fprintf(stderr, "# Start PropSharing:\n"); 
 			for (k=1; k<20; k++) {
 				double delta = 0;
-				double *increment = (double*) mMalloc(n_targets*sizeof(double));
+				double *increment = (double*) mMalloc(n_features*sizeof(double));
 
-				for (j=0; j<n_targets; j++) increment[j] = 0.0f;
+				for (j=0; j<n_features; j++) increment[j] = 0.0f;
 
 				/* 2.2.1. In a new iteration, a(i,k-1) <-- a(i,k) */
-				memcpy(abundance_t_k_minus_1, abundance_t_k, n_targets*sizeof(double));
+				memcpy(abundance_t_k_minus_1, abundance_t_k, n_features*sizeof(double));
 
 				/* 2.2.2. Go through all multi-mappers */
 				for (j=0; j<multi_mappers->size; j++) {
@@ -354,7 +357,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 				/* Did this iteration do anything useful? */
 				delta = 0;
-				for (j=0; j<n_targets; j++) {
+				for (j=0; j<n_features; j++) {
 					double diff;
 					abundance_t_k[j] = abundance[j] + increment[j];
 					/* In my observations, very low numbers are just movements 
@@ -365,7 +368,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 					diff = abundance_t_k[j] - abundance_t_k_minus_1[j];
 					delta += diff*diff;
 				}
-				delta /= n_targets;
+				delta /= n_features;
 				fprintf(stderr, "#     PropSharing Iteration: %2d; DELTA^2=%g", k, delta); 
 				mFree(increment);
 				if (delta < 1e-10) {
@@ -376,7 +379,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 				}
 			}
 			fprintf(stderr, "# End   PropSharing!\n"); 
-			memcpy(m->elem[row], abundance_t_k, n_targets*sizeof(double));
+			memcpy(m->elem[row], abundance_t_k, n_features*sizeof(double));
 			mFree(abundance_t_k);
 			mFree(abundance_t_k_minus_1);
 			break;
@@ -446,7 +449,6 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	/* common variables */
 
-	char             outfile[256];
 	const char      *infile;
 	const char      *inmode;
 	samfile_t       *input  = NULL;
@@ -458,6 +460,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	int              mapped_inserts = 0;
 	int              this_sample = 0; /* index of this sample in the matrix is 0 */
 	int              n_targets;
+	FILE            *def_stream;
+	char             line[LINE_MAX];
 
 	/* argtable related */
 
@@ -469,20 +473,22 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	struct arg_str  *arg_out;
 	struct arg_str  *arg_label;
+	struct arg_str  *arg_genome;
 	struct arg_int  *arg_total;
 	struct arg_str  *arg_unit;
 	struct arg_lit  *arg_skiplen;
-	struct arg_str  *arg_multi;
 	struct arg_lit  *arg_gzip;
+	struct arg_str  *arg_multi;
 	int              set_argcount = 0;
 
 	/* Program related */
 
-	int              gzip = 0;
-	FILE            *output = NULL;
+	int i;
+	zoeHash sequences = NULL;
+	zoeHash genomes = NULL;
+	zoeTVec keys;
 
-	mInitGlobal();
-	global->multiple_input = 0;
+	gzFile  output = NULL;
 
 	arg_samin        = arg_lit0("S",  NULL,                     "input is SAM (default: false)");
 	arg_samfile      = arg_filen(NULL, NULL, "<bamfile>", 1, 1, "input SAM/BAM file");
@@ -493,11 +499,12 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Specific args */
 	arg_out             = arg_str1("o",  NULL,     "<file>", "name of output file (required)");
 	arg_label           = arg_str1(NULL, "label",  NULL,     "label to use for the profile; typically the sample id (required)");
+	arg_genome          = arg_str0(NULL, "genome", NULL,     "tab-delimited genome definition file - col-1:seq-id col-2:genome-id (default: none)");
 	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
 	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
+	arg_gzip            = arg_lit0(NULL, "gzip",             "gzip");
 	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
-	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)");
-	arg_gzip            = arg_lit0("z",  "gzip",             "compress output file using gzip (default: false)\n"
+	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
                                                                  "\n"
                                                                  "Description\n"
                                                                  "-----------\n"
@@ -550,7 +557,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(11, sizeof(void*));
+	argtable = (void**) mCalloc(12, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -561,12 +568,17 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Specific args */
 	argtable[set_argcount++] = arg_out;
 	argtable[set_argcount++] = arg_label;
+	argtable[set_argcount++] = arg_genome;
 	argtable[set_argcount++] = arg_total;
 	argtable[set_argcount++] = arg_unit;
 	argtable[set_argcount++] = arg_skiplen;
-	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = arg_gzip;
+	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = end;
+
+	/* Set Global */
+	mInitGlobal();
+	global->multiple_input = 0;
 
 	/* parse command line */
 
@@ -616,17 +628,6 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	inmode = M_INPUT_MODE(arg_samin);
 
-	/* Set output stream */
-	/* I set this early enough, because gzip output uses a fork/pipe where a child exits. */
-	/* Memory allocated before the fork is all reported as lost by valgrind. */
-	/* To minimize the reported loss, I now open the output stream as early as possible */
-
-	if (arg_gzip->count > 0) {
-		gzip = 1;
-	}
-	strcpy(outfile, arg_out->sval[0]);
-	output = mInitOutputStream(outfile, gzip);
-
 	infile = arg_samfile->filename[0];
 	input = mOpenSamFile(infile, inmode, NULL);
 	global->header = input->header;
@@ -637,7 +638,6 @@ int msam_profile_main(int argc, char* argv[]) {
 	if (arg_multi->count > 0) {
 		/* Check with #defines MULTI_ADD_ALL=1; MULTI_SHARE_EQUAL=2; MULTI_SHARE_PROPORTIONAL=3; */
 		const char *types[4] = {"", "all", "equal", "proportional"};
-		int         i;
 		for (i=1; i<=3; i++) {
 			/* Any prefix of the options will work. Make sure that the options don't share a prefix. */
 			if (strncmp(arg_multi->sval[0], types[i], strlen(arg_multi->sval[0])) == 0) {
@@ -658,7 +658,6 @@ int msam_profile_main(int argc, char* argv[]) {
 	if (arg_unit->count > 0) {
 		/* Check with #defines UNIT_REL=1; UNIT_FPKM=2; UNIT_TPM=3; */
 		const char *types[5] = {"", "relative", "fpkm", "tpm", "abundance"};
-		int         i;
 		for (i=1; i<=4; i++) {
 			/* Any prefix of the options will work. Make sure that the options don't share a prefix. */
 			if (strncmp(arg_unit->sval[0], types[i], strlen(arg_unit->sval[0])) == 0) {
@@ -679,9 +678,104 @@ int msam_profile_main(int argc, char* argv[]) {
 	if (unit_type == UNIT_REL || unit_type == UNIT_ABN) {
 		length_normalize = (arg_skiplen->count == 0);
 	}
-		
-	/* Calculate abundance */
+	
 	n_targets = global->header->n_targets;
+	global->fmap = (int*) mMalloc(n_targets*sizeof(int));
+	for (i=0; i<n_targets; i++) {
+		global->fmap[i] = -1;
+	}
+
+	/* Assign seq->genome maps for counting */
+	if (arg_genome->count > 0) {
+		char *key;
+		sequences = zoeNewHash();
+		for (i=0; i<n_targets; i++) {
+			int *code = (int*) mMalloc(sizeof(int));
+			*code = i;
+			zoeSetHash(sequences, global->header->target_name[i], code);
+		}
+
+		/* Make a hash of genomes from the def file */
+		def_stream = mSafeOpenFile(arg_genome->sval[0], "r", 0);
+		genomes = zoeNewHash();
+		key  = (char*) mMalloc(LINE_MAX*sizeof(char));
+		while (fgets(line, LINE_MAX, def_stream) != NULL) {
+			int  *code = (int*) mMalloc(sizeof(int));
+			char *seqname  = (char*) mMalloc(LINE_MAX*sizeof(char));
+			char  *genome_name  = (char*) mMalloc(LINE_MAX*sizeof(char));
+			if (sscanf(line, "%s\t%s", genome_name, seqname) != 2) {
+				mDie("GENOME DEFINITION LINE ERROR");
+			}
+
+			*code = 1;
+			zoeSetHash(genomes, genome_name, code);
+			mFree(seqname);
+		}
+		mSafeCloseFile(def_stream, 0);
+		keys = zoeKeysOfHash(genomes);
+		global->n_features = keys->size;
+		for (i=0; i<keys->size; i++) {
+			int  *code = (int*) mMalloc(sizeof(int));
+			key = keys->elem[i];
+			*code = i;
+			zoeSetHash(genomes, key, code);
+		}
+		/* Now genome_name ==> index */
+
+		/* Make a hash of sequence names from the list file */
+		def_stream = mSafeOpenFile(arg_genome->sval[0], "r", 0);
+		while (fgets(line, LINE_MAX, def_stream) != NULL) {
+			int *genome_id;
+			int *seq_id;
+			char  *genome_name  = (char*) mMalloc(LINE_MAX*sizeof(char));
+			char  *seqname = (char*) mMalloc(LINE_MAX*sizeof(char));
+			if (sscanf(line, "%s\t%s", genome_name, seqname) != 2) {
+				mDie("GENOME DEFINITION LINE ERROR");
+			}
+
+			genome_id = (int*) zoeGetHash(genomes, genome_name);
+			seq_id    = (int*) zoeGetHash(sequences, seqname);
+			if (genome_id == NULL) {
+				mDie("Genome '%s' not found in BAM file", genome_name);
+			}
+			if (seq_id == NULL) {
+				mDie("Sequence '%s' not found in BAM file", seqname);
+			}
+			global->fmap[*seq_id] = *genome_id;
+		}
+		mSafeCloseFile(def_stream, 0);
+
+		/* Estimate feature lengths */
+		global->feature_len = (uint32_t*) mMalloc(global->n_features*sizeof(uint32_t));
+		for (i=0; i<global->n_features; i++) {
+			global->feature_len[i] = 0;
+		}
+		for (i=0; i<n_targets; i++) {
+			if (global->fmap[i] == -1) {
+				mDie("Sequence '%s' not found in genome definition", global->header->target_name[i]);
+			}
+			global->feature_len[global->fmap[i]] += global->header->target_len[i];
+		}
+
+		/* Set feature names */
+		keys = zoeKeysOfHash(genomes);
+		global->feature_name = (char**) mMalloc(keys->size*sizeof(char*));
+		for (i=0; i<keys->size; i++) {
+			char *fname = (char*)keys->elem[i];
+			global->feature_name[i] = (char*) mMalloc((1+strlen(fname))*sizeof(char));
+			strcpy(global->feature_name[i], fname);
+		}
+
+	} else {
+		for (i=0; i<n_targets; i++) {
+			global->fmap[i] = i;
+		}
+		global->n_features   = n_targets;
+		global->feature_name = global->header->target_name;
+		global->feature_len  = global->header->target_len;
+	}
+
+	/* Calculate abundance */
 	mInitInsertCounts(share_type);
 	mapped_inserts = mEstimateInsertCountOnFile(input, share_type);
 	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type, length_normalize); /* Normalize for sequence length and make abundance */
@@ -694,19 +788,20 @@ int msam_profile_main(int argc, char* argv[]) {
 	}
 
 	/* Print command-line for book-keeping */
-	mPrintCommandLine(output, argc, argv);
+	output = gzopen(arg_out->sval[0], "wb");
+	mPrintCommandLineGzip(output, argc, argv);
 
 	if (total_inserts > 0) {
-		fprintf(output, "#   Total inserts: %d\n", total_inserts);
-		fprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts, 100.0*mapped_inserts/total_inserts);
-		fprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
-		fprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
+		gzprintf(output, "#   Total inserts: %d\n", total_inserts);
+		gzprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts, 100.0*mapped_inserts/total_inserts);
+		gzprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
+		gzprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
 	} else {
-		fprintf(output, "#   Total inserts: NA\n");
-		fprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts);
-		fprintf(output, "# Uniquely mapped: %d (NA%%)\n", global->uniq_mapper_count);
-		fprintf(output, "# Multiple mapped: %d (NA%%)\n", global->multi_mapper_count);
-		fprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
+		gzprintf(output, "#   Total inserts: NA\n");
+		gzprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts);
+		gzprintf(output, "# Uniquely mapped: %d (NA%%)\n", global->uniq_mapper_count);
+		gzprintf(output, "# Multiple mapped: %d (NA%%)\n", global->multi_mapper_count);
+		gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
 	}
 
 	/* Create new feature for 'unknown' if total_inserts is valid */
@@ -715,24 +810,23 @@ int msam_profile_main(int argc, char* argv[]) {
 		int       count = 0;
 		uint64_t  sum   = 0;
 
-		double   *this_elem  = abundance->elem[this_sample];
-		uint32_t *target_len = global->header->target_len;
-		int       unmapped   = total_inserts - mapped_inserts;
+		uint32_t *feature_len = global->feature_len;
+		int       unmapped    = total_inserts - mapped_inserts;
 		uint32_t  unknown_size;
 
 		/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
-		for (i=0; i<n_targets; i++) {
-			sum += target_len[i];
+		for (i=0; i<global->n_features; i++) {
+			sum += feature_len[i];
 			count++;
 		}
 
 		if (length_normalize) {
 			unknown_size = sum / count;
-			fprintf(output, "# Estimated seq. length for 'Unknown': %dbp\n", unknown_size);
+			gzprintf(output, "# Estimated seq. length for 'Unknown': %dbp\n", unknown_size);
 			abundance->elem[this_sample][0] = 1.0 * unmapped / unknown_size ;
 		} else {
 			abundance->elem[this_sample][0] = 1.0 * unmapped ;
-			fprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
+			gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
 		}
 	}
 
@@ -764,8 +858,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	}
 
 	/* Write output */
-	mWriteRMatrixTransposed(output, abundance);
-	mFreeOutputStream(output, gzip);
+	mWriteRMatrixTransposedGzip(output, abundance);
+	gzclose(output);
 
 	/* Wind-up operations */
 
@@ -773,8 +867,24 @@ int msam_profile_main(int argc, char* argv[]) {
 	mFreeMatrix(abundance);
 	mFree(abundance);
 
+	/* Free the hashes */
+	if (arg_genome->count > 0) {
+		keys = zoeKeysOfHash(genomes);
+		for (i=0; i<keys->size; i++) {
+			mFree(zoeGetHash(genomes, keys->elem[i]));
+		}
+		zoeDeleteTVec(keys);
+		zoeDeleteHash(genomes);
+		keys = zoeKeysOfHash(sequences);
+		for (i=0; i<keys->size; i++) {
+			mFree(zoeGetHash(sequences, keys->elem[i]));
+		}
+		zoeDeleteTVec(keys);
+		zoeDeleteHash(sequences);
+	}
+
 	samclose(input);
-	arg_freetable(argtable, 11);
+	arg_freetable(argtable, set_argcount);
 	mFree(argtable);
 
 	mFreeGlobal();
