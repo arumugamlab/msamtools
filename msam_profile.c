@@ -499,7 +499,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Specific args */
 	arg_out             = arg_str1("o",  NULL,     "<file>", "name of output file (required)");
 	arg_label           = arg_str1(NULL, "label",  NULL,     "label to use for the profile; typically the sample id (required)");
-	arg_genome          = arg_str0(NULL, "genome", NULL,     "tab-delimited genome definition file - col-1:seq-id col-2:genome-id (default: none)");
+	arg_genome          = arg_str0(NULL, "genome", NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
 	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
 	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
 	arg_gzip            = arg_lit0(NULL, "gzip",             "gzip");
