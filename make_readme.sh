@@ -57,7 +57,7 @@ application path, please fix that first.
 
 If you are a normal user, then the easiest way is to obtain the package file
 and build the program right away. The following commands were written when
-version 0.9.6 was the latest, so please update the version number in the
+version 1.0.0 was the latest, so please update the version number in the
 commands below.
 
 **Note:** Newer C compilers from gcc use \`-std=gnu99\` by default, which I had
@@ -70,9 +70,9 @@ upgraded to be compatible with \`-std=gnu99\`.
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ~~~
-wget https://github.com/arumugamlab/msamtools/releases/download/0.9.6/msamtools-0.9.6.tar.gz
-tar xfz msamtools-0.9.6.tar.gz
-cd msamtools-0.9.6
+wget https://github.com/arumugamlab/msamtools/releases/download/1.0.0/msamtools-1.0.0.tar.gz
+tar xfz msamtools-1.0.0.tar.gz
+cd msamtools-1.0.0
 ./configure
 make
 ~~~
@@ -185,7 +185,7 @@ For example, in mapping metagenomic reads to a database for species-level
 annotation, we typically throw out alignments <95% sequence identity.
 
 Here is an example filtering command one would use after mapping metagenomic
-reads to the Integrated Gene Catalog consisting 9.9 million genes 
+reads to the Integrated Gene Catalog (IGC) consisting 9.9 million genes 
 (Li *et al*, **Nat. biotech** 2014).
 ~~~
 msamtools filter -b -l 80 -p 95 -z 80 --besthit sample1.IGC.bam > sample1.IGC.filtered.bam
@@ -215,13 +215,28 @@ are sorted by **QNAME** again.
 ## 4. msamtools profile <a name="msamtools-profile"></a>
 
 **profile** program provides sequence abundance profiling functionality.
-Relative abundance of each sequence in the BAM file is reported. Abundance
-of a sequence is estimated as number of inserts (mate-pairs/paired-ends) 
-mapped to that sequence, divided by its length. Reads mapping to multiple 
-sequences can be shared across the sequences in three different ways 
-(please see below). Finally, abundance is estimated in one of four units:
-abundance (ab), relative abundance (rel), fragments per kilobase of sequence per million reads (fpkm),
-or transcripts per million (tpm). 
+By default, relative abundance of each sequence in the BAM file is reported. 
+However, using the \`--genome\` option, you can associate sequences in the
+BAM file with features, e.g. genomes or MAGs.
+Abundance of a sequence/genome is estimated as number of inserts 
+(mate-pairs/paired-ends) mapped to that sequence/genome, divided by its 
+length. Reads mapping to multiple sequences/genomes can be shared across 
+the sequences/genomes in three different ways (please see below). 
+Finally, abundance is estimated in one of four units:
+abundance (ab), relative abundance (rel), 
+fragments per kilobase of sequence per million reads (fpkm),
+or transcripts per million (tpm). As you probably understand, *tpm* and
+*fpkm* are probably not suitable for profiling genomes, but don't let me
+stop you!
+
+**WARNING: The profiler expects that BAM files are sorted by name so that
+it can keep track of reads that map to multiple locations. Please ensure
+that your BAM files are sorted that way. Profiler does not check this, so
+can give you erroneous results when you pass coordinate-sorted BAM files.**
+
+
+**NOTE:** From **v1.0.0**, the default output is a gzipped text file. Therefore,
+argument \`--gzip\` or \`-z\` will throw an error.
 
 We highly recommend that you filter the alignments before sending to the
 **profile** program, as it considers each alignment to be important (it 
@@ -230,7 +245,7 @@ does not look at alignment quality, for example).
 Here is an example profiling command one would use after mapping metagenomic
 reads to IGC.
 ~~~
-msamtools profile --multi=proportional --label=sample1 --unit=rel -z -o sample1.IGC.profile.txt.gz sample1.IGC.filtered.bam
+msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC.profile.txt.gz sample1.IGC.filtered.bam
 ~~~
 The above command estimates relative abundance of IGC genes after sharing
 multi-mapper reads proportionately between the genes (see below).
@@ -239,10 +254,39 @@ In the spirit of **samtools** programs, **msamtools** programs can also
 stream between each other. Therefore, a single command to **filter** and **profile** 
 would look like:
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel -z -o sample1.IGC.profile.txt.gz -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC.profile.txt.gz -
 ~~~
 
-### 4.1. Units of abundance <a name="abundance-units"></a>
+or for mapping to scaffolds that are grouped in metagenome-assembled MAGs using:
+~~~
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
+~~~
+
+### 4.1. Profiling genomes or MAGs <a name="profiling-genomes"></a>
+
+Starting from **v1.0.0**, **profile** program supports profiling of genomes defined by a set of
+sequences. This requires a tab-delimited definition file of the following format:
+~~~
+MAG_1	Contig_1
+MAG_1	Contig_2
+MAG_1	Contig_3
+MAG_1	Contig_4
+MAG_2	Contig_18
+MAG_2	Contig_27
+MAG_2	Contig_32
+MAG_3	Contig_23
+MAG_3	Contig_24
+MAG_3	Contig_35
+MAG_3	Contig_48
+~~~
+
+If this information is stored in a file called \`myMAGs.genome.def\`, then you can
+run the profiler as follows to get profiles at the genome level.
+~~~
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
+~~~
+
+### 4.2. Units of abundance <a name="abundance-units"></a>
 
 By default, **profile** command will generate relative abundances that sum to \`1\` 
 across the sequences in the BAM file. Four options to measure
@@ -257,7 +301,7 @@ When combining \`--unit=ab\` and \` --nolen\`, you get the raw number of inserts
 to each sequence, and summing them up will match the total number of inserts in
 the BAM file (or what was passed via \`--total\`).
 
-### 4.2. Keeping track of unmapped reads <a name="track-unmapped"></a>
+### 4.3. Keeping track of unmapped reads <a name="track-unmapped"></a>
 
 By default, **profile** command will generate relative abundances that sum to \`1\` 
 across the sequences in the BAM file. In metagenomic data, sometimes we need
@@ -300,7 +344,7 @@ in the two samples, ignoring the **Unknown** fraction leads to a different
 estimation of their relative abundances. In these situations, it is useful
 to keep track of the **unmapped** reads from the metagenome.
 
-If you would like to include the Unknown fraction in the profile, you should
+If you would like to include the **Unknown** fraction in the profile, you should
 tell the profiler how many reads were originally sequenced. Then the profiler will estimate
 the unmapped reads based on how many reads are in the bam/sam file, and then use
 it in the profiling stage.
@@ -311,32 +355,32 @@ lines=\$(zcat sample1.1.fq.gz | wc -l)
 entries=\$(expr \$lines / 4)   # There are 4 lines per fastq entry
 
  # Use total reads in profiler
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz -z --total=\$entries -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz --total=\$entries -
 ~~~
 
-### 4.3. Useful information in the output file <a name="profile-output"></a>
+### 4.4. Useful information in the output file <a name="profile-output"></a>
 
 The header section of the output file includes a few lines of comment that 
 are hopefully useful. Here is an example:
 
 ~~~
-# msamtools version 0.9.6
-# Command: msamtools profile --label test --unit rel --multi prop --total 3519692 --gzip -o test.profile.txt test.bam 
+# msamtools version 1.0.0
+# Command: msamtools profile --label test --unit rel --multi prop --total 3519692 -o test.profile.txt test.bam 
 #   Total inserts: 3519692
 #  Mapped inserts: 334063
 # Mapped fraction: 0.0949
 # Estimated seq. length for 'Unknown': 6234bp
 001-02
 Unknown 0.809179
-001-02_NODE_90_length_5676_cov_189.052854_circular_reoriented   0.0109423
-001-04_NODE_36_length_4618_cov_68.000866_circular_reoriented    0
+001-02_NODE_90_length_5676_cov_189.052854   0.0109423
+001-04_NODE_36_length_4618_cov_68.000866    0
 ...
 ~~~
 
 The commented lines are self-explanatory, and could be useful in getting 
 quick summary of the profiling process. Since length-normalization is not
 turned off, the average sequence length for the entire database is used
-as a proxy sequence length for the "Unknown" fraction.
+as a proxy sequence length for the **Unknown** fraction.
 
 The first line includes the name of the sample provided via \`--label\`. 
 This is for conveniently combining output from multiple files. A script that
@@ -350,18 +394,46 @@ A full description is given below:
 
 ## 5. msamtools coverage <a name="msamtools-coverage"></a>
 
-**coverage** program estimates per-position coverage of each sequence in
-the BAM file. The output file is in the format of old Sanger quality files
+**coverage** program estimates per-position or fractional coverage of each sequence in
+the BAM file. 
+
+### 5.1. Per-position coverage of all sequences in BAM file <a name="pos-coverage"></a>
+
+The per-position coverage output file is in the format of old Sanger quality files
 with fasta headers and space-delimited numbers. As this can build up into
 quite a large file, using the \`-x\` option will not print coverage for
 sequences that did not have a single read mapped to them. Since their coverage
 is essentially zero in each position, printing their coverage is just a 
 waste of space.
 
-Here is an example coverage command.
+Here is an example per-position coverage command.
 ~~~
 msamtools coverage -x -z -o sample1.coverage.txt.gz sample1.IGC.filtered.bam
 ~~~
+
+### 5.2. Fractional coverage of each sequence in BAM file <a name="frac-coverage"></a>
+
+Sometimes it is useful to see which sequence from the BAM file has been observed in
+the sample. And if yes, it is nice to know what fraction of the sequence has been
+covered with alignments in the BAM file. For this one can use the \`--summary\` 
+option, which outputs fractional coverage and sequencing-coverage of each sequence.
+
+Here is an example fractional coverage command.
+~~~
+msamtools coverage -z --summary -o sample1.coverage.summary.txt.gz sample1.IGC.filtered.bam
+~~~
+
+And here is an example output:
+~~~
+cluster_001_consensus_length_3171293	0.05464883	0.25
+cluster_002_consensus_length_2788722	0.99955930	10.79
+cluster_003_consensus_length_6395848	0.99998921	38.10
+cluster_004_consensus_length_2025181	0.99947906	31.14
+cluster_005_consensus_length_3532514	0.99987346	70.04
+~~~
+First column names the sequence, 2nd column reports the fraction of that sequence that is covered
+and the 3rd column gives sequencing-coverage. Apparently, the 5th genome has 70X coverage in
+that sample!
 
 A full description is given below:
 ~~~
