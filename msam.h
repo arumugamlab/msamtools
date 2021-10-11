@@ -13,6 +13,10 @@
 #include "mCompress.h"
 #include "zoeTools.h"
 
+/* I use integers for marking per-position coverage */
+typedef int coverage_t;
+#define COVERAGE_T_FORMAT "%d"
+
 struct msam_global {
 	int            multiple_input;
 
@@ -25,7 +29,7 @@ struct msam_global {
 	
 
 	/* COVERAGE */
-	float        **f_coverage;        /* read coverage per target_seq position */
+	coverage_t   **coverage;        /* read coverage per target_seq position */
 	int           *covered;          /* has this target been covered? */
 	int          **seq_touched;      /* part of the sequence that is covered */
 

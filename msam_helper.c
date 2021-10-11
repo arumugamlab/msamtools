@@ -10,7 +10,7 @@ void mInitGlobal() {
 	/* Init all pointers to NULL */
 	global->header = NULL;
 	global->fmap = NULL;
-	global->f_coverage = NULL;
+	global->coverage = NULL;
 	global->seq_touched = NULL;
 	global->ui_insert_count = NULL;
 	global->d_insert_count = NULL;
