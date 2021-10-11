@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
 				char name[256];
 				sprintf(name, "%s.%dbp.%s", prefix, length, suffix);
 				if ((out[length] = fopen(name, "w")) == NULL) {
-					mDie("Cannot open output file %s for reading", name);
+					mDie("Cannot open output file %s for writing", name);
 				}
 			}
 			mWriteSeq(out[length], seq);
@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
 		char name[256];
 		struct stat statbuf;
 		int current_size = 0;
-		int counter = 0;
+		int counter = 1;
 		off_t filesize;
 		off_t size;
 		int padding;
