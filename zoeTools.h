@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mDefinitions.h"
 
 void   zoeLibInfo (void);
 void   zoeSetProgramName (const char*);

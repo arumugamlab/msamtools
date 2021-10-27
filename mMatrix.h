@@ -1,8 +1,9 @@
 #ifndef M_MATRIX_H
 #define M_MATRIX_H
 
-#include "mDefinitions.h"
 #include "mCommon.h"
+
+#define MIN(X,Y) ((X<Y)?X:Y)
 
 struct mMatrix {
 	int      nrows;

@@ -7,7 +7,6 @@
 #include "argtable2.h"
 #include "bam.h"
 #include "sam.h"
-#include "mSequence.h"
 #include "mBamVector.h"
 #include "mMatrix.h"
 #include "mCompress.h"

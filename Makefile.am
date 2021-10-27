@@ -5,7 +5,7 @@ include versions.txt
 SUBDIRS = deps
 
 # These are the installed programs
-mymaui_PROGRAMS = seqUtils splitSeq filterSeq msamtools
+mymaui_PROGRAMS = msamtools
 
 # We will also distribute a README.md markdown file
 EXTRA_DIST = README.md
@@ -19,11 +19,8 @@ mymauidir = $(bindir)
 noinst_LIBRARIES = libmaui.a
 dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
                          $(srcdir)/mCommon.h \
-                         $(srcdir)/mDefinitions.h \
                          $(srcdir)/mMatrix.c \
                          $(srcdir)/mMatrix.h \
-                         $(srcdir)/mSequence.c \
-                         $(srcdir)/mSequence.h \
                          $(srcdir)/mCompress.c \
                          $(srcdir)/mCompress.h \
                          $(srcdir)/zoeTools.c \
