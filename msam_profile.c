@@ -477,7 +477,6 @@ int msam_profile_main(int argc, char* argv[]) {
 	struct arg_int  *arg_total;
 	struct arg_str  *arg_unit;
 	struct arg_lit  *arg_skiplen;
-	struct arg_lit  *arg_gzip;
 	struct arg_str  *arg_multi;
 	int              set_argcount = 0;
 
@@ -502,7 +501,6 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_genome          = arg_str0(NULL, "genome", NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
 	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
 	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_gzip            = arg_lit0(NULL, "gzip",             "gzip");
 	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
 	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
                                                                  "\n"
@@ -518,9 +516,6 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "In the output file, each sequence in the BAM file gets a line with its abundance.\n"
                                                                  "They are presented in the order in which they appear in the BAM header. <label>\n"
                                                                  "is used as the first line, so that reading or 'joining' these files is easier.\n"
-                                                                 "\n"
-                                                                 "If using '-z', output file does NOT automatically get '.gz' extension. This is \n"
-                                                                 "up to the user to specify the correct full output file name.\n"
                                                                  "\n"
                                                                  "--total option:      In metagenomics, an unmapped read could still be a valid\n"
                                                                  "                     sequence, just missing in the database being mapped against.\n"
@@ -557,7 +552,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(12, sizeof(void*));
+	argtable = (void**) mCalloc(11, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -572,7 +567,6 @@ int msam_profile_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = arg_total;
 	argtable[set_argcount++] = arg_unit;
 	argtable[set_argcount++] = arg_skiplen;
-	argtable[set_argcount++] = arg_gzip;
 	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = end;
 
