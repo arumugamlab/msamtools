@@ -20,10 +20,6 @@
 #include <string.h>
 #include "mDefinitions.h"
 
-const char * zoeFunction;
-const char * zoeConstructor;
-const char * zoeMethod;
-
 void   zoeLibInfo (void);
 void   zoeSetProgramName (const char*);
 char * zoeGetProgramName (void);
