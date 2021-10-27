@@ -2,4 +2,4 @@ tar_file := samtools-${samtools_version}.tar.bz2
 download_url := https://github.com/samtools/samtools/releases/download/${samtools_version}/$(tar_file)
 package_zip_format = bzip2
 unpack_dir := samtools-${samtools_version}
-config_options = --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --disable-libcurl --disable-plugins
+config_options = --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --disable-libcurl --disable-plugins --without-curses
