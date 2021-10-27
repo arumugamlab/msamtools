@@ -52,7 +52,7 @@ typedef struct msam_global msam_global;
 
 /* global variables grouped into an object */
 
-msam_global *global;
+extern msam_global *global;
 
 /* Helper functions */
 

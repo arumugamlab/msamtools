@@ -2,6 +2,8 @@
 
 /* This main entry file was rewritten after being inspired by the samtools codebase. */
 
+msam_global *global;
+
 static int usage(FILE *out)
 {
 	fprintf(out, "\n%s: Metagenomics-related extension to samtools.\n", PROGRAM);
