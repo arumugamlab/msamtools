@@ -6,18 +6,26 @@ msam_global *global;
 
 static int usage(FILE *out)
 {
-	fprintf(out, "\n%s: Metagenomics-related extension to samtools.\n", PROGRAM);
+	fprintf(out, "\nProgram: %s (Metagenomics-related extension to samtools)\n", PROGRAM);
 
 	if (strlen(BUILD) > 0)
-		fprintf(out, "%*s: %s %s build %s\n\n", (int) strlen(PROGRAM), "Version", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
+		fprintf(out, "Version: %s %s build %s (using samtools/htslib %s)\n\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD, HTSLIB_VERSION);
 	else
-		fprintf(out, "%*s: %s\n\n", (int) strlen(PROGRAM), "Version", PACKAGE_VERSION);
+		fprintf(out, "Version: %s (using samtools/htslib %s)\n\n", PACKAGE_VERSION, HTSLIB_VERSION);
 
-	fprintf(out, "Usage:\n------\n\n%s <command> [options]\n\n", PROGRAM);
-	fprintf(out, "Command:  filter         filter alignments based on alignment statistics\n");
-	fprintf(out, "          profile        estimate relative abundance profile of reference sequences in bam file\n");
-	fprintf(out, "          coverage       estimate per-base read coverage of each reference sequence\n");
-	fprintf(out, "          summary        summarize alignment statistics per read in a table format\n");
+	fprintf(out, "Usage:   %s <command> [options]\n\n", PROGRAM);
+	fprintf(out, "Commands:\n");
+	fprintf(out, " -- Filtering\n");
+	fprintf(out, "     filter         filter alignments based on alignment statistics\n");
+	fprintf(out, "\n");
+	fprintf(out, " -- Profiling\n");
+	fprintf(out, "     profile        estimate relative abundance profile of reference sequences in bam file\n");
+	fprintf(out, "\n");
+	fprintf(out, " -- Coverage\n");
+	fprintf(out, "     coverage       estimate per-base or per-sequence read coverage of each reference sequence\n");
+	fprintf(out, "\n");
+	fprintf(out, " -- Summary\n");
+	fprintf(out, "     summary        summarize alignment statistics per read in a table format\n");
 	fprintf(out, "\n");
 	return 1;
 }
