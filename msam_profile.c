@@ -781,8 +781,14 @@ int msam_profile_main(int argc, char* argv[]) {
 		total_inserts = -1;
 	}
 
+	/* Open output file */
+	if (strcmp(arg_out->sval[0], "-") == 0) { /* If '-' was given as output, redirect to stdout */
+		output = gzdopen(fileno(stdout), "wb");
+	} else {
+		output = gzopen(arg_out->sval[0], "wb");
+	}
+
 	/* Print command-line for book-keeping */
-	output = gzopen(arg_out->sval[0], "wb");
 	mPrintCommandLineGzip(output, argc, argv);
 
 	if (total_inserts > 0) {
@@ -853,6 +859,8 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	/* Write output */
 	mWriteRMatrixTransposedGzip(output, abundance);
+
+	/* Close output */
 	gzclose(output);
 
 	/* Wind-up operations */
