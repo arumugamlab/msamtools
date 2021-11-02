@@ -30,15 +30,6 @@ void mFreeGlobal() {
 }
 
 void mPrintHelp (const char *subprogram, void **argtable) {
-/*
-	fprintf(stdout, "\n%s: Tools you wish samtools had included!\n", PROGRAM);
-	fprintf(stdout,   "           Part of the awesome maui library (%s)\n", PACKAGE_NAME);
-	fprintf(stdout,   "           Smash and libmaui: Making your life easy, step by step (TM)\n");
-	if (strlen(BUILD) > 0)
-		fprintf(stdout,   "Version  : %s %s build %s\n\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
-	else
-		fprintf(stdout,   "Version  : %s %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
-*/
 	fprintf(stdout, "Usage:\n------\n\n%s %s", PROGRAM, subprogram);
 	arg_print_syntax(stdout, argtable, "\n");
 	fprintf(stdout,       "\nGeneral options:\n"
@@ -50,10 +41,7 @@ void mPrintHelp (const char *subprogram, void **argtable) {
 
 void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
 	int i;
-	if (strlen(BUILD) > 0)
-		fprintf(output, "# %s version %s build %s\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
-	else
-		fprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+    fprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	fprintf(output, "# Command: msamtools");
 	for (i=0; i<argc; i++) fprintf(output, " %s", argv[i]);
 	fprintf(output, "\n");
@@ -61,10 +49,7 @@ void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
 
 void mPrintCommandLineGzip(gzFile output, int argc, char *argv[]) {
 	int i;
-	if (strlen(BUILD) > 0)
-		gzprintf(output, "# %s version %s build %s\n", PACKAGE_NAME, PACKAGE_VERSION, BUILD);
-	else
-		gzprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+    gzprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	gzprintf(output, "# Command: msamtools");
 	for (i=0; i<argc; i++) gzprintf(output, " %s", argv[i]);
 	gzprintf(output, "\n");

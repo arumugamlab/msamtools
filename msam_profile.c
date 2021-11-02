@@ -588,7 +588,7 @@ int msam_profile_main(int argc, char* argv[]) {
 		/* help needed? */
 		if (arg_help->count > 0) {
 			mPrintHelp(subprogram, argtable);
-			mQuit("");
+			exit(EXIT_SUCCESS);
 		}
 
 		/* parse error? */
