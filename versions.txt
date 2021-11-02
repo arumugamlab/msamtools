@@ -1,2 +1,1 @@
 samtools_version = 1.9
-argtable_version = 13

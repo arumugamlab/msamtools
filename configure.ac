@@ -76,6 +76,13 @@ AC_PROG_INSTALL
 # C dependencies
 #######################################################
 
+# argtable
+
+AC_CHECK_LIB(argtable2, arg_parse,  [], [argtable2_devel=notfound])
+if test "x$argtable2_devel" = "xnotfound"; then
+    AC_MSG_ERROR([argtable2-devel not found])
+fi
+
 # libz
 
 AC_CHECK_LIB(z, inflate,  [], [zlib_devel=notfound])
@@ -108,13 +115,7 @@ FAILED.  This error must be resolved in order to build msamtools successfully.])
 
 AC_CANONICAL_HOST
 
-# We only support static executables in linux
-# 10.11.2019. Removed static builds in linux, so removed -static.
-
-case $host_os in
-   *linux*) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"]) ;;
-         *) AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"]) ;;
-esac
+AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"])
 
 AC_SUBST([MACHINE_TYPE], [$host_cpu])
 kernel_name=`uname -s`
@@ -140,7 +141,6 @@ AC_SUBST([AUX_DIR], [$aux_files_dir])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([deps/Makefile])
-AC_CONFIG_FILES([deps/argtable/Makefile])
 AC_CONFIG_FILES([deps/samtools/Makefile])
 AS_IF([test -f "data/samtools/Makefile"], [rm data/samtools/Makefile])
 

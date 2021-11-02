@@ -1,2 +1,2 @@
-DIST_SUBDIRS = argtable samtools
-SUBDIRS = argtable samtools
+DIST_SUBDIRS = samtools
+SUBDIRS = samtools

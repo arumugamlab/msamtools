@@ -1,14 +1,14 @@
 # Version info
 include versions.txt
 
-# We need argtable and samtools dependencies to be built first
+# We need samtools dependencies to be built first
 SUBDIRS = deps
 
 # These are the installed programs
 mymaui_PROGRAMS = msamtools
 
 # We will also distribute a README.md markdown file
-EXTRA_DIST = README.md
+EXTRA_DIST = README.md LICENSE
 
 # Where to install the programs
 mymauidir = $(bindir)
@@ -36,19 +36,15 @@ dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
 
 # Specify CFLAGS and LDFLAGS
 
-# All programs need some include directories. 
-# It's ok to include even useless ones, so be more inclusive here!
-AM_CFLAGS = $(MYCFLAGS) -DBUILD=\"@BUILD@\" -DPROGRAM=\"msamtools\" -DHTSLIB_VERSION=\"$(samtools_version)\" -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) -I$(builddir)/deps/samtools/samtools-$(samtools_version) -I$(builddir)/deps/argtable/argtable2-$(argtable_version)/src
+AM_CFLAGS = $(MYCFLAGS) \
+            -DPROGRAM=\"msamtools\" \
+            -DHTSLIB_VERSION=\"$(samtools_version)\" \
+            -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) \
+            -I$(builddir)/deps/samtools/samtools-$(samtools_version)
 
-# maui and argtable libraries are added to every program
 LDADD = $(builddir)/libmaui.a \
-        $(builddir)/deps/argtable/libargtable2.a
-
-# Additionally, bam and hts libraries are added to msamtools
-msamtools_LDADD = $(builddir)/libmaui.a \
-                  $(builddir)/deps/argtable/libargtable2.a \
-                  $(builddir)/deps/samtools/samtools-$(samtools_version)/libbam.a \
-                  $(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/libhts.a
+        $(builddir)/deps/samtools/samtools-$(samtools_version)/libbam.a \
+        $(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/libhts.a
 
 clean-local:
 	for file in libmaui.a; do \
