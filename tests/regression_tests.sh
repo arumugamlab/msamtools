@@ -101,7 +101,7 @@ quick=0
 parse_cmdline $*
 
 # Versions to compare
-STABLE_EXE="$HOME/src/git/msamtools/msamtools.20200427";
+STABLE_EXE="$HOME/src/git/msamtools/msamtools.v1.0.2";
 DEVEL_EXE="$HOME/src/git/msamtools/msamtools";
 
 # Files

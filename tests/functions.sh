@@ -204,24 +204,20 @@ function get_filter_commands() {
 function get_profile_commands() {
   local infile=$1;
   for total in "--total=60000" ""; do
-    for zip in "--gzip" ""; do
       for multi in "all" "equal" "prop"; do
         for unit in "" "--unit=rel" "--unit=ab" "--unit=tpm" "--unit=fpkm"; do
-          command="__PROGRAM__ profile --label test $zip --multi=$multi $total $unit -o __OUTFILE__ $infile";
+          command="__PROGRAM__ profile --label test --multi=$multi $total $unit -o __OUTFILE__ $infile";
           echo "$command";
         done
       done
-    done
   done
 }
 
 function get_coverage_commands() {
   local infile=$1;
-  for zip in "" "--gzip"; do
-    for skip in "" "--skipuncovered"; do
-      command="__PROGRAM__ coverage $zip $skip -o __OUTFILE__ $infile";
-      echo $command;
-    done
+  for summary in "" "--summary"; do
+    command="__PROGRAM__ coverage $summary --skipuncovered -o __OUTFILE__ $infile";
+    echo $command;
   done
 }
   
