@@ -7,15 +7,18 @@ or metatranscriptomics data.
 # Table of Contents
  1. [Installation](#installation)   
   1.1. [System requirements](#sys-requirements)   
-   1.1.1. [External packages](#required-packages)   
-   1.1.2. [Required tools](#required-tools)   
-  1.2. [For normal users](#normal-users)   
-  1.3. [For advanced users](#advanced-users)   
-   1.3.1. [Getting the source code](#source-code)   
-    1.3.1.1. [Cloning the git repository](#git-clone)   
-    1.3.1.2. [Downloading the ZIP file from github](#git-zip)   
-    1.3.2. [Running autoconf and automake](#automake)   
-    1.3.3. [Building the program](#build)   
+  1.2. [Installing using conda](#install-conda)   
+  1.3. [Using a docker container](#use-docker)   
+  1.4. [Installing from source](#install-source)   
+   1.4.1. [Required tools](#required-tools)   
+   1.4.2. [Required libraries](#required-libraries)   
+   1.4.3. [For normal users](#normal-users)   
+   1.4.4. [For advanced users](#advanced-users)   
+   1.4.4.1. [Getting the source code](#source-code)   
+    1.4.4.1.1. [Cloning the git repository](#git-clone)   
+    1.4.4.1.2. [Downloading the ZIP file from github](#git-zip)   
+    1.4.4.2. [Running autoconf and automake](#automake)   
+    1.4.4.3. [Building the program](#build)   
  2. [msamtools](#msamtools)   
  3. [msamtools filter](#msamtools-filter)   
  4. [msamtools profile](#msamtools-profile)   
@@ -33,21 +36,43 @@ or metatranscriptomics data.
 
 You should be able to use **msamtools** on any flavor of linux and UNIX. 
 Although I have not tested it, it should also work on macOS. **msamtools** has
-two dependencies (argtable2 and samtools), which it will automatically 
-download and build. These two packages have their own requirements even though
-I have tuned their configurations to a minimum. 
+fixed dependency on samtools 1.9, which it will automatically 
+download and build. samtools has its own requirements even though
+I have tuned its configuration to a minimum. 
 
-#### 1.1.1. External packages <a name="required-packages"></a>
+### 1.2. Installing using conda <a name="install-conda"></a>
 
-The following packages are required to build **msamtools**:
+The easiest way to install **msamtools** and the required dependencies is
+via conda. Only versions 1.0.2 and above are available in bioconda.
 
- 1. **zlib** development version
- 2. **curses** development version (required by samtools)
+~~~
+conda install -c bioconda msamtools
+~~~
 
-Please make sure that these are installed in your system before trying to 
-build.
+Inside your conda environment, you can just invoke **msamtools** directly.
+E.g.:
+~~~
+msamtools help
+~~~
 
-#### 1.1.2. Required tools <a name="required-tools"></a>
+### 1.3. Using a docker container <a name="use-docker"></a>
+
+**msamtools** is available as a docker container that can be used e.g. in 
+snakemake workflows. E.g., if you add this line in your snakemake rule
+~~~
+singularity: 'docker://quay.io/arumugamlab/msamtools:1.0.2_0'
+~~~
+you can use this dockerized version of **msamtools** by invoking **snakemake**
+as:
+~~~
+snakemake --use-singularity
+~~~
+
+### 1.4. Installing from source <a name="install-source"></a>
+
+You can also download the source code and build it yourself.
+
+#### 1.4.1. Required tools <a name="required-tools"></a>
 
 While building **msamtools**, you will need some standard tools that are 
 most likely installed in your system by default. I will still list them here
@@ -61,11 +86,21 @@ anyway to be sure:
 If any of these is missing in your system, or cannot be found in your 
 application path, please fix that first.
 
-### 1.2. For normal users <a name="normal-users"></a>
+#### 1.4.2. Required libraries <a name="required-libraries"></a>
+
+The following libraries are required to build **msamtools** from source:
+
+ 1. **zlib** development version (e.g., zlib1g-dev in ubuntu)
+ 2. **argtable2** development version (e.g., libargtable2-dev in ubuntu)
+
+Please make sure that these are installed in your system before trying to 
+build.
+
+#### 1.4.3. For normal users <a name="normal-users"></a>
 
 If you are a normal user, then the easiest way is to obtain the package file
 and build the program right away. The following commands were written when
-version 1.0.0 was the latest, so please update the version number in the
+version 1.0.2 was the latest, so please update the version number in the
 commands below.
 
 **Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
@@ -78,16 +113,16 @@ upgraded to be compatible with `-std=gnu99`.
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ~~~
-wget https://github.com/arumugamlab/msamtools/releases/download/1.0.0/msamtools-1.0.0.tar.gz
-tar xfz msamtools-1.0.0.tar.gz
-cd msamtools-1.0.0
+wget https://github.com/arumugamlab/msamtools/releases/download/1.0.2/msamtools-1.0.2.tar.gz
+tar xfz msamtools-1.0.2.tar.gz
+cd msamtools-1.0.2
 ./configure
 make
 ~~~
 
-This should create `msamtools` executable among others.
+This should create `msamtools` executable.
 
-### 1.3. For advanced users <a name="advanced-users"></a>
+#### 1.4.4. For advanced users <a name="advanced-users"></a>
 
 If you are an advanced user who would like to contribute to the code base
 or if you just like to do things the hard way, you can check out the source
@@ -95,14 +130,14 @@ code and build the program in a series of steps involving `autoconf` and
 `automake`. If these names confuse you or scare you, then please follow the
 instructions for [normal users](#normal-users).
 
-#### 1.3.1. Getting the source code <a name="source-code"></a>
+#### 1.4.4.1. Getting the source code <a name="source-code"></a>
 
 You can get **msamtools** code from github at 
 <https://github.com/arumugamlab/msamtools>. 
 You can either `git clone` it or download the ZIP file and extract the 
 package.
 
-##### 1.3.1.1. Cloning the git repository <a name="git-clone"></a>
+##### 1.4.4.1.1. Cloning the git repository <a name="git-clone"></a>
 
 You can get a clone of the repository if you wish to keep it up-to-date when
 we release new versions or updates.
@@ -120,7 +155,7 @@ $ cd msamtools-master
 
 You can check the contents of the repository in *msamtools* directory.
 
-##### 1.3.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
+##### 1.4.4.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
 
 You can download the repository's snapshot as on the day of download by:
 ~~~
@@ -142,7 +177,7 @@ $ unzip master.zip
 $ cd msamtools-master
 ~~~
 
-##### 1.3.2. Running autoconf and automake <a name="automake"></a>
+##### 1.4.4.2. Running autoconf and automake <a name="automake"></a>
 
 You can check the contents of the repository in the package directory.
 ~~~
@@ -166,7 +201,7 @@ mkdir build-aux
 automake --add-missing
 ~~~
 
-##### 1.3.3. Building the program <a name="build"></a>
+##### 1.4.4.3. Building the program <a name="build"></a>
 
 You can then build msamtools as follows:
 ~~~
@@ -180,18 +215,23 @@ This is the master program that you call with the subprogram options. There
 are currently 4 subprograms that you can call as shown below.
 ~~~
 
-msamtools: Metagenomics-related extension to samtools.
-  Version: 1.0.0
+Program: msamtools (Metagenomics-related extension to samtools)
+Version: 1.0.2 (using samtools/htslib 1.9)
 
-Usage:
-------
+Usage:   msamtools <command> [options]
 
-msamtools <command> [options]
+Commands:
+ -- Filtering
+     filter         filter alignments based on alignment statistics
 
-Command:  filter         filter alignments based on alignment statistics
-          profile        estimate relative abundance profile of reference sequences in bam file
-          coverage       estimate per-base read coverage of each reference sequence
-          summary        summarize alignment statistics per read in a table format
+ -- Profiling
+     profile        estimate relative abundance profile of reference sequences or genomes in bam file
+
+ -- Coverage
+     coverage       estimate per-base or per-sequence read coverage of each reference sequence
+
+ -- Summary
+     summary        summarize alignment statistics per read in a table format
 ~~~
 
 These represent the different analysis of SAM/BAM files you can perform using
@@ -440,7 +480,7 @@ The header section of the output file includes a few lines of comment that
 are hopefully useful. Here is an example:
 
 ~~~
-# msamtools version 1.0.0
+# msamtools version 1.0.2
 # Command: msamtools profile --label test --unit rel --multi prop --total 3519692 -o test.profile.txt test.bam 
 #   Total inserts: 3519692
 #  Mapped inserts: 334063
@@ -468,7 +508,7 @@ A full description is given below:
 Usage:
 ------
 
-msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--unit=<string>] [--nolen] [--gzip] [--multi=<string>]
+msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--unit=<string>] [--nolen] [--multi=<string>]
 
 General options:
 ----------------
@@ -488,7 +528,6 @@ Specific options:
   --total=<int>             number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)
   --unit=<string>           unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)
   --nolen                   do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)
-  --gzip                    gzip
   --multi=<string>          how to deal with multi-mappers {all | equal | proportional} (default: proportional)
 
 Description
@@ -503,9 +542,6 @@ Integrated Gene Catalog from human gut microbiome (Li et al, Nat biotech 2014).
 In the output file, each sequence in the BAM file gets a line with its abundance.
 They are presented in the order in which they appear in the BAM header. <label>
 is used as the first line, so that reading or 'joining' these files is easier.
-
-If using '-z', output file does NOT automatically get '.gz' extension. This is 
-up to the user to specify the correct full output file name.
 
 --total option:      In metagenomics, an unmapped read could still be a valid
                      sequence, just missing in the database being mapped against.
