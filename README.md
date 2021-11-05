@@ -14,9 +14,9 @@ or metatranscriptomics data.
    1.4.2. [Required libraries](#required-libraries)   
    1.4.3. [For normal users](#normal-users)   
    1.4.4. [For advanced users](#advanced-users)   
-   1.4.4.1. [Getting the source code](#source-code)   
-    1.4.4.1.1. [Cloning the git repository](#git-clone)   
-    1.4.4.1.2. [Downloading the ZIP file from github](#git-zip)   
+    1.4.4.1. [Getting the source code](#source-code)   
+     1.4.4.1.1. [Cloning the git repository](#git-clone)   
+     1.4.4.1.2. [Downloading the ZIP file from github](#git-zip)   
     1.4.4.2. [Running autoconf and automake](#automake)   
     1.4.4.3. [Building the program](#build)   
  2. [msamtools](#msamtools)   
@@ -130,14 +130,14 @@ code and build the program in a series of steps involving `autoconf` and
 `automake`. If these names confuse you or scare you, then please follow the
 instructions for [normal users](#normal-users).
 
-#### 1.4.4.1. Getting the source code <a name="source-code"></a>
+##### 1.4.4.1. Getting the source code <a name="source-code"></a>
 
 You can get **msamtools** code from github at 
 <https://github.com/arumugamlab/msamtools>. 
 You can either `git clone` it or download the ZIP file and extract the 
 package.
 
-##### 1.4.4.1.1. Cloning the git repository <a name="git-clone"></a>
+###### 1.4.4.1.1. Cloning the git repository <a name="git-clone"></a>
 
 You can get a clone of the repository if you wish to keep it up-to-date when
 we release new versions or updates.
@@ -155,7 +155,7 @@ $ cd msamtools-master
 
 You can check the contents of the repository in *msamtools* directory.
 
-##### 1.4.4.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
+###### 1.4.4.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
 
 You can download the repository's snapshot as on the day of download by:
 ~~~
