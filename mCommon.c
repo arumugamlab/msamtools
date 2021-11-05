@@ -569,7 +569,7 @@ num_t mMean(int count, num_t *numbers) {
 	int i;
 	num_t sum = 0;
 	for (i=0; i<count; i++) sum+=numbers[i];
-	return sum/count;
+	return (num_t) 1.0*sum/count;
 }
 
 num_t mStdev(int count, num_t *numbers, num_t *out_mean) {
@@ -583,11 +583,11 @@ num_t mStdev(int count, num_t *numbers, num_t *out_mean) {
 	if (count == 1) {
 		sum = 0;
 	} else {
-		sum /= (count-1);
+		sum = 1.0 * sum / (count-1);
 	}
 	if (out_mean != NULL)
 		*out_mean = mean;
-	return sqrt(sum);
+	return (num_t) sqrt(sum);
 }
 
 void mMinMax(int count, num_t *numbers, num_t *min, num_t *max) {
