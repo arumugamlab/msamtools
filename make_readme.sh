@@ -45,12 +45,12 @@ E.g.:
 msamtools help
 ~~~
 
-### 1.3. Using a docker container <a name="use-docker"></a>
+### 1.3. Using a docker container from the BioConda build <a name="use-docker"></a>
 
 **msamtools** is available as a docker container that can be used e.g. in 
 snakemake workflows. E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/arumugamlab/msamtools:${VERSION}_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.0.2--h5bf99c6_0'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
