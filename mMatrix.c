@@ -1,4 +1,3 @@
-#include <zlib.h>
 #include "mMatrix.h"
 
 /* BEGIN MATRIX */

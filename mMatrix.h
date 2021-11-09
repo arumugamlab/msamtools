@@ -1,6 +1,7 @@
 #ifndef M_MATRIX_H
 #define M_MATRIX_H
 
+#include <zlib.h>
 #include "mCommon.h"
 
 #define MIN(X,Y) ((X<Y)?X:Y)
