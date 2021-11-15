@@ -1,11 +1,11 @@
 ################## BASE IMAGE ######################
-FROM alpine:3.14.2
+FROM alpine:3.14.3
 
 ################## METADATA ######################
 LABEL base_image="alpine:3.14"
 LABEL version="1"
 LABEL software="msamtools"
-LABEL software.version="1.0.1"
+LABEL software.version="1.0.2"
 LABEL about.summary="microbiome-related extension to samtools"
 LABEL about.home="https://github.com/arumugamlab/msamtools"
 LABEL about.documentation="https://github.com/arumugamlab/msamtools"
@@ -20,13 +20,19 @@ MAINTAINER Mani Arumugam <arumugam@sund.ku.dk>
 
 ################## INSTALLATION ######################
 
-ENV MSAM_VERSION 1.0.1
+ENV MSAM_VERSION 1.0.2
 
 RUN apk --no-cache update \
     && apk --no-cache upgrade \
     && apk add --no-cache gcc libc-dev wget zlib-dev make bash \
     && cd /tmp \
-    && wget http://arumugamlab.sund.ku.dk/Tutorials/msamtools-$MSAM_VERSION.tar.gz -O - | tar xfz - \
+    && wget http://prdownloads.sourceforge.net/argtable/argtable2-13.tar.gz -O - | tar xfz - \
+    && cd argtable2-13 \
+    && ./configure --prefix=/usr \
+    && make install \
+    && rm -rf /tmp/argtable2-13 \
+    && cd /tmp \
+    && wget https://github.com/arumugamlab/msamtools/releases/download/$MSAM_VERSION/msamtools-$MSAM_VERSION.tar.gz -O - | tar xfz - \
     && cd msamtools-$MSAM_VERSION/ \
     && ./configure --prefix=/usr \
     && make install \
@@ -35,4 +41,3 @@ RUN apk --no-cache update \
     && apk del gcc libc-dev wget zlib-dev make
 
 ENTRYPOINT ["msamtools"]
-
