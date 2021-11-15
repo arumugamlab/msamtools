@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <regex.h>
+#include <zlib.h>
 #include "argtable2.h"
 #include "bam.h"
 #include "sam.h"
 #include "mBamVector.h"
 #include "mMatrix.h"
-#include "mCompress.h"
 #include "zoeTools.h"
 
 /* I use integers for marking per-position coverage */
@@ -39,8 +39,6 @@ struct msam_global {
 	double        *d_insert_count;
 	mVector       *multi_mappers;    /* A vector of integer vectors */
 	uint8_t       *ub_target_hit;    /* Hit flag for current multimapper read */
-
-	int           *pipe_fd;          /* pipe file descriptors for compression */
 
 	/* Convenience in filtering */
 

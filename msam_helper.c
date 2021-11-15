@@ -18,7 +18,6 @@ void mInitGlobal() {
 	global->multi_mapper_count = 0;
 	global->uniq_mapper_count = 0;
 	global->ub_target_hit = NULL;
-	global->pipe_fd = NULL;
 }
 
 void mFreeGlobal() {
@@ -143,73 +142,4 @@ void mEmptyZoeHash(zoeHash hash) {
 		mFree(vals->elem[i]);
 	}
 	zoeDeleteVec(vals);
-}
-
-/***
- * Prepares a compressor that waits for you to write to it
- * and writes the compressed output to the given filename
- */
-
-FILE* mInitCompressedOutputStream(const char *filename) {
-	pid_t  child;
-	int   *pipe_fd = (int*) mMalloc(2*sizeof(int));
-	FILE  *compressor = NULL;
-
-	if (pipe(pipe_fd) == -1) {
-		perror("Error creating compressor using pipe()");
-		exit(EXIT_FAILURE);
-	}
-
-	if ((child = fork()) == -1) {
-		perror("Error creating compressor child using fork()");
-		exit(EXIT_FAILURE);
-	}
-
-	if (child == 0) { /* Child will read in 'reader' and exit when it gets EOF */
-		/* Compress the pipe input stream into outstrem */
-		FILE *outstream = fopen(filename, "w");
-		FILE *reader    = fdopen(pipe_fd[0], "r");
-
-		close(pipe_fd[1]);
-		def(reader, outstream);
-		fclose(reader);
-		fclose(outstream);
-
-		mFree(pipe_fd);
-		mFreeGlobal();
-
-		exit(EXIT_SUCCESS);
-	} 
-
-	/* Parent just moves on */
-	/* Write coverage info into pipe output stream for compressor child */
-
-	close(pipe_fd[0]);
-	compressor = fdopen(pipe_fd[1], "w");
-	global->pipe_fd = pipe_fd;
-	return compressor;
-}
-
-FILE* mInitOutputStream(const char *filename, int gzip) {
-	FILE *output;
-	if (gzip) {
-		output = mInitCompressedOutputStream(filename);
-	} else {
-		output = fopen(filename, "w");
-	}
-	return output;
-}
-
-void mFreeCompressedOutputStream(FILE *compressor) {
-	int *pipe_fd = global->pipe_fd;
-	mFree(pipe_fd);
-	fclose(compressor);
-}
-
-void mFreeOutputStream(FILE *output, int gzip) {
-	if (gzip) {
-		mFreeCompressedOutputStream(output);
-	} else {
-		fclose(output);
-	}
 }

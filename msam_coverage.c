@@ -1,9 +1,5 @@
 #include "msam.h"
 
-void mEstimateCoverageOnFile(samfile_t *input);
-void mInitCoverage();
-void mWriteCoverageToStream(FILE* outstream, int skip_uncovered, int wordsize);
-
 /*
  * Note: samtools' bam_calend() function returns a 1-based coordinate instead of
  * a 0-based coordinate that the documentation promises. This is potentially 
@@ -129,7 +125,7 @@ void mEstimateCoverageOnFile(samfile_t *input) {
 
 /* Write compressed coverage data using pipe: child is the compressor */
 
-void mWriteCoverageToStream(FILE* outstream, int skip_uncovered, int wordsize) {
+void mWriteCoverageToStream(gzFile stream, int skip_uncovered, int wordsize) {
 	int          tid;
 	int          n_targets  = global->header->n_targets;
 	int         *covered    = global->covered;
@@ -148,37 +144,37 @@ void mWriteCoverageToStream(FILE* outstream, int skip_uncovered, int wordsize) {
 			 * We will print 0's for the tlen if skip_uncovered==0, or do nothing if skip_uncovered==1.
 			 */
 			if (!skip_uncovered) {
-				fprintf(outstream, ">%s\n", global->header->target_name[tid]);
+				gzprintf(stream, ">%s\n", global->header->target_name[tid]);
 				for (i=0; i<tlen-1; i++) {
 					if ((i+1)%wordsize == 0) {
-						fprintf(outstream, "0\n");
+						gzprintf(stream, "0\n");
 					} else {
-						fprintf(outstream, "0 ");
+						gzprintf(stream, "0 ");
 					}
 				}
-				fprintf(outstream, "0\n");
+				gzprintf(stream, "0\n");
 			}
 			continue;
 		}
 
 		/* Write to the given output stream */
 
-		fprintf(outstream, ">%s\n", global->header->target_name[tid]);
+		gzprintf(stream, ">%s\n", global->header->target_name[tid]);
 		for (i=0; i<tlen-1; i++) {
 			coverage_t val = coverage[tid][i];
 			/*sum += val; */
 			if ((i+1)%wordsize == 0) {
-				fprintf(outstream, COVERAGE_T_FORMAT"\n", val);
+				gzprintf(stream, COVERAGE_T_FORMAT"\n", val);
 			} else {
-				fprintf(outstream, COVERAGE_T_FORMAT" ", val);
+				gzprintf(stream, COVERAGE_T_FORMAT" ", val);
 			}
 		}
-		fprintf(outstream, COVERAGE_T_FORMAT"\n", coverage[tid][tlen-1]);
+		gzprintf(stream, COVERAGE_T_FORMAT"\n", coverage[tid][tlen-1]);
 		/*fprintf(stderr, "%s\t%f\n", global->header->target_name[tid], sum/tlen);*/
 	}
 }
 
-void mWriteCoverageSummaryToStream(FILE* outstream, int skip_uncovered) {
+void mWriteCoverageSummaryToStream(gzFile stream, int skip_uncovered) {
 	int          tid;
 	int          n_targets  = global->header->n_targets;
 	int         *covered    = global->covered;
@@ -194,7 +190,7 @@ void mWriteCoverageSummaryToStream(FILE* outstream, int skip_uncovered) {
 
 		if (!covered[tid]) {
 			if (!skip_uncovered) {
-				fprintf(outstream, "%s\t%d\t%d\n", global->header->target_name[tid], 0, 0);
+				gzprintf(stream, "%s\t%d\t%d\n", global->header->target_name[tid], 0, 0);
 			}
 			continue;
 		}
@@ -206,7 +202,7 @@ void mWriteCoverageSummaryToStream(FILE* outstream, int skip_uncovered) {
 			touched += (val != 0);
 			sum += val;
 		}
-		fprintf(outstream, "%s\t%.8f\t%.2f\n", global->header->target_name[tid], 1.0*touched/tlen, 1.0*sum/tlen);
+		gzprintf(stream, "%s\t%.8f\t%.2f\n", global->header->target_name[tid], 1.0*touched/tlen, 1.0*sum/tlen);
 	}
 }
 
@@ -216,7 +212,6 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	/* common variables */
 
-	char             outfile[256];
 	const char      *infile;
 	char            *headerfile = NULL;
 
@@ -245,8 +240,7 @@ int msam_coverage_main(int argc, char* argv[]) {
 	/* Program related */
 
 	int              wordsize = 17;
-	int              gzip = 0;
-	FILE            *output = NULL;
+	gzFile           output = NULL;
 
 	mInitGlobal();
 	global->multiple_input = 0;
@@ -265,7 +259,7 @@ int msam_coverage_main(int argc, char* argv[]) {
 	arg_summary_only    = arg_lit0(NULL, "summary",          "do not report per-position coverage but report fraction of sequence covered (default: false)");
 	arg_skip_uncovered  = arg_lit0("x", "skipuncovered",     "do not report coverage for sequences without aligned reads (default: false)");
 	arg_wordsize        = arg_int0("w", "wordsize", NULL,    "number of words (coverage values) per line (default: 17)");
-	arg_gzip            = arg_lit0("z", "gzip",              "compress output file using gzip (default: false)\n"
+	arg_gzip            = arg_lit0("z", "gzip",              "compress output file using gzip (default: true)\n"
                                                                  "\n"
                                                                  "Description:\n"
                                                                  "------------\n"
@@ -338,16 +332,13 @@ int msam_coverage_main(int argc, char* argv[]) {
 		mQuit("");
 	}
 
-	/* Set output stream */
-	/* I set this early enough, because gzip output uses a fork/pipe where a child exits. */
-	/* Memory allocated before the fork is all reported as lost. */
-	/* To minimize the reported loss, I now open the output stream as early as possible */
-
-	if (arg_gzip->count > 0) {
-		gzip = 1;
+	/* Open output file */
+	if (strcmp(arg_out->sval[0], "-") == 0) { /* If '-' was given as output, redirect to stdout */
+		output = gzdopen(fileno(stdout), "wb");
+	} else {
+		output = gzopen(arg_out->sval[0], "wb");
 	}
-	strcpy(outfile, arg_out->sval[0]);
-	output = mInitOutputStream(outfile, gzip);
+
 
 	/* Setup input operations */
 
@@ -372,7 +363,10 @@ int msam_coverage_main(int argc, char* argv[]) {
 	} else {
 		mWriteCoverageToStream(output, arg_skip_uncovered->count > 0, wordsize);
 	}
-	mFreeOutputStream(output, gzip);
+
+	/* Close output */
+	gzclose(output);
+
 
 	/* Wind-up operations */
 

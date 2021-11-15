@@ -1,4 +1,3 @@
-#include <zlib.h>
 #include "msam.h"
 #include "zoeTools.h"
 
@@ -406,41 +405,6 @@ int mCompareTemplate(const void *a, const void *b) {
 	const int *ib = (const int *)b;
 	int ret = strcmp(global->header->target_name[*ia], global->header->target_name[*ib]);
 	return ret;
-}
-
-void mWriteCompressedSeqAbundance(mMatrix *m_abundance) {
-/*
-	mWriteUIntArrayBinary(stream, header->n_targets, ui_insert_count);
-	int i;
-	uint32_t size;
-	FILE *stream = mSafeOpenFile("out.bin", "wb", 0);
-	mWriteUIntArrayBinary(stream, header->n_targets, ui_insert_count);
-	mSafeCloseFile(stream, 0);
-	mSafeOpenFile("out.bin", "rb", 0);
-	mFree(ui_insert_count);
-	mReadUIntArrayBinary(stream, &size, &ui_insert_count);
-*/
-	int     sorted = 0;
-	int     i;
-	int     row_id = 0; /* If we ever bring back multi-bam processing, this would be useful */
-	FILE   *compressor = fdopen(global->pipe_fd[1], "w");
-	int     n_targets = global->header->n_targets;
-	double *abundance = m_abundance->elem[row_id];
-	int    *indices = mCalloc(n_targets,sizeof(int));
-
-	for (i=0; i<n_targets; i++) indices[i] = i;
-	if (sorted == 1) {
-		qsort(indices, n_targets, sizeof(int), mCompareTemplate);
-	}
-
-	fprintf(compressor, "%s\n", m_abundance->row_names[row_id]);
-	for (i=0; i<n_targets; i++) {
-		fprintf(compressor, "%s\t", global->header->target_name[indices[i]]);
-		fprintf(compressor, "%g", abundance[indices[i]]);
-		fprintf(compressor, "\n");
-	}
-	fclose(compressor);
-	mFree(indices);
 }
 
 #define subprogram "profile"

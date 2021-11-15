@@ -21,8 +21,6 @@ dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
                          $(srcdir)/mCommon.h \
                          $(srcdir)/mMatrix.c \
                          $(srcdir)/mMatrix.h \
-                         $(srcdir)/mCompress.c \
-                         $(srcdir)/mCompress.h \
                          $(srcdir)/zoeTools.c \
                          $(srcdir)/zoeTools.h \
                          $(srcdir)/mBamVector.h \
