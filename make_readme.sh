@@ -9,6 +9,9 @@
 # README.md is ready!
 
 VERSION="1.0.2"
+BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.0.2--h5bf99c6_0"
+OWN_DOCKER="quay.io/arumugamlab/msamtools:1.0.2_0"
+
 cat <<EOF
 # msamtools:  microbiome-related extension to samtools 
 
@@ -45,18 +48,51 @@ E.g.:
 msamtools help
 ~~~
 
-### 1.3. Using a docker container from the BioConda build <a name="use-docker"></a>
+### 1.3. Using a docker container <a name="use-docker"></a>
 
 **msamtools** is available as a docker container that can be used e.g. in 
-snakemake workflows. E.g., if you add this line in your snakemake rule
+snakemake workflows. 
+There are two possibilities to run **msamtools** using docker containers. 
+
+#### 1.3.1. Using a docker container from the BioConda build <a name="use-docker-bioconda"></a>
+
+The first is the **bioconda** docker image corresponding to the bioconda
+release. This docker image provides just **msamtools**.
+E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.0.2--h5bf99c6_0'
+singularity: 'docker://$BIOCONDA_DOCKER'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
 ~~~
 snakemake --use-singularity
 ~~~
+
+#### 1.3.2. Using a docker container from arumugamlab for msamtools+samtools <a name="use-docker-arumugamlab"></a>
+
+If you need to pipe between **msamtools** and **samtools** (which I do a LOT), then it is
+useful to have both **msamtools** and **samtools** in the docker container. Since our conda 
+release to **bioconda** contains only **msamtools**, we have made a custom container that
+contains both **msamtools** and **samtools**. E.g., if you had a bam file that was sorted
+by coordinates, which needs to be sorted by name before you can use **msamtools**, you could 
+have a snakemake rules such as:
+
+~~~
+rule profile_sample:
+    input: "{sample}.db.coord-sorted.bam"
+    output: "{sample}.db.profile.txt.gz"
+    params: seq_depth = lambda wildcards: seq_depth[wildcards.sample]
+    singularity: 'docker://$OWN_DOCKER'
+    shell:
+        """
+        samtools sort -u -m 20G --threads 4 {input} \
+            | msamtools filter -b -u -l 80 -p 95 -z 80 --besthit - \
+            | msamtools profile --multi=proportional --label={wildcards.sample} -o {output} --total={params.seq_depth} -
+        """
+~~~
+
+This will only work with our docker container but not with **bioconda** container.
+
 
 ### 1.4. Installing from source <a name="install-source"></a>
 
