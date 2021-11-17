@@ -8,9 +8,9 @@
 #
 # README.md is ready!
 
-VERSION="1.0.2"
-BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.0.2--h5bf99c6_0"
-OWN_DOCKER="quay.io/arumugamlab/msamtools:1.0.2_0"
+VERSION="1.0.3"
+BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.0.3--h5bf99c6_0"
+OWN_DOCKER="quay.io/arumugamlab/msamtools:1.0.3_0"
 
 cat <<EOF
 # msamtools:  microbiome-related extension to samtools 
@@ -28,7 +28,10 @@ cat <<EOF
 ### 1.1. System requirements <a name="sys-requirements"></a>
 
 You should be able to use **msamtools** on any flavor of linux and UNIX. 
-Although I have not tested it, it should also work on macOS. **msamtools** has
+Although I have not tested it myself, it should also work on macOS. A
+macOS version is available from bioconda.
+
+**msamtools** has
 fixed dependency on samtools 1.9, which it will automatically 
 download and build. samtools has its own requirements even though
 I have tuned its configuration to a minimum. 
@@ -36,7 +39,7 @@ I have tuned its configuration to a minimum.
 ### 1.2. Installing using conda <a name="install-conda"></a>
 
 The easiest way to install **msamtools** and the required dependencies is
-via conda. Only versions 1.0.2 and above are available in bioconda.
+via conda from the bioconda channel. Only versions 1.0.2 and above are available in bioconda.
 
 ~~~
 conda install -c bioconda msamtools
@@ -73,7 +76,7 @@ snakemake --use-singularity
 If you need to pipe between **msamtools** and **samtools** (which I do a LOT), then it is
 useful to have both **msamtools** and **samtools** in the docker container. Since our conda 
 release to **bioconda** contains only **msamtools**, we have made a custom container that
-contains both **msamtools** and **samtools**. E.g., if you had a bam file that was sorted
+contains both **msamtools** and **samtools (v1.9)**. E.g., if you had a bam file that was sorted
 by coordinates, which needs to be sorted by name before you can use **msamtools**, you could 
 have a snakemake rules such as:
 
@@ -85,8 +88,8 @@ rule profile_sample:
     singularity: 'docker://$OWN_DOCKER'
     shell:
         """
-        samtools sort -u -m 20G --threads 4 {input} \
-            | msamtools filter -b -u -l 80 -p 95 -z 80 --besthit - \
+        samtools sort -m 20G --threads 4 -n {input} \\
+            | msamtools filter -b -u -l 80 -p 95 -z 80 --besthit - \\
             | msamtools profile --multi=proportional --label={wildcards.sample} -o {output} --total={params.seq_depth} -
         """
 ~~~
@@ -165,18 +168,19 @@ package.
 
 ###### 1.4.4.1.1. Cloning the git repository <a name="git-clone"></a>
 
-You can get a clone of the repository if you wish to keep it up-to-date when
-we release new versions or updates.
+You can get a clone of the repository if you wish to keep it up-to-date 
+independent of our releases.
 
 ~~~
 \$ git clone https://github.com/arumugamlab/msamtools.git
 Cloning into 'msamtools'...
-remote: Enumerating objects: 41, done.
-remote: Counting objects: 100% (41/41), done.
-remote: Compressing objects: 100% (40/40), done.
-remote: Total 41 (delta 0), reused 37 (delta 0), pack-reused 0
-Unpacking objects: 100% (41/41), done.
-\$ cd msamtools-master
+remote: Enumerating objects: 285, done.
+remote: Counting objects: 100% (285/285), done.
+remote: Compressing objects: 100% (181/181), done.
+remote: Total 285 (delta 167), reused 215 (delta 101), pack-reused 0
+Receiving objects: 100% (285/285), 130.93 KiB | 0 bytes/s, done.
+Resolving deltas: 100% (167/167), done.
+\$ cd msamtools
 ~~~
 
 You can check the contents of the repository in *msamtools* directory.
@@ -186,19 +190,23 @@ You can check the contents of the repository in *msamtools* directory.
 You can download the repository's snapshot as on the day of download by:
 ~~~
 \$ wget https://github.com/arumugamlab/msamtools/archive/master.zip
---2020-02-10 16:45:39--  https://github.com/arumugamlab/msamtools/archive/master.zip
-Resolving github.com (github.com)... 140.82.118.4
-Connecting to github.com (github.com)|140.82.118.4|:443... connected.
+--2021-11-17 12:24:24--  https://github.com/arumugamlab/msamtools/archive/master.zip
+Resolving github.com (github.com)... 140.82.121.4
+Connecting to github.com (github.com)|140.82.121.4|:443... connected.
 HTTP request sent, awaiting response... 302 Found
 Location: https://codeload.github.com/arumugamlab/msamtools/zip/master [following]
---2020-02-10 16:45:39--  https://codeload.github.com/arumugamlab/msamtools/zip/master
-Resolving codeload.github.com (codeload.github.com)... 192.30.253.120
-Connecting to codeload.github.com (codeload.github.com)|192.30.253.120|:443... connected.
+--2021-11-17 12:24:25--  https://codeload.github.com/arumugamlab/msamtools/zip/master
+Resolving codeload.github.com (codeload.github.com)... 140.82.121.10
+Connecting to codeload.github.com (codeload.github.com)|140.82.121.10|:443... connected.
 HTTP request sent, awaiting response... 200 OK
 Length: unspecified [application/zip]
-Saving to: 'master.zip'
+Saving to: ‘master.zip’
 
-    [ <=>                                   ] 55,635       280K/s   in 0.2s
+     0K .......... .......... .......... .......... .......... 1.68M
+    50K .......... ........                                    67.2M=0.03s
+
+2021-11-17 12:24:25 (2.28 MB/s) - ‘master.zip’ saved [70091]
+
 \$ unzip master.zip
 \$ cd msamtools-master
 ~~~
@@ -208,13 +216,11 @@ Saving to: 'master.zip'
 You can check the contents of the repository in the package directory.
 ~~~
 \$ ls
-configure.ac    mBamVector.h    mMatrix.h        msamtools.c  splitSeq.c
-deps            mCommon.c       msam_coverage.c  mSequence.c  versions.txt
-filterSeq.c     mCommon.h       msam_filter.c    mSequence.h  zoeTools.c
-LICENSE         mCompress.c     msam.h           mSimulate.c  zoeTools.h
-Makefile.am     mCompress.h     msam_helper.c    mSimulate.h
-make_readme.sh  mDefinitions.h  msam_profile.c   README.md
-mBamVector.c    mMatrix.c       msam_summary.c   seqUtils.c
+configure.ac  make_readme.sh  mMatrix.c        msam_helper.c   tests
+deps          mBamVector.c    mMatrix.h        msam_profile.c  versions.txt
+Dockerfile    mBamVector.h    msam_coverage.c  msam_summary.c  zoeTools.c
+LICENSE       mCommon.c       msam_filter.c    msamtools.c     zoeTools.h
+Makefile.am   mCommon.h       msam.h           README.md
 ~~~
 
 You will note that the \`configure\` script does not exist in the package.
