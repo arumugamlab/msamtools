@@ -304,13 +304,13 @@ or transcripts per million (tpm). As you probably understand, *tpm* and
 *fpkm* are probably not suitable for profiling genomes, but don't let me
 stop you!
 
-**WARNING: The profiler expects that BAM files are sorted by name so that
+>**WARNING: The profiler expects that BAM files are sorted by name so that
 it can keep track of reads that map to multiple locations. Please ensure
 that your BAM files are sorted that way. Profiler does not check this, so
 can give you erroneous results when you pass coordinate-sorted BAM files.**
 
 
-**NOTE:** From **v1.0.0**, the default output is a gzipped text file. Therefore,
+>**NOTE:** From **v1.0.0**, the default output is a gzipped text file. Therefore,
 argument \`--gzip\` or \`-z\` will throw an error.
 
 We highly recommend that you filter the alignments before sending to the

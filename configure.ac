@@ -28,10 +28,6 @@ AC_DEFUN([AS_VAR_APPEND],[as_fn_append $1 $2])])dnl
 
 AM_INIT_AUTOMAKE([-Wall gnu foreign tar-pax])
 
-#######################################################
-# programs for external file download and installation
-#######################################################
-
 # Compilers etc
 
 AC_PROG_CC
@@ -39,6 +35,10 @@ AC_PROG_RANLIB
 AC_LANG([C])
 m4_pattern_allow([AM_PROG_AR])
 AM_PROG_AR
+
+#######################################################
+# programs for external file download and installation
+#######################################################
 
 # network download, uncompress etc
 
