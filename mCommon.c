@@ -45,29 +45,42 @@ void PROGRESS_PRINT(const char *format, ...) {
 
 FILE* mSafeOpenFile(const char *filename, const char *mode, int gzip) {
 	FILE *stream;
-	if (strcmp(filename, "-") == 0 && gzip == 0) {
-		if (strcmp(mode, "r") == 0) {
-			stream = stdin;
-		} else if (strcmp(mode, "w") == 0) {
-			stream = stdout;
-		} else {
-			mDie("Cannot open %s for mode %s with gzip=%d", filename, mode, gzip);
-		}
-	} else if (gzip) {
-		char command[512];
-		if (strcmp(mode, "r") == 0) {
-			sprintf(command, "gzip --stdout --decompress %s", filename);
-		} else if (strcmp(mode, "w") == 0) {
-			sprintf(command, "gzip -4 --stdout > %s", filename);
-		}
-		if ((stream = popen(command, mode)) == NULL) {
-			mDie("Cannot open gzipped file %s for mode %s", filename, mode);
-		}
-	} else {
-		if ((stream = fopen(filename, mode)) == NULL) {
-			mDie("Cannot open %s for mode %s", filename, mode);
-		}
-	}
+    if (gzip) {
+        char command[512];
+        if (strcmp(filename, "-") == 0) {
+            if (strcmp(mode, "r") == 0) {
+                sprintf(command, "gzip --stdout --decompress");
+            } else if (strcmp(mode, "w") == 0) {
+                sprintf(command, "gzip --stdout");
+            }
+            if ((stream = popen(command, mode)) == NULL) {
+                mDie("Cannot open gzipped %s for mode %s", filename, mode);
+            }
+        } else {
+            if (strcmp(mode, "r") == 0) {
+                sprintf(command, "gzip --stdout --decompress %s", filename);
+            } else if (strcmp(mode, "w") == 0) {
+                sprintf(command, "gzip --stdout > %s", filename);
+            }
+            if ((stream = popen(command, mode)) == NULL) {
+                mDie("Cannot open gzipped file %s for mode %s", filename, mode);
+            }
+        }
+    } else {
+        if (strcmp(filename, "-") == 0) {
+            if (strcmp(mode, "r") == 0) {
+                stream = stdin;
+            } else if (strcmp(mode, "w") == 0) {
+                stream = stdout;
+            } else {
+                mDie("Cannot open %s for mode %s", filename, mode);
+            }
+        } else {
+            if ((stream = fopen(filename, mode)) == NULL) {
+                mDie("Cannot open %s for mode %s", filename, mode);
+            }
+        }
+    }
 	return stream;
 }
 
