@@ -17,6 +17,7 @@ void mInitGlobal() {
 	global->multi_mappers = NULL;
 	global->multi_mapper_count = 0;
 	global->uniq_mapper_count = 0;
+	global->purged_insert_count = 0;
 	global->ub_target_hit = NULL;
 }
 

@@ -13,7 +13,7 @@
 void mInitInsertCounts(int share_type);
 int  mEstimateInsertCountOnFile(samfile_t *input, int share_type);
 void mWriteCompressedSeqAbundance();
-mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type, int length_normalize);
+mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type);
 
 void mInitInsertCounts(int share_type) {
 	int n_features  = global->n_features;
@@ -219,14 +219,11 @@ int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
 /* We will always reserve the first column in abundance for unmapped.
  * For normal calculations to work properly, array will be hacked 
  * so that 0th element is a real sequence by doing ++ on array */
-mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_type, int length_normalize) {
+mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_type) {
 	int        i;
 	int        n_features      = global->n_features;
 	char     **feature_name    = global->feature_name;
-	uint32_t  *feature_len     = global->feature_len;
-	uint32_t  *ui_insert_count = global->ui_insert_count;
 	double    *abundance       = (double*) mMalloc(n_features*sizeof(double));
-	double    *normalize       = (double*) mMalloc(n_features*sizeof(double));
 	mVector   *multi_mappers   = global->multi_mappers;
 
 	mMatrix  *m       = (mMatrix*) mMalloc(sizeof(mMatrix));
@@ -240,7 +237,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	m->col_names[0] = (char*) mMalloc((1+strlen("Unknown"))*sizeof(char));
 	strcpy(m->col_names[0], "Unknown");
 
-	/* Hack to hide the actual first (index 0) element in the arrays */
+	/* Hack to hide Unknown (index 0) in the arrays */
 
 	m->col_names++;
 	m->elem[row]++;
@@ -248,55 +245,45 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 	/* End hack */
 
+	/* Copy feature names into result matrix */
 	for (i=0; i<n_features; i++) {
 		m->col_names[i] = (char*) mMalloc((strlen(feature_name[i])+1)*sizeof(char));
 		strcpy(m->col_names[i], feature_name[i]);
 	}
 
-	/* normalization factor for length normalization */
-	/* instead of dividing by length every time, we divide once and multiply it every time */
-
-	if (length_normalize == 1) {
-		for (i=0; i<n_features; i++) {
-			normalize[i] = 1.0 / feature_len[i];
-		}
-	} else {
-		for (i=0; i<n_features; i++) {
-			normalize[i] = 1.0;
-		}
-	}
-
 	/* 1. Get abundance based on uniquely mapped reads -- U(i) for each refseq i */
 
-	/* Get insert_counts and length-normalize */
+	/* Get insert_counts */
 
 	for (i=0; i<n_features; i++) {
 		/* Since we used 2 for each insert, now let us divide by 2 */
-		abundance[i] = 1.0 * ui_insert_count[i] * normalize[i] / 2;
-		/* also reset insert_count so that it can be reused */
-		ui_insert_count[i] = 0;
+		abundance[i] = 1.0 * global->ui_insert_count[i] / 2;
+		/* also reset insert_count so that it can be reused for the next sample */
+		global->ui_insert_count[i] = 0;
 	}
 
 	switch(share_type) {
 
+		/* Every hit is counted. They were already in abundance. Just copy it */
 		case MULTI_ADD_ALL:
 			memcpy(m->elem[row], abundance, n_features*sizeof(double));
 			break;
 
+		/* Unique hits are already in abundance. Now add the equally-shared hits */
 		case MULTI_SHARE_EQUAL:
 		{
-			double *d_insert_count = global->d_insert_count;
 			/* Add the MULTI_SHARE_EQUAL double values in the d_insert_count array */
 			for (i=0; i<n_features; i++) {
 				/* Since we used only 1 for each insert in double mode, no need to divide by 2 */
-				abundance[i] += d_insert_count[i] * normalize[i];
-				/* also reset insert_count so that it can be reused */
-				d_insert_count[i] = 0;
+				abundance[i] += global->d_insert_count[i];
+				/* also reset insert_count so that it can be reused for the next sample */
+				global->d_insert_count[i] = 0;
 			}
 			memcpy(m->elem[row], abundance, n_features*sizeof(double));
 			break;
 		}
 
+		/* Unique hits are already in abundance. Now add the proportionally-shared hits */
 		/********
 		 * 2. Iteratively adjust U(i) by going through all multi-mappers and sharing them between hits 
 		 ********/
@@ -336,20 +323,16 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 
 					/* 2.2.2.2. Share this multi-mapper proportionately according to a(i,k)/S
 					 *          Let F(i) = Fraction(read belonging to refseq i)
-					 *          It will depend on the abundance of i, and also its length
-					 *                      a(i)            1
-					 *          F(i) =  -------------  x  ------
-					 *                  Sigma{ a(i) }     len(i)
+					 *          It will depend on the abundance of i
+					 *                      a(i)      
+					 *          F(i) =  -------------
+					 *                  Sigma{ a(i) }
 					 */
 					if (sum > 0) {
 						for (i=0; i<multi->size; i++) {
-							/* Division is to get the weighted fraction. Length-normalization is done by multiplying */
+							/* Division is to get the weighted fraction. */
 							/* delta(i) += a_t(k) / Sigma(a_t(k)) / */
-							increment[elem[i]] += (normalize[elem[i]] * abundance_t_k[elem[i]] / sum);
-						}
-					} else {
-						for (i=0; i<multi->size; i++) {
-							increment[elem[i]] += (normalize[elem[i]] / multi->size);
+							increment[elem[i]] += (abundance_t_k[elem[i]] / sum);
 						}
 					}
 				}
@@ -379,6 +362,21 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 			}
 			fprintf(stderr, "# End   PropSharing!\n"); 
 			memcpy(m->elem[row], abundance_t_k, n_features*sizeof(double));
+
+			/* Purge multimapped reads that mapped to features that had no unique reads */
+			for (j=0; j<multi_mappers->size; j++) {
+				mIVector* multi = (mIVector*) multi_mappers->elem[j];
+				int* elem = multi->elem;
+				double sum = 0;
+				for (i=0; i<multi->size; i++) {
+					sum += abundance_t_k[elem[i]];
+				}
+				if (sum == 0) {
+					global->purged_insert_count++;
+				}
+			}
+			fprintf(stderr, "# Purged %d inserts that mapped to features without unique inserts.\n", global->purged_insert_count); 
+
 			mFree(abundance_t_k);
 			mFree(abundance_t_k_minus_1);
 			break;
@@ -396,7 +394,6 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	m->elem[row][0] = 0.0;
 
 	mFree(abundance);
-	mFree(normalize);
 	return(m);
 }
 
@@ -439,6 +436,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	struct arg_str  *arg_label;
 	struct arg_str  *arg_genome;
 	struct arg_int  *arg_total;
+	struct arg_int  *arg_mincount;
 	struct arg_str  *arg_unit;
 	struct arg_lit  *arg_skiplen;
 	struct arg_str  *arg_multi;
@@ -460,13 +458,14 @@ int msam_profile_main(int argc, char* argv[]) {
 								    "-----------------\n");
 
 	/* Specific args */
-	arg_out             = arg_str1("o",  NULL,     "<file>", "name of output file (required)");
-	arg_label           = arg_str1(NULL, "label",  NULL,     "label to use for the profile; typically the sample id (required)");
-	arg_genome          = arg_str0(NULL, "genome", NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
-	arg_total           = arg_int0(NULL, "total",  NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
-	arg_unit            = arg_str0(NULL, "unit",   NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_skiplen         = arg_lit0(NULL, "nolen",            "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
-	arg_multi           = arg_str0(NULL, "multi",  NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
+	arg_out             = arg_str1("o",  NULL,       "<file>", "name of output file (required)");
+	arg_label           = arg_str1(NULL, "label",    NULL,     "label to use for the profile; typically the sample id (required)");
+	arg_genome          = arg_str0(NULL, "genome",   NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
+	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
+	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
+	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
+	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
+	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
                                                                  "\n"
                                                                  "Description\n"
                                                                  "-----------\n"
@@ -516,7 +515,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(11, sizeof(void*));
+	argtable = (void**) mCalloc(12, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -529,6 +528,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = arg_label;
 	argtable[set_argcount++] = arg_genome;
 	argtable[set_argcount++] = arg_total;
+	argtable[set_argcount++] = arg_mincount;
 	argtable[set_argcount++] = arg_unit;
 	argtable[set_argcount++] = arg_skiplen;
 	argtable[set_argcount++] = arg_multi;
@@ -736,7 +736,22 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Calculate abundance */
 	mInitInsertCounts(share_type);
 	mapped_inserts = mEstimateInsertCountOnFile(input, share_type);
-	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type, length_normalize); /* Normalize for sequence length and make abundance */
+	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type); /* Make abundance table */
+	if (arg_mincount->count > 0) {
+		int    mincount = arg_mincount->ival[0];
+		double purged_inserts = 0;
+		/* Mask features with fewer than min_count reads */
+		/* We do that by moving inserts from them to Unknown */
+		for (i=1; i<abundance->ncols; i++) {
+			if (abundance->elem[this_sample][i] < mincount) {
+				purged_inserts += abundance->elem[this_sample][i];
+				abundance->elem[this_sample][i] = 0;
+			}
+		}
+		purged_inserts = round(purged_inserts); /* Round it */
+		fprintf(stderr, "# Purged %d inserts from low-abundance features based on --mincount.\n", (int)purged_inserts);
+		global->purged_insert_count += (int)purged_inserts;
+	}
 
 	/* Introduce unmapped if necessary */
 
@@ -757,12 +772,17 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	if (total_inserts > 0) {
 		gzprintf(output, "#   Total inserts: %d\n", total_inserts);
-		gzprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts, 100.0*mapped_inserts/total_inserts);
-		gzprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
-		gzprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
+		gzprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts - global->purged_insert_count, 100.0*(mapped_inserts - global->purged_insert_count)/total_inserts);
+		if (arg_mincount->count > 0) {
+			gzprintf(output, "# Uniquely mapped: NA (NA%%)\n");
+			gzprintf(output, "# Multiple mapped: NA (NA%%)\n");
+		} else {
+			gzprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
+			gzprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
+		}
 	} else {
 		gzprintf(output, "#   Total inserts: NA\n");
-		gzprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts);
+		gzprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts - global->purged_insert_count);
 		gzprintf(output, "# Uniquely mapped: %d (NA%%)\n", global->uniq_mapper_count);
 		gzprintf(output, "# Multiple mapped: %d (NA%%)\n", global->multi_mapper_count);
 		gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
@@ -771,29 +791,43 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Create new feature for 'unknown' if total_inserts is valid */
 	if (total_inserts > 0) {
 		int       i;
-		int       count = 0;
-		uint64_t  sum   = 0;
 
 		uint32_t *feature_len = global->feature_len;
-		int       unmapped    = total_inserts - mapped_inserts;
-		uint32_t  unknown_size;
 
-		/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
-		for (i=0; i<global->n_features; i++) {
-			sum += feature_len[i];
-			count++;
-		}
+		/* We just add "purged inserts" back to Unknown */
+		abundance->elem[this_sample][0] = total_inserts - mapped_inserts + global->purged_insert_count;
 
 		if (length_normalize) {
+			/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
+			int      count = 0;
+			uint64_t sum   = 0;
+			uint32_t unknown_size;
+			for (i=0; i<global->n_features; i++) {
+				sum += feature_len[i];
+				count++;
+			}
 			unknown_size = sum / count;
 			gzprintf(output, "# Estimated seq. length for 'Unknown': %dbp\n", unknown_size);
-			abundance->elem[this_sample][0] = 1.0 * unmapped / unknown_size ;
+			abundance->elem[this_sample][0] = 1.0 * abundance->elem[this_sample][0] / unknown_size ;
 		} else {
-			abundance->elem[this_sample][0] = 1.0 * unmapped ;
 			gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
 		}
 	}
 
+	/* Length normalize */
+	if (length_normalize) {
+		abundance->col_names++;
+		abundance->elem[this_sample]++;
+		abundance->ncols--;
+		for (i=0; i<global->n_features; i++) {
+			abundance->elem[this_sample][i] /= global->feature_len[i];
+		}
+		abundance->col_names--;
+		abundance->elem[this_sample]--;
+		abundance->ncols++;
+	}
+
+	/* Convert length-normalized abundance into the right unit */
 	switch(unit_type) {
 		case UNIT_FPKM:  /* Convert to FPKM */
 			/* We have fragments divided by seq length */
