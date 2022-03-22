@@ -8,9 +8,9 @@
 #
 # README.md is ready!
 
-VERSION="1.0.3"
-BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.0.3--h5bf99c6_0"
-OWN_DOCKER="quay.io/arumugamlab/msamtools:1.0.3_0"
+VERSION="1.1.0"
+BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.1.0--h5bf99c6_0"
+OWN_DOCKER="quay.io/arumugamlab/msamtools:1.1.0_0"
 
 cat <<EOF
 # msamtools:  microbiome-related extension to samtools 
@@ -433,7 +433,21 @@ entries=\$(expr \$lines / 4)   # There are 4 lines per fastq entry
 msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz --total=\$entries -
 ~~~
 
-### 4.4. Useful information in the output file <a name="profile-output"></a>
+### 4.4. Avoiding extremely-low-abundant features <a name="profile-mincount"></a>
+
+When just a handful of reads map to a feature (genome or contig or gene) in the database,
+it is not immediately clear if it is just really low abundance or if it was a spurious
+mapping. While it might be real rare features, it is sometimes preferable to only
+take a feature forward to downstream analysis when a reasonable number of reads map to it.
+From **v1.1.0**, you can use \`--mincount\` to specify the minimum number of reads that a 
+feature should attract
+for it to be considered **detected** - meaning **expressed** in metatranscriptomic data or
+**present** in metagenomic data. The specific threshold should be based on the sequencing
+depth of the sample. While the default behavior is to not apply this filter, we
+recommend to use \`10\` for metagenomes or metatranscriptomes with \`>10M\` paired-end
+reads.
+
+### 4.5. Useful information in the output file <a name="profile-output"></a>
 
 The header section of the output file includes a few lines of comment that 
 are hopefully useful. Here is an example:

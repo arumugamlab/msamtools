@@ -27,7 +27,8 @@ or metatranscriptomics data.
   4.1. [Profiling genomes or MAGs](#profiling-genomes)   
   4.2. [Units of abundance](#abundance-units)   
   4.3. [Keeping track of unmapped reads](#track-unmapped)   
-  4.4. [Useful information in the output file](#profile-output)   
+  4.4. [Avoiding extremely-low-abundant features](#profile-mincount)   
+  4.5. [Useful information in the output file](#profile-output)   
  5. [msamtools coverage](#msamtools-coverage)   
   5.1. [Per-position coverage of all sequences in BAM file](#pos-coverage)   
   5.2. [Fractional coverage of each sequence in BAM file](#frac-coverage)   
@@ -72,7 +73,7 @@ The first is the **bioconda** docker image corresponding to the bioconda
 release. This docker image provides just **msamtools**.
 E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.0.3--h5bf99c6_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.1.0--h5bf99c6_0'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
@@ -94,7 +95,7 @@ rule profile_sample:
     input: "{sample}.db.coord-sorted.bam"
     output: "{sample}.db.profile.txt.gz"
     params: seq_depth = lambda wildcards: seq_depth[wildcards.sample]
-    singularity: 'docker://quay.io/arumugamlab/msamtools:1.0.3_0'
+    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.0_0'
     shell:
         """
         samtools sort -m 20G --threads 4 -n {input} \
@@ -138,7 +139,7 @@ build.
 
 If you are a normal user, then the easiest way is to obtain the package file
 and build the program right away. The following commands were written when
-version 1.0.3 was the latest, so please update the version number in the
+version 1.1.0 was the latest, so please update the version number in the
 commands below.
 
 **Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
@@ -151,9 +152,9 @@ upgraded to be compatible with `-std=gnu99`.
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ~~~
-wget https://github.com/arumugamlab/msamtools/releases/download/1.0.3/msamtools-1.0.3.tar.gz
-tar xfz msamtools-1.0.3.tar.gz
-cd msamtools-1.0.3
+wget https://github.com/arumugamlab/msamtools/releases/download/1.1.0/msamtools-1.1.0.tar.gz
+tar xfz msamtools-1.1.0.tar.gz
+cd msamtools-1.1.0
 ./configure
 make
 ~~~
@@ -257,7 +258,7 @@ are currently 4 subprograms that you can call as shown below.
 ~~~
 
 Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.0.3 (using samtools/htslib 1.9)
+Version: 1.1.0 (using samtools/htslib 1.9)
 
 Usage:   msamtools <command> [options]
 
@@ -386,13 +387,13 @@ or transcripts per million (tpm). As you probably understand, *tpm* and
 *fpkm* are probably not suitable for profiling genomes, but don't let me
 stop you!
 
-**WARNING: The profiler expects that BAM files are sorted by name so that
+>**WARNING: The profiler expects that BAM files are sorted by name so that
 it can keep track of reads that map to multiple locations. Please ensure
 that your BAM files are sorted that way. Profiler does not check this, so
 can give you erroneous results when you pass coordinate-sorted BAM files.**
 
 
-**NOTE:** From **v1.0.0**, the default output is a gzipped text file. Therefore,
+>**NOTE:** From **v1.0.0**, the default output is a gzipped text file. Therefore,
 argument `--gzip` or `-z` will throw an error.
 
 We highly recommend that you filter the alignments before sending to the
@@ -515,13 +516,27 @@ entries=$(expr $lines / 4)   # There are 4 lines per fastq entry
 msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz --total=$entries -
 ~~~
 
-### 4.4. Useful information in the output file <a name="profile-output"></a>
+### 4.4. Avoiding extremely-low-abundant features <a name="profile-mincount"></a>
+
+When just a handful of reads map to a feature (genome or contig or gene) in the database,
+it is not immediately clear if it is just really low abundance or if it was a spurious
+mapping. While it might be real rare features, it is sometimes preferable to only
+take a feature forward to downstream analysis when a reasonable number of reads map to it.
+From **v1.1.0**, you can use `--mincount` to specify the minimum number of reads that a 
+feature should attract
+for it to be considered **detected** - meaning **expressed** in metatranscriptomic data or
+**present** in metagenomic data. The specific threshold should be based on the sequencing
+depth of the sample. While the default behavior is to not apply this filter, we
+recommend to use `10` for metagenomes or metatranscriptomes with `>10M` paired-end
+reads.
+
+### 4.5. Useful information in the output file <a name="profile-output"></a>
 
 The header section of the output file includes a few lines of comment that 
 are hopefully useful. Here is an example:
 
 ~~~
-# msamtools version 1.0.3
+# msamtools version 1.1.0
 # Command: msamtools profile --label test --unit rel --multi prop --total 3519692 -o test.profile.txt test.bam 
 #   Total inserts: 3519692
 #  Mapped inserts: 334063
@@ -549,7 +564,7 @@ A full description is given below:
 Usage:
 ------
 
-msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--unit=<string>] [--nolen] [--multi=<string>]
+msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--mincount=<int>] [--unit=<string>] [--nolen] [--multi=<string>]
 
 General options:
 ----------------
@@ -567,6 +582,7 @@ Specific options:
   --label=<string>          label to use for the profile; typically the sample id (required)
   --genome=<string>         tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)
   --total=<int>             number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)
+  --mincount=<int>          minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)
   --unit=<string>           unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)
   --nolen                   do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)
   --multi=<string>          how to deal with multi-mappers {all | equal | proportional} (default: proportional)

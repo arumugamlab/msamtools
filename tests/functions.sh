@@ -68,10 +68,12 @@ function run_valgrind_check() {
   local program=$1;
   local in_params=$2;
   local verbose=$3;
+  local tnum=$4;
 
   # Output file names
   local old_file=/tmp/msamtools.old.out
-  rm -rf $old_file; 
+  local val_file=/tmp/msamtools.valgrind.out
+  rm -rf $old_file $val_file
 
   ##########
   # Run program
@@ -80,7 +82,9 @@ function run_valgrind_check() {
   # Form the command
   # We add 2>/dev/null as we catch the exit code.
   local params=$(echo $in_params | sed "s|__OUTFILE__|${old_file}|" | sed "s^__PROGRAM__^${program}^g");
-  local command="valgrind --tool=memcheck --leak-check=full --show-reachable=yes --show-error-list=yes $params";
+  local command="valgrind --tool=memcheck --leak-check=full --show-reachable=yes --show-error-list=yes $params 2>$val_file";
+
+  echo -n "Test $tnum: ";
 
   # Run command
 
@@ -88,7 +92,14 @@ function run_valgrind_check() {
     echo -n "COMMAND: "
   fi
   run_command "$command" "$verbose" ""
-  local exit_code=$?
+
+  local status=1;
+  if [ "$(grep ERROR $val_file | cut -f2- -d' ')" = "ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)" ]; then
+    status=0
+  fi
+  message "Test $tnum: " "$verbose";
+  report_status $status;
+  message "$hline" "$verbose";
 
   return $exit_code
 }
@@ -104,8 +115,7 @@ function compare_two_versions() {
   local program1=$1;
   local program2=$2;
   local in_params=$3;
-  local viewer=$4;
-  local verbose=$5;
+  local verbose=$4;
 
   # Output file names
   local old_file=/tmp/msamtools.old.out
@@ -146,9 +156,19 @@ function compare_two_versions() {
   local exit_code2=$?
 
   # Compare
-  #echo "$viewer $old_file | md5sum - | cut -f1 -d' ')"
-  local digest1=$(eval "$viewer $old_file" | md5sum - | cut -f1 -d' ');
-  local digest2=$(eval "$viewer $new_file" | md5sum - | cut -f1 -d' ');
+  # Text output
+  if [ ! -z "$(echo $command | grep ' -bu ')" ]; then
+    local viewer="samtools view";
+    local digest1=$(eval "$viewer $old_file" | md5sum - | cut -f1 -d' ');
+    local digest2=$(eval "$viewer $new_file" | md5sum - | cut -f1 -d' ');
+  else
+    local viewer="grep -Ev '^Unknown|^#'";
+    if [ ! -z "$(file $old_file | grep 'gzip')" ]; then viewer="zgrep -Ev '^Unknown|^#'"; fi
+    local digest1=$(eval "$viewer $old_file" | md5sum - | cut -f1 -d' ');
+    local viewer="grep -Ev '^Unknown|^#'";
+    if [ ! -z "$(file $new_file | grep 'gzip')" ]; then viewer="zgrep -Ev '^Unknown|^#'"; fi
+    local digest2=$(eval "$viewer $new_file" | md5sum - | cut -f1 -d' ');
+  fi
 
   if [ $verbose -gt 1 ]; then
     echo "$old_file - $digest1"
@@ -172,11 +192,9 @@ function run_pairwise_test() {
   local hline="--------------------------------------------------------------------------------";
 
   echo -n "Test $tnum: ";
-  local viewer="cat";
-  if [ ! -z "$(echo $command | grep ' --gzip ')" ]; then viewer="zcat"; fi
   local viewer="grep -Ev '^Unknown|^#'";
   if [ ! -z "$(echo $command | grep ' --gzip ')" ]; then viewer="zgrep -Ev '^Unknown|^#'"; fi
-  compare_two_versions "$prog1" "$prog2" "$command" "$viewer" "$verbose";
+  compare_two_versions "$prog1" "$prog2" "$command" "$verbose";
   #echo "$prog1" "$prog2" "$command" "$viewer" "$verbose";
   local status=$?;
   message "Test $tnum: " "$verbose";
@@ -193,7 +211,7 @@ function get_filter_commands() {
   for l in 30 45; do
     if [ "$l" == "30" ]; then p=90; else p=95; fi
     for z in "" "-z 80" "-z 90"; do
-      for special in "" "--besthit" "--uniqhit"; do
+      for special in "-b" "--besthit" "--uniqhit"; do
         command="__PROGRAM__ filter -l $l -p $p $z $special $infile > __OUTFILE__";
         echo "$command";
       done
@@ -206,8 +224,10 @@ function get_profile_commands() {
   for total in "--total=60000" ""; do
       for multi in "all" "equal" "prop"; do
         for unit in "" "--unit=rel" "--unit=ab" "--unit=tpm" "--unit=fpkm"; do
-          command="__PROGRAM__ profile --label test --multi=$multi $total $unit -o __OUTFILE__ $infile";
-          echo "$command";
+          for mincount in "" "--mincount=10"; do
+            command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount -o __OUTFILE__ $infile";
+            echo "$command";
+          done
         done
       done
   done
@@ -216,7 +236,7 @@ function get_profile_commands() {
 function get_coverage_commands() {
   local infile=$1;
   for summary in "" "--summary"; do
-    command="__PROGRAM__ coverage $summary --skipuncovered -o __OUTFILE__ $infile";
+    command="__PROGRAM__ coverage $summary --gzip --skipuncovered -o __OUTFILE__ $infile";
     echo $command;
   done
 }

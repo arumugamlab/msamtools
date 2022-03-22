@@ -33,7 +33,7 @@ function run_valgrind_list() {
   eval "$get_cmd_function $infile" | while read command
   do
         tnum=$(expr $tnum + 1);
-        run_valgrind_check "$DEVEL_EXE" "$command" "$verbose";
+        run_valgrind_check "$DEVEL_EXE" "$command" "$verbose" "$tnum";
   done
 }
 
@@ -101,7 +101,7 @@ quick=0
 parse_cmdline $*
 
 # Versions to compare
-STABLE_EXE="$HOME/src/git/msamtools/msamtools.v1.0.2";
+STABLE_EXE="$HOME/src/git/msamtools/msamtools.v1.0.3";
 DEVEL_EXE="$HOME/src/git/msamtools/msamtools";
 
 # Files
@@ -126,15 +126,18 @@ do
   echo "******************************"
 
   # Run regression test
+  echo "-----------------"
   echo "Regression tests:"
+  echo "Against: $(basename $STABLE_EXE)"
   echo "-----------------"
   run_pairwise_list "get_"${mode}"_commands" "$small_file"
 
   # Run integrity test if needed, but skip for complex mode
   if [ "$integrity" == "1" -a "$mode" != "complex" ]; then
+    echo "----------------"
     echo "Integrity tests:"
     echo "----------------"
-    run_valgrind_list "get_"${mode}"_commands" "$tiny_file"
+    run_valgrind_list "get_"${mode}"_commands" "$small_file"
   fi
 
   echo ""
