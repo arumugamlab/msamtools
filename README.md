@@ -73,7 +73,7 @@ The first is the **bioconda** docker image corresponding to the bioconda
 release. This docker image provides just **msamtools**.
 E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.1.0--h5bf99c6_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.1.0--h7132678_0'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
