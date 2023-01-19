@@ -1,7 +1,7 @@
 #include "msam.h"
 
-void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert);
-void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert);
+void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped);
+void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert, int keep_unmapped);
 void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile_t*, mBamPool*));
 void mWriteBestHitBamPool(samfile_t *stream, mBamPool *pool);
 void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool);
@@ -15,18 +15,18 @@ void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool);
  * PPT is a special case, since it takes both positive and negative values.
  * It is implemented as follows using edit distance:
  *
- * The following trick is to make sure that 
+ * The following trick is to make sure that
  *  (1) if ppt is like  950, then you need above 950
  *  (2) if ppt is like -950, then you need below 950
 
 	dist = 1000*(alignment->length-alignment->edit);
 	if (PPT < 0) dist = -dist;
 	if (dist < alignment->length*PPT) continue;
-  
+
  * This has now been converted into three #defined statements below.
  * Beware that they use three global variables that are not #define arguments:
  *  MIN_LENGTH, MAX_CLIP and PPT.
- ****/ 
+ ****/
 
 #define _FILTER_L(a)     (a->length < global->MIN_LENGTH)
 #define _FILTER_Z(a)     (100*a->query_clip > global->MAX_CLIP*a->query_length)
@@ -35,7 +35,7 @@ void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool);
 #define _FILTER_P(a)     ((global->PPT<0)?_FILTER_P_NEG(a):_FILTER_P_POS(a))
 
 static int filter_l(mAlignmentSummary* a) {
-	return _FILTER_L(a); 
+	return _FILTER_L(a);
 }
 
 static int filter_p(mAlignmentSummary* a) {
@@ -62,7 +62,7 @@ static int filter_lpz(mAlignmentSummary* a) {
 	return _FILTER_L(a) || _FILTER_P(a) || _FILTER_Z(a);
 }
 
-void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert) {
+void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped) {
 
 	/* filter function */
 
@@ -99,7 +99,7 @@ void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_onl
 	if (filter_choice == 0) { /* No alignment filtering, just besthit or uniqhit */
 		mFilterFileLite(input, output, writer);
 	} else { /* Need alignment filter and then perhaps besthit/uniqhit */
-		mFilterFile(input, output, filter, writer, rescore, invert);
+		mFilterFile(input, output, filter, writer, rescore, invert, keep_unmapped);
 	}
 }
 
@@ -107,14 +107,14 @@ void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_onl
  * NOTE on 27.11.2010:
  * I had a separate mode for besthit selection since that will involve
  * keeping a list of scores, processing it and then printing.
- * But I did a test on BFAST alignment of MH6, and the difference of 
+ * But I did a test on BFAST alignment of MH6, and the difference of
  * using a list and not using it was just 3m47s from 3m44s. So I decided
  * to make it the standard way to process groups. So, if any one of -l, -z, -p, --ppt
  * is specified, then both -m filter and -m filter --besthit
  * will go through the same procedure, so no need to maintain two versions of code
  */
 
-void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert) {
+void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert, int keep_unmapped) {
 
 	/* parameters for rescoring alignment score */
 	int       hit=1, miss=-1;
@@ -152,10 +152,29 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 			current = pool_current(pool);
 		}
 
-		/* Ignore an unmapped read */
+		/*****
+		 * Ignore an unmapped read, unless your selection uses upper limits.
+		 *
+		 * Normally, filter uses lower-limits, e.g. minimum percent id, minimum alignment length, etc.
+		 * In all these cases, there is no need to process "unmapped" reads, because they are below threshold.
+		 *
+		 * However, when we use -v, then we are converting limits to upper-limits.
+		 * Here, unmapped reads technically satisfy the criteria, but usually they are useless in output files.
+		 * Thus, the default behavior is to ignore unmapped reads and avoid processing them.
+		 *
+		 * There are some cases, e.g. writing out unaligned read names or fastq sequences, where they do become useful.
+		 * In those cases, using --keep_unmapped will write out unmapped read entries from the BAM file.
+		 *
+		 * This is also not done during --besthit and --uniqhit modes, as they will be combined with lower-limits.
+		 *****/
 
-		if (current->core.flag & BAM_FUNMAP)
+		if (current->core.flag & BAM_FUNMAP) {
+			if (keep_unmapped != 0) {
+				if (global->PPT >= 0 && invert == 1)
+					current = mAdvanceBamPool(pool);
+			}
 			continue;
+		}
 
 		/***
 		 * For filtering, we need the following: length, query_length, edit.
@@ -176,6 +195,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 			if (!nm) {
 				mDie("Either NM or MD must be present in SAM/BAM input for 'filter' command. Type '%s filter -h' for details.", PROGRAM);
 			}
+
 			bam_cigar2details(&current->core, bam1_cigar(current), &alignment->length, &alignment->query_length, &alignment->query_clip);
 			alignment->edit  = bam_aux2i(nm);
 		}
@@ -355,6 +375,7 @@ int msam_filter_main(int argc, char* argv[]) {
 	struct arg_int  *arg_minppt;
 	struct arg_int  *arg_minqfrac;
 	struct arg_lit  *arg_invertfilter;
+	struct arg_lit  *arg_keepunmapped;
 	struct arg_lit  *arg_besthitonly;
 	struct arg_lit  *arg_uniqbesthitonly;
 
@@ -383,6 +404,7 @@ int msam_filter_main(int argc, char* argv[]) {
 									"                                  E.g., '--ppt 950' will report alignments with ppt>950,\n"
 									"                                  and '--ppt -950' will report alignments with ppt<=950.");
 	arg_minqfrac        = arg_int0("z",  NULL,     NULL,           "min. percent of the query that must be aligned, between 0 and 100 (default: 0)");
+	arg_keepunmapped    = arg_lit0("k",  "keep_unmapped",          "report unmapped reads, when filtering with 'upper' thresholds (default: false)");
 	arg_invertfilter    = arg_lit0("v",  "invert",                 "invert the effect of the filter (default: false)\n"
 									"                            CAUTION:\n"
 									"                            --------\n"
@@ -408,9 +430,9 @@ int msam_filter_main(int argc, char* argv[]) {
 									"  samtools sort -n -T tmp.sort input.bam | "PROGRAM" -m filter --rescore --besthit -\n");
 	arg_besthitonly     = arg_lit0(NULL, "besthit",                "keep all highest scoring hit(s) per read (default: false)");
 	arg_uniqbesthitonly = arg_lit0(NULL, "uniqhit",                "keep only one highest scoring hit per read, only if it is unique (default: false)");
-	end                 = arg_end(15); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
+	end                 = arg_end(16); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(15, sizeof(void*));
+	argtable = (void**) mCalloc(16, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -426,6 +448,7 @@ int msam_filter_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = arg_minpercentid;
 	argtable[set_argcount++] = arg_minppt;
 	argtable[set_argcount++] = arg_minqfrac;
+	argtable[set_argcount++] = arg_keepunmapped;
 	argtable[set_argcount++] = arg_invertfilter;
 	argtable[set_argcount++] = arg_rescore;
 	argtable[set_argcount++] = arg_besthitonly;
@@ -515,11 +538,11 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	/* Set output mode */
 	strcpy(outmode, "w");
-	if (arg_uncompressed->count > 0) 
+	if (arg_uncompressed->count > 0)
 		strcat(outmode, "bu");
-	else if (arg_bamout->count > 0) 
+	else if (arg_bamout->count > 0)
 		strcat(outmode, "b");
-	else if (arg_write_header->count > 0) 
+	else if (arg_write_header->count > 0)
 		strcat(outmode, "h");
 
 	/* General operations */
@@ -531,7 +554,7 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	/* Specific operations */
 
-	mFilterFileWrapper(input, output, arg_uniqbesthitonly->count > 0, arg_besthitonly->count > 0, arg_rescore->count > 0, arg_invertfilter->count > 0);
+	mFilterFileWrapper(input, output, arg_uniqbesthitonly->count > 0, arg_besthitonly->count > 0, arg_rescore->count > 0, arg_invertfilter->count > 0, arg_keepunmapped->count > 0);
 
 	/* Wind-up operations */
 
