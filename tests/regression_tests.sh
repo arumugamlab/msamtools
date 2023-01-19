@@ -1,6 +1,8 @@
 #! /bin/bash
 
+#################################
 # Sourced functions
+#################################
 
 script_location=$(dirname "$0")
 source $script_location/functions.sh
@@ -37,8 +39,9 @@ function run_valgrind_list() {
   done
 }
 
-#for i in msam_*.c; do gcc -g -W -Wall -pedantic -DPROGRAM=\"msamtools\" -DBUILD=\"\" -DPACKAGE_NAME=\"maui\" -DPACKAGE_VERSION=\"2.0\" -c $i -o ${i%%.c}.o; done; gcc -g -W -Wall -static -pedantic -DPROGRAM=\"msamtools\" -DBUILD=\"\" -DPACKAGE_NAME=\"maui\" -DPACKAGE_VERSION=\"2.0\" -o test msam_*.o libbam.a libmaui.a libargtable2.a -lm -lz
-#./test
+#################################
+# Parse command line args
+#################################
 
 function parse_cmdline() {
   local o
@@ -101,8 +104,8 @@ quick=0
 parse_cmdline $*
 
 # Versions to compare
-STABLE_EXE="$HOME/src/git/msamtools/msamtools.v1.0.3";
-DEVEL_EXE="$HOME/src/git/msamtools/msamtools";
+STABLE_EXE="../msamtools.v1.1.0";
+DEVEL_EXE="../msamtools";
 
 # Files
 small_file="input.uniq.bam"
