@@ -183,7 +183,7 @@ void mWriteCoverageSummaryToStream(gzFile stream, int skip_uncovered) {
 	for (tid=0; tid<n_targets; tid++) {
 		int32_t i;
 		int32_t touched = 0;
-		int32_t sum     = 0;
+		int64_t sum     = 0;
 		int32_t tlen    = global->header->target_len[tid];
 
 		/* If this target is not covered, deal with it */
