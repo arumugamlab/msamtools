@@ -6,7 +6,7 @@
 AC_PREREQ(2.62)
 AC_REVISION([$Revision: 1.1 $])
 AC_COPYRIGHT()
-AC_INIT([msamtools], [1.1.0], [http://www.arumugamlab.org])
+AC_INIT([msamtools], [1.1.1], [http://www.arumugamlab.org])
 
 # we need the aux_dir for installing config.guess to bin/ later.
 # So store it in a variable now, and use AC_SUBST later
@@ -26,7 +26,7 @@ AC_DEFUN([AS_VAR_APPEND],[as_fn_append $1 $2])])dnl
 
 # automake
 
-AM_INIT_AUTOMAKE([-Wall gnu foreign tar-pax])
+AM_INIT_AUTOMAKE([-Wall gnu foreign tar-pax subdir-objects])
 
 # Compilers etc
 
