@@ -1,71 +1,55 @@
-# msamtools:  microbiome-related extension to samtools 
+# msamtools:  microbiome-related extension to samtools
 
 **msamtools** provides useful functions that are commonly used in microbiome
-data analysis, especially when analyzing shotgun metagenomics 
+data analysis, especially when analyzing shotgun metagenomics
 or metatranscriptomics data.
 
-# Table of Contents
- 1. [Installation](#installation)   
-  1.1. [System requirements](#sys-requirements)   
-  1.2. [Installing using conda](#install-conda)   
-  1.3. [Using a docker container](#use-docker)   
-   1.3.1. [Using a docker container from the BioConda build](#use-docker-bioconda)   
-   1.3.2. [Using a docker container from arumugamlab for msamtools+samtools](#use-docker-arumugamlab)   
-  1.4. [Installing from source](#install-source)   
-   1.4.1. [Required tools](#required-tools)   
-   1.4.2. [Required libraries](#required-libraries)   
-   1.4.3. [For normal users](#normal-users)   
-   1.4.4. [For advanced users](#advanced-users)   
-    1.4.4.1. [Getting the source code](#source-code)   
-     1.4.4.1.1. [Cloning the git repository](#git-clone)   
-     1.4.4.1.2. [Downloading the ZIP file from github](#git-zip)   
-    1.4.4.2. [Running autoconf and automake](#automake)   
-    1.4.4.3. [Building the program](#build)   
- 2. [msamtools](#msamtools)   
- 3. [msamtools filter](#msamtools-filter)   
- 4. [msamtools profile](#msamtools-profile)   
-  4.1. [Profiling genomes or MAGs](#profiling-genomes)   
-  4.2. [Units of abundance](#abundance-units)   
-  4.3. [Keeping track of unmapped reads](#track-unmapped)   
-  4.4. [Avoiding extremely-low-abundant features](#profile-mincount)   
-  4.5. [Useful information in the output file](#profile-output)   
- 5. [msamtools coverage](#msamtools-coverage)   
-  5.1. [Per-position coverage of all sequences in BAM file](#pos-coverage)   
-  5.2. [Fractional coverage of each sequence in BAM file](#frac-coverage)   
- 6. [msamtools summary](#msamtools-summary)   
 ## 1. Installation <a name="installation"></a>
 
 ### 1.1. System requirements <a name="sys-requirements"></a>
 
-You should be able to use **msamtools** on any flavor of linux and UNIX. 
+You should be able to use **msamtools** on any flavor of linux and UNIX.
 Although I have not tested it myself, it should also work on macOS. A
 macOS version is available from bioconda.
 
 **msamtools** has
-fixed dependency on samtools 1.9, which it will automatically 
+fixed dependency on **samtools** v1.9, which it will automatically
 download and build. samtools has its own requirements even though
-I have tuned its configuration to a minimum. 
+I have tuned its configuration to a minimum.
 
-### 1.2. Installing using conda <a name="install-conda"></a>
+### 1.2. Recommended installation using conda <a name="install-conda"></a>
 
 The easiest way to install **msamtools** and the required dependencies is
-via conda from the bioconda channel. Only versions 1.0.2 and above are available in bioconda.
+via conda from the bioconda channel. Versions 1.0.2 and above are available in bioconda.
 
+If you are already within a conda environment, you can just add it as:
 ~~~
 conda install -c bioconda msamtools
+msamtools help
 ~~~
-
-Inside your conda environment, you can just invoke **msamtools** directly.
-E.g.:
+If you are creating a new environment, then:
 ~~~
+conda create -n msamtools -c conda-forge -c bioconda msamtools
+conda activate msamtools
 msamtools help
 ~~~
 
-### 1.3. Using a docker container <a name="use-docker"></a>
+If you also needed **samtools** for your analysis but it is not available in your path,
+you can install them together via conda:
+~~~
+conda create -n msamtools -c conda-forge -c bioconda msamtools samtools=1.12
+conda activate msamtools
+msamtools help
+samtools help
+~~~
 
-**msamtools** is available as a docker container that can be used e.g. in 
-snakemake workflows. 
-There are two possibilities to run **msamtools** using docker containers. 
+If for some reason you cannot install via conda, please check [Advanced installation](#advanced-installation).
+
+### 1.3. Using online docker containers without installing locally<a name="use-docker"></a>
+
+**msamtools** is available as a docker container that can be used e.g. in
+snakemake workflows.
+There are two possibilities to run **msamtools** using docker containers.
 
 #### 1.3.1. Using a docker container from the BioConda build <a name="use-docker-bioconda"></a>
 
@@ -73,7 +57,7 @@ The first is the **bioconda** docker image corresponding to the bioconda
 release. This docker image provides just **msamtools**.
 E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.1.0--h7132678_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.1.1--h5bf99c6_0'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
@@ -84,181 +68,34 @@ snakemake --use-singularity
 #### 1.3.2. Using a docker container from arumugamlab for msamtools+samtools <a name="use-docker-arumugamlab"></a>
 
 If you need to pipe between **msamtools** and **samtools** (which I do a LOT), then it is
-useful to have both **msamtools** and **samtools** in the docker container. Since our conda 
+useful to have both **msamtools** and **samtools** in the docker container. Since our conda
 release to **bioconda** contains only **msamtools**, we have made a custom container that
 contains both **msamtools** and **samtools (v1.9)**. E.g., if you had a bam file that was sorted
-by coordinates, which needs to be sorted by name before you can use **msamtools**, you could 
+by coordinates, which needs to be sorted by name before you can use **msamtools**, you could
 have a snakemake rules such as:
 
 ~~~
 rule profile_sample:
     input: "{sample}.db.coord-sorted.bam"
     output: "{sample}.db.profile.txt.gz"
-    params: seq_depth = lambda wildcards: seq_depth[wildcards.sample]
-    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.0_0'
+    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.1_0'
     shell:
         """
-        samtools sort -m 20G --threads 4 -n {input} \
-            | msamtools filter -b -u -l 80 -p 95 -z 80 --besthit - \
-            | msamtools profile --multi=proportional --label={wildcards.sample} -o {output} --total={params.seq_depth} -
+        samtools sort -m 20G --threads 4 -n {input} \\
+            | msamtools filter -b -u -l 80 -p 95 -z 80 --besthit - \\
+            | msamtools profile --multi=proportional --label={wildcards.sample} -o {output} -
         """
 ~~~
-
 This will only work with our docker container but not with **bioconda** container.
 
+## 2. Using msamtools <a name="msamtools"></a>
 
-### 1.4. Installing from source <a name="install-source"></a>
-
-You can also download the source code and build it yourself.
-
-#### 1.4.1. Required tools <a name="required-tools"></a>
-
-While building **msamtools**, you will need some standard tools that are 
-most likely installed in your system by default. I will still list them here
-anyway to be sure:
-
- 1. gcc
- 2. gzip
- 3. tar
- 4. wget
-
-If any of these is missing in your system, or cannot be found in your 
-application path, please fix that first.
-
-#### 1.4.2. Required libraries <a name="required-libraries"></a>
-
-The following libraries are required to build **msamtools** from source:
-
- 1. **zlib** development version (e.g., zlib1g-dev in ubuntu)
- 2. **argtable2** development version (e.g., libargtable2-dev in ubuntu)
-
-Please make sure that these are installed in your system before trying to 
-build.
-
-#### 1.4.3. For normal users <a name="normal-users"></a>
-
-If you are a normal user, then the easiest way is to obtain the package file
-and build the program right away. The following commands were written when
-version 1.1.0 was the latest, so please update the version number in the
-commands below.
-
-**Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
-not tested on version 0.9 as my gcc version is quite outdated with `-std=gnu89` as default.
-This leads to version 0.9 not compiling when running `make` with new compilers. The
-current fix for using the release tarball for version 0.9 is to tell the compiler which
-standard to use, using `CFLAGS="-std=gnu89"`. This extra option was a 
-temporary fix only, and is not needed from version 0.9.6 as the code has been
-upgraded to be compatible with `-std=gnu99`. 
-(Thanks [Russel88](https://github.com/Russel88) for reporting this).
-
-~~~
-wget https://github.com/arumugamlab/msamtools/releases/download/1.1.0/msamtools-1.1.0.tar.gz
-tar xfz msamtools-1.1.0.tar.gz
-cd msamtools-1.1.0
-./configure
-make
-~~~
-
-This should create `msamtools` executable.
-
-#### 1.4.4. For advanced users <a name="advanced-users"></a>
-
-If you are an advanced user who would like to contribute to the code base
-or if you just like to do things the hard way, you can check out the source
-code and build the program in a series of steps involving `autoconf` and
-`automake`. If these names confuse you or scare you, then please follow the
-instructions for [normal users](#normal-users).
-
-##### 1.4.4.1. Getting the source code <a name="source-code"></a>
-
-You can get **msamtools** code from github at 
-<https://github.com/arumugamlab/msamtools>. 
-You can either `git clone` it or download the ZIP file and extract the 
-package.
-
-###### 1.4.4.1.1. Cloning the git repository <a name="git-clone"></a>
-
-You can get a clone of the repository if you wish to keep it up-to-date 
-independent of our releases.
-
-~~~
-$ git clone https://github.com/arumugamlab/msamtools.git
-Cloning into 'msamtools'...
-remote: Enumerating objects: 285, done.
-remote: Counting objects: 100% (285/285), done.
-remote: Compressing objects: 100% (181/181), done.
-remote: Total 285 (delta 167), reused 215 (delta 101), pack-reused 0
-Receiving objects: 100% (285/285), 130.93 KiB | 0 bytes/s, done.
-Resolving deltas: 100% (167/167), done.
-$ cd msamtools
-~~~
-
-You can check the contents of the repository in *msamtools* directory.
-
-###### 1.4.4.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
-
-You can download the repository's snapshot as on the day of download by:
-~~~
-$ wget https://github.com/arumugamlab/msamtools/archive/master.zip
---2021-11-17 12:24:24--  https://github.com/arumugamlab/msamtools/archive/master.zip
-Resolving github.com (github.com)... 140.82.121.4
-Connecting to github.com (github.com)|140.82.121.4|:443... connected.
-HTTP request sent, awaiting response... 302 Found
-Location: https://codeload.github.com/arumugamlab/msamtools/zip/master [following]
---2021-11-17 12:24:25--  https://codeload.github.com/arumugamlab/msamtools/zip/master
-Resolving codeload.github.com (codeload.github.com)... 140.82.121.10
-Connecting to codeload.github.com (codeload.github.com)|140.82.121.10|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: unspecified [application/zip]
-Saving to: ‘master.zip’
-
-     0K .......... .......... .......... .......... .......... 1.68M
-    50K .......... ........                                    67.2M=0.03s
-
-2021-11-17 12:24:25 (2.28 MB/s) - ‘master.zip’ saved [70091]
-
-$ unzip master.zip
-$ cd msamtools-master
-~~~
-
-##### 1.4.4.2. Running autoconf and automake <a name="automake"></a>
-
-You can check the contents of the repository in the package directory.
-~~~
-$ ls
-configure.ac  make_readme.sh  mMatrix.c        msam_helper.c   tests
-deps          mBamVector.c    mMatrix.h        msam_profile.c  versions.txt
-Dockerfile    mBamVector.h    msam_coverage.c  msam_summary.c  zoeTools.c
-LICENSE       mCommon.c       msam_filter.c    msamtools.c     zoeTools.h
-Makefile.am   mCommon.h       msam.h           README.md
-~~~
-
-You will note that the `configure` script does not exist in the package.
-This is because you need to generate the `configure` script using 
-`aclocal`, `autoconf` and `automake`.
-~~~
-aclocal
-autoconf
-mkdir build-aux
-automake --add-missing
-~~~
-
-##### 1.4.4.3. Building the program <a name="build"></a>
-
-You can then build msamtools as follows:
-~~~
-./configure
-make
-~~~
-
-## 2. msamtools <a name="msamtools"></a>
-
-This is the master program that you call with the subprogram options. There 
+This is the master program that you call with the subprogram options. There
 are currently 4 subprograms that you can call as shown below.
 ~~~
 
 Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.1.0 (using samtools/htslib 1.9)
+Version: 1.1.1 (using samtools/htslib 1.9)
 
 Usage:   msamtools <command> [options]
 
@@ -278,16 +115,118 @@ Commands:
 
 These represent the different analysis of SAM/BAM files you can perform using
 **msamtools**.
+Section 3 provides example workflows on how to combine them with each other or **samtools**. Sections 4-7 explain the subprograms in detail.
 
-## 3. msamtools filter <a name="msamtools-filter"></a>
+## 3. Example workflows using msamtools<a name="workflows"></a>
+
+Similar to **samtools**, I have designed **msamtools** to work on a stream, avoiding creation of intermediate files.
+
+### 3.1. Alignment and filtering in one step
+
+If your aligner can write to `stdout`, then you can directly pipe the output to **msamtools** and filter on the fly.
+
+#### Task
+Align **SAMPLE** (files `SAMPLE.1.fq.gz` and `SAMPLE.2.fq.gz`) to the `bwa-mem2` database in `DB`; retain alignments over `80bp` with `>95%` identity covering `>80%` readlength; and write output to `SAMPLE.DB.filtered.bam`.
+
+#### Command
+~~~
+bwa-mem2 mem DB SAMPLE.1.fq.gz SAMPLE.2.fq.gz \
+   | msamtools filter -S -b -l 80 -p 95 -z 80 > SAMPLE.DB.filtered.bam
+~~~
+
+#### Explanation
+
+The command above
+
+* aligns using `bwa-mem2` that generates `SAM` format
+* pipes the output to **msamtools**
+* asks **msamtools** to
+  * read `SAM` format (`-S`)
+  * filter alignments that are
+    * at least `80bp` long (`-l 80`)
+    * at least `95%` identity (`-p 95`)
+    * at least `80%` of the read aligned (`-z 80`)
+  * write output in `BAM` format (`-b`)
+
+### 3.2. Removing human reads from human metagenomes
+
+Here is an example workflow to filter human reads using `bwa-mem2`.
+
+#### Task
+Align **SAMPLE** (fastq files `SAMPLE.1.fq.gz` and `SAMPLE.2.fq.gz`) to the human genome `bwa-mem2` database in `HUMAN_DB`; trust alignments that span at least `30bp`; and write the host-free reads as compressed `fastq` files to `SAMPLE.hostfree.1.fq.gz` and `SAMPLE.hostfree.2.fq.gz`.
+
+>Note: This is our standard workflow for host-sequence removal. Without the extra filtering by `30bp`, we lose significantly more reads that are spuriously flagged as host-derived. Directly going from `bwa-mem2 mem` output to `samtools` is not advisable, as this will remove useful reads from your sample.
+
+#### Command
+~~~
+bwa-mem2 mem HUMAN_DB SAMPLE.1.fq.gz SAMPLE.2.fq.gz \
+  | msamtools filter -S -l 30 --invert --keep_unmapped -bu - \
+  | samtools fastq -1 SAMPLE.hostfree.1.fq.gz -2 SAMPLE.hostfree.2.fq.gz -s /dev/null -o /dev/null -c 6 -N -
+~~~
+
+#### Explanation
+
+The command above
+
+* aligns using `bwa-mem2` that generates `SAM` format
+* pipes the output to **msamtools**
+* asks **msamtools** to get reads that are not human by
+  * reading `SAM` format (`-S`)
+  * filtering alignments that are at least `30bp` long (`-l 30`)
+  * negating that and getting alignments that are below `30bp` (`--invert`)
+  * while retaining also the unmapped reads (`--keep_unmapped`)
+  * writing output in uncompressed `BAM` format (`-bu`)
+* then pipes the output to **samtools**
+* asks **samtools** to make `fastq` files
+  * write compressed forms (`-c 5`)
+  * of fastq format (`fastq`)
+  * of forward and reverse reads to separate files (`-1` and `-2`)
+  * while ignoring unpaired reads (`-s /dev/null -0 /dev/null`)
+  * and appending `/1` and `/2` to the reads (`-N`)
+
+### 3.3. Mapping a metagenome sample to a gene database and generating gene profiles
+
+Here is an example workflow one would use after mapping metagenomic reads to IGC.
+
+#### Task
+
+Align **SAMPLE** (fastq files `SAMPLE.1.fq.gz` and `SAMPLE.2.fq.gz`) to the gene catalog `bwa-mem2` database in `GENE_DB`; filter as in Section 3.1 but retain only the highest-scoring hits; and write profile of all genes to `SAMPLE.profile.txt.gz`.
+
+#### Command
+~~~
+bwa-mem2 mem GENE_DB SAMPLE.1.fq.gz SAMPLE.2.fq.gz \
+  | msamtools filter -S -bu -l 80 -p 95 -z 80 --besthit - \
+  | msamtools profile --multi=proportional --label=SAMPLE --unit=rel -o SAMPLE.profile.txt.gz -
+~~~
+
+#### Explanation
+
+The command above
+
+* aligns using `bwa-mem2` that generates `SAM` format
+* then pipes the output to **msamtools filter** * to
+  * read `SAM` format (`-S`)
+  * filter alignments that are
+    * at least `80bp` long (`-l 80`)
+    * at least `95%` identity (`-p 95`)
+    * at least `80%` of the read aligned (`-z 80`)
+  * keep only best-scoring hits per read (`--besthit`)
+  * write output in uncompressed `BAM` format (`-bu`)
+* then pipes the output to **msamtools profile** * to
+  * share multihit reads proportionally among hits (`--multi=proportional`)
+  * calculate relative abundance profiles (`--unit=rel`)
+  * use sample label `SAMPLE` in the output file (`--label=SAMPLE`)
+  * and write compressed output to `SAMPLE.profile.txt.gz` (`-o`)
+
+## 4. msamtools filter <a name="msamtools-filter"></a>
 
 **filter** program provides alignment filtering based on percent identity,
 read length, aligned fraction of read length, or combinations thereof.
-For example, in mapping metagenomic reads to a database for species-level 
+For example, in mapping metagenomic reads to a database for species-level
 annotation, we typically throw out alignments <95% sequence identity.
 
 Here is an example filtering command one would use after mapping metagenomic
-reads to the Integrated Gene Catalog (IGC) consisting 9.9 million genes 
+reads to the Integrated Gene Catalog (IGC) consisting 9.9 million genes
 (Li *et al*, **Nat. biotech** 2014).
 ~~~
 msamtools filter -b -l 80 -p 95 -z 80 --besthit sample1.IGC.bam > sample1.IGC.filtered.bam
@@ -302,7 +241,7 @@ A full description is given below:
 Usage:
 ------
 
-msamtools filter [-buhSv] <bamfile> [--help] [-l <int>] [-p <int>] [--ppt=<int>] [-z <int>] [--rescore] [--besthit] [--uniqhit]
+msamtools filter [-buhSkv] <bamfile> [--help] [-l <int>] [-p <int>] [--ppt=<int>] [-z <int>] [--rescore] [--besthit] [--uniqhit]
 
 General options:
 ----------------
@@ -328,6 +267,7 @@ Specific options:
                                   E.g., '--ppt 950' will report alignments with ppt>950,
                                   and '--ppt -950' will report alignments with ppt<=950.
   -z <int>                  min. percent of the query that must be aligned, between 0 and 100 (default: 0)
+  -k, --keep_unmapped       report unmapped reads, when filtering using upper-limit thresholds (default: false)
   -v, --invert              invert the effect of the filter (default: false)
                             CAUTION:
                             --------
@@ -365,26 +305,26 @@ for the forward and reverse reads.
 Additionally, when using `--besthit` or `--uniqhit`, the input BAM file
 is expected to be sorted by **QNAME**. Each mate should occur as a continuous
 group followed by the other mate. Typical output from read-mappers do
-produce output that follows this. However, if you had processed the BAM 
+produce output that follows this. However, if you had processed the BAM
 files yourself and modified things, it could affect output from **filter**.
 In such cases, you should sort them again using `samtools sort -n` so they
 are sorted by **QNAME** again.
 
-## 4. msamtools profile <a name="msamtools-profile"></a>
+## 5. msamtools profile <a name="msamtools-profile"></a>
 
 **profile** program provides sequence abundance profiling functionality.
-By default, relative abundance of each sequence in the BAM file is reported. 
-However, using the `--genome` option, you can associate sequences in the
-BAM file with features, e.g. genomes or MAGs.
-Abundance of a sequence/genome is estimated as number of inserts 
-(mate-pairs/paired-ends) mapped to that sequence/genome, divided by its 
-length. Reads mapping to multiple sequences/genomes can be shared across 
-the sequences/genomes in three different ways (please see below). 
+By default, relative abundance of each sequence in the BAM file is reported.
+However, using the `--genome` option, you can associate database sequences in the
+BAM file with larger features, e.g. genomes or MAGs.
+Abundance of a sequence/genome is estimated as number of inserts
+(mate-pairs/paired-ends) mapped to that sequence/genome, divided by its
+length. Reads mapping to multiple sequences/genomes can be shared across
+the sequences/genomes in three different ways (please see below).
 Finally, abundance is estimated in one of four units:
-abundance (ab), relative abundance (rel), 
+abundance (ab), relative abundance (rel),
 fragments per kilobase of sequence per million reads (fpkm),
 or transcripts per million (tpm). As you probably understand, *tpm* and
-*fpkm* are probably not suitable for profiling genomes, but don't let me
+*fpkm* are probably not suitable for profiling genomes, but do not let me
 stop you!
 
 >**WARNING: The profiler expects that BAM files are sorted by name so that
@@ -397,7 +337,7 @@ can give you erroneous results when you pass coordinate-sorted BAM files.**
 argument `--gzip` or `-z` will throw an error.
 
 We highly recommend that you filter the alignments before sending to the
-**profile** program, as it considers each alignment to be important (it 
+**profile** program, as it considers each alignment to be important (it
 does not look at alignment quality, for example).
 
 Here is an example profiling command one would use after mapping metagenomic
@@ -408,19 +348,21 @@ msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC
 The above command estimates relative abundance of IGC genes after sharing
 multi-mapper reads proportionately between the genes (see below).
 
-In the spirit of **samtools** programs, **msamtools** programs can also 
-stream between each other. Therefore, a single command to **filter** and **profile** 
+In the spirit of **samtools** programs, **msamtools** programs can also
+stream between each other. Therefore, a single command to **filter** and **profile**
 would look like:
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC.profile.txt.gz -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam \
+  | msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC.profile.txt.gz -
 ~~~
 
 or for mapping to scaffolds that are grouped in metagenome-assembled MAGs using:
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam \
+  | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
 ~~~
 
-### 4.1. Profiling genomes or MAGs <a name="profiling-genomes"></a>
+### 5.1. Profiling genomes or MAGs <a name="profiling-genomes"></a>
 
 Starting from **v1.0.0**, **profile** program supports profiling of genomes defined by a set of
 sequences. This requires a tab-delimited definition file of the following format:
@@ -441,12 +383,13 @@ MAG_3	Contig_48
 If this information is stored in a file called `myMAGs.genome.def`, then you can
 run the profiler as follows to get profiles at the genome level.
 ~~~
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam \
+  | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
 ~~~
 
-### 4.2. Units of abundance <a name="abundance-units"></a>
+### 5.2. Units of abundance <a name="abundance-units"></a>
 
-By default, **profile** command will generate relative abundances that sum to `1` 
+By default, **profile** command will generate relative abundances that sum to `1`
 across the sequences in the BAM file. Four options to measure
 the abundance are available:
 *  **ab** - number of inserts mapped to the sequence, normalized by sequence length
@@ -459,9 +402,9 @@ When combining `--unit=ab` and ` --nolen`, you get the raw number of inserts map
 to each sequence, and summing them up will match the total number of inserts in
 the BAM file (or what was passed via `--total`).
 
-### 4.3. Keeping track of unmapped reads <a name="track-unmapped"></a>
+### 5.3. Keeping track of unmapped reads <a name="track-unmapped"></a>
 
-By default, **profile** command will generate relative abundances that sum to `1` 
+By default, **profile** command will generate relative abundances that sum to `1`
 across the sequences in the BAM file. In metagenomic data, sometimes we need
 to identify the fraction of the reads that were not mapped to our database
 and only assign the remaining fraction to the sequences in the BAM file.
@@ -469,14 +412,14 @@ Consider the following examples. Please note that in the examples below we do
 not address issues inherent to relative abundance, which is beyond the scope of
 a profiler, but merely provide different ways to estimate it.
 
-**Sample 1** has 500 cells, with abundance given in column 2. 
-If we sequenced 1000 reads from this samples, we expect to see 
+**Sample 1** has 500 cells, with abundance given in column 2.
+If we sequenced 1000 reads from this samples, we expect to see
 the number of reads in column 3 (we ignore the
 difference in genome size for this simple example).
 The relative abundance of the taxa estimated when **excluding**
-the unmapped reads is given in column 4. 
-The relative abundance of the taxa estimated when **including** 
-the unmapped reads is given in column 5. 
+the unmapped reads is given in column 4.
+The relative abundance of the taxa estimated when **including**
+the unmapped reads is given in column 5.
 
 **Sample 1:**
 
@@ -497,7 +440,7 @@ Here's another sample, **Sample 2**, with different microbial composition.
 | Faecalibacterium |       100 |  200  |    50%   |   20%    |
 | Unknown          |       300 |  600  |    ---   |   60%    |
 
-Even though *Bacteroides* and *Faecalibacterium* had the same abundance 
+Even though *Bacteroides* and *Faecalibacterium* had the same abundance
 in the two samples, ignoring the **Unknown** fraction leads to a different
 estimation of their relative abundances. In these situations, it is useful
 to keep track of the **unmapped** reads from the metagenome.
@@ -508,21 +451,22 @@ the unmapped reads based on how many reads are in the bam/sam file, and then use
 it in the profiling stage.
 
 ~~~
- # Get number of entries in the fwd fastq file = number of inserts
+# Get number of entries in the fwd fastq file = number of inserts
 lines=$(zcat sample1.1.fq.gz | wc -l)
-entries=$(expr $lines / 4)   # There are 4 lines per fastq entry
+entries=$(expr \$lines / 4)   # There are 4 lines per fastq entry
 
- # Use total reads in profiler
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz --total=$entries -
+# Use total reads in profiler
+msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam \
+  | msamtools profile --multi=proportional --label=sample1 -o sample1.IGC.profile.txt.gz --total=$entries -
 ~~~
 
-### 4.4. Avoiding extremely-low-abundant features <a name="profile-mincount"></a>
+### 5.4. Avoiding extremely-low-abundant features <a name="profile-mincount"></a>
 
 When just a handful of reads map to a feature (genome or contig or gene) in the database,
 it is not immediately clear if it is just really low abundance or if it was a spurious
 mapping. While it might be real rare features, it is sometimes preferable to only
 take a feature forward to downstream analysis when a reasonable number of reads map to it.
-From **v1.1.0**, you can use `--mincount` to specify the minimum number of reads that a 
+From **v1.1.0**, you can use `--mincount` to specify the minimum number of reads that a
 feature should attract
 for it to be considered **detected** - meaning **expressed** in metatranscriptomic data or
 **present** in metagenomic data. The specific threshold should be based on the sequencing
@@ -530,14 +474,14 @@ depth of the sample. While the default behavior is to not apply this filter, we
 recommend to use `10` for metagenomes or metatranscriptomes with `>10M` paired-end
 reads.
 
-### 4.5. Useful information in the output file <a name="profile-output"></a>
+### 5.5. Useful information in the output file <a name="profile-output"></a>
 
-The header section of the output file includes a few lines of comment that 
+The header section of the output file includes a few lines of comment that
 are hopefully useful. Here is an example:
 
 ~~~
 # msamtools version 1.1.0
-# Command: msamtools profile --label test --unit rel --multi prop --total 3519692 -o test.profile.txt test.bam 
+# Command: msamtools profile --label test --unit rel --multi prop --total 3519692 -o test.profile.txt test.bam
 #   Total inserts: 3519692
 #  Mapped inserts: 334063
 # Mapped fraction: 0.0949
@@ -549,12 +493,12 @@ Unknown 0.809179
 ...
 ~~~
 
-The commented lines are self-explanatory, and could be useful in getting 
+The commented lines are self-explanatory, and could be useful in getting
 quick summary of the profiling process. Since length-normalization is not
 turned off, the average sequence length for the entire database is used
 as a proxy sequence length for the **Unknown** fraction.
 
-The first line includes the name of the sample provided via `--label`. 
+The first line includes the name of the sample provided via `--label`.
 This is for conveniently combining output from multiple files. A script that
 combines output does not need external information to create a table with the
 right sample name in a row/column.
@@ -634,18 +578,18 @@ Multi-mapper reads:  Reads mapping to multiple references need to be considered
                           mapped reads.
 ~~~
 
-## 5. msamtools coverage <a name="msamtools-coverage"></a>
+## 6. msamtools coverage <a name="msamtools-coverage"></a>
 
 **coverage** program estimates per-position or fractional coverage of each sequence in
-the BAM file. 
+the BAM file.
 
-### 5.1. Per-position coverage of all sequences in BAM file <a name="pos-coverage"></a>
+### 6.1. Per-position coverage of all sequences in BAM file <a name="pos-coverage"></a>
 
 The per-position coverage output file is in the format of old Sanger quality files
 with fasta headers and space-delimited numbers. As this can build up into
 quite a large file, using the `-x` option will not print coverage for
 sequences that did not have a single read mapped to them. Since their coverage
-is essentially zero in each position, printing their coverage is just a 
+is essentially zero in each position, printing their coverage is just a
 waste of space.
 
 Here is an example per-position coverage command.
@@ -653,11 +597,11 @@ Here is an example per-position coverage command.
 msamtools coverage -x -z -o sample1.coverage.txt.gz sample1.IGC.filtered.bam
 ~~~
 
-### 5.2. Fractional coverage of each sequence in BAM file <a name="frac-coverage"></a>
+### 6.2. Fractional coverage of each sequence in BAM file <a name="frac-coverage"></a>
 
 Sometimes it is useful to see which sequence from the BAM file has been observed in
 the sample. And if yes, it is nice to know what fraction of the sequence has been
-covered with alignments in the BAM file. For this one can use the `--summary` 
+covered with alignments in the BAM file. For this one can use the `--summary`
 option, which outputs fractional coverage and sequencing-coverage of each sequence.
 
 Here is an example fractional coverage command.
@@ -717,13 +661,13 @@ If using '-z', output file does NOT automatically get '.gz' extension. This is
 up to the user to specify the correct full output file name.
 ~~~
 
-## 6. msamtools summary <a name="msamtools-summary"></a>
+## 7. msamtools summary <a name="msamtools-summary"></a>
 
 **summary** program summarizes alignments given in the BAM file. It can
 also provide distributions of certain features across alignments.
 
 Here is an example summary command that reports all alignments:
-~~~
+```console
 mani@host:~/src/git/msamtools> ./msamtools summary input.bam | head
 ERR688505.1_FCD1R4CACXX:7:1101:1787:2090#CAGCGGCG       93      MH0153_GL0123525        93      93      100.0
 ERR688505.1_FCD1R4CACXX:7:1101:1787:2090#CAGCGGCG       73      MH0153_GL0123525        73      73      100.0
@@ -735,12 +679,11 @@ ERR688505.4_FCD1R4CACXX:7:1101:1788:2199#CAGCGGCG       93      MH0204_GL0114410
 ERR688505.4_FCD1R4CACXX:7:1101:1788:2199#CAGCGGCG       62      MH0204_GL0114410        62      62      100.0
 ERR688505.5_FCD1R4CACXX:7:1101:1765:2211#CAGCGGCN       91      MH0188_GL0130879        91      91      100.0
 ERR688505.5_FCD1R4CACXX:7:1101:1765:2211#CAGCGGCN       78      MH0188_GL0130879        78      78      100.0
-
-~~~
+```
 
 Here is another example summary command that reports the distribution
 of unmapped bases:
-~~~
+```console
 mani@host:~/src/git/msamtools> ./msamtools summary --stats=unmapped input.bam
 0       50033
 1       24425
@@ -817,7 +760,7 @@ mani@host:~/src/git/msamtools> ./msamtools summary --stats=unmapped input.bam
 72      2
 73      5
 74      1
-~~~
+```
 It shows that 50033 reads had 0 unmapped bases (meaning full mapping), 24425 reads had 1 unmapped base, etc.
 
 A full description is given below:
@@ -859,4 +802,148 @@ for a given measure.
    --stats=edit     - distribution for edit distances
    --stats=score    - distribution for score=match-edit
 ~~~
+
+## 8. Advanced installation <a name="advanced-installation"></a>
+
+You can also download the source code and build it yourself.
+
+### 8.1. Required tools <a name="required-tools"></a>
+
+While building **msamtools**, you will need some standard tools that are
+most likely installed in your system by default. I will still list them here
+anyway to be sure:
+
+ 1. gcc
+ 2. gzip
+ 3. tar
+ 4. wget
+
+If any of these is missing in your system, or cannot be found in your
+application path, please fix that first.
+
+### 8.2. Required libraries <a name="required-libraries"></a>
+
+The following libraries are required to build **msamtools** from source:
+
+ 1. **zlib** development version (e.g., zlib1g-dev in ubuntu)
+ 2. **argtable2** development version (e.g., libargtable2-dev in ubuntu)
+
+Please make sure that these are installed in your system before trying to
+build.
+
+### 8.3. For normal users <a name="normal-users"></a>
+
+If you are a normal user, then the easiest way is to obtain the package file
+and build the program right away. The following commands were written when
+version 1.1.0 was the latest, so please update the version number in the
+commands below.
+
+**Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
+not tested on version 0.9 as my gcc version is quite outdated with `-std=gnu89` as default.
+This leads to version 0.9 not compiling when running `make` with new compilers. The
+current fix for using the release tarball for version 0.9 is to tell the compiler which
+standard to use, using `CFLAGS="-std=gnu89"`. This extra option was a
+temporary fix only, and is not needed from version 0.9.6 as the code has been
+upgraded to be compatible with `-std=gnu99`.
+(Thanks [Russel88](https://github.com/Russel88) for reporting this).
+
+```console
+wget https://github.com/arumugamlab/msamtools/releases/download/1.1.0/msamtools-1.1.0.tar.gz
+tar xfz msamtools-1.1.0.tar.gz
+cd msamtools-1.1.0
+./configure
+make
+```
+
+This should create `msamtools` executable.
+
+### 8.4. For advanced users <a name="advanced-users"></a>
+
+If you are an advanced user who would like to contribute to the code base
+or if you just like to do things the hard way, you can check out the source
+code and build the program in a series of steps involving `autoconf` and
+`automake`. If these names confuse you or scare you, then please follow the
+instructions for [normal users](#normal-users).
+
+#### 8.4.1. Getting the source code <a name="source-code"></a>
+
+You can get **msamtools** code from github at
+<https://github.com/arumugamlab/msamtools>.
+You can either `git clone` it or download the ZIP file and extract the
+package.
+
+##### 8.4.1.1. Cloning the git repository <a name="git-clone"></a>
+
+You can get a clone of the repository if you wish to keep it up-to-date
+independent of our releases.
+
+```console
+$ git clone https://github.com/arumugamlab/msamtools.git
+Cloning into 'msamtools'...
+remote: Enumerating objects: 285, done.
+remote: Counting objects: 100% (285/285), done.
+remote: Compressing objects: 100% (181/181), done.
+remote: Total 285 (delta 167), reused 215 (delta 101), pack-reused 0
+Receiving objects: 100% (285/285), 130.93 KiB | 0 bytes/s, done.
+Resolving deltas: 100% (167/167), done.
+$ cd msamtools
+```
+
+You can check the contents of the repository in *msamtools* directory.
+
+##### 8.4.1.2. Downloading the ZIP file from github <a name="git-zip"></a>
+
+You can download the repository snapshot as on the day of download by:
+```console
+$ wget https://github.com/arumugamlab/msamtools/archive/master.zip
+--2021-11-17 12:24:24--  https://github.com/arumugamlab/msamtools/archive/master.zip
+Resolving github.com (github.com)... 140.82.121.4
+Connecting to github.com (github.com)|140.82.121.4|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://codeload.github.com/arumugamlab/msamtools/zip/master [following]
+--2021-11-17 12:24:25--  https://codeload.github.com/arumugamlab/msamtools/zip/master
+Resolving codeload.github.com (codeload.github.com)... 140.82.121.10
+Connecting to codeload.github.com (codeload.github.com)|140.82.121.10|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: unspecified [application/zip]
+Saving to: ‘master.zip’
+
+     0K .......... .......... .......... .......... .......... 1.68M
+    50K .......... ........                                    67.2M=0.03s
+
+2021-11-17 12:24:25 (2.28 MB/s) - ‘master.zip’ saved [70091]
+
+$ unzip master.zip
+$ cd msamtools-master
+```
+
+#### 8.4.2. Running autoconf and automake <a name="automake"></a>
+
+You can check the contents of the repository in the package directory.
+```console
+$ ls
+configure.ac  make_readme.sh  mMatrix.c        msam_helper.c   tests
+deps          mBamVector.c    mMatrix.h        msam_profile.c  versions.txt
+Dockerfile    mBamVector.h    msam_coverage.c  msam_summary.c  zoeTools.c
+LICENSE       mCommon.c       msam_filter.c    msamtools.c     zoeTools.h
+Makefile.am   mCommon.h       msam.h           README.md
+```
+
+You will note that the `configure` script does not exist in the package.
+This is because you need to generate the `configure` script using
+`aclocal`, `autoconf` and `automake`.
+```
+aclocal
+autoconf
+mkdir build-aux
+automake --add-missing
+```
+
+#### 8.4.3. Building the program <a name="build"></a>
+
+You can then build msamtools as follows:
+```console
+./configure
+make
+```
 
