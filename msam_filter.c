@@ -404,7 +404,7 @@ int msam_filter_main(int argc, char* argv[]) {
 									"                                  E.g., '--ppt 950' will report alignments with ppt>950,\n"
 									"                                  and '--ppt -950' will report alignments with ppt<=950.");
 	arg_minqfrac        = arg_int0("z",  NULL,     NULL,           "min. percent of the query that must be aligned, between 0 and 100 (default: 0)");
-	arg_keepunmapped    = arg_lit0("k",  "keep_unmapped",          "report unmapped reads, when filtering with 'upper' thresholds (default: false)");
+	arg_keepunmapped    = arg_lit0("k",  "keep_unmapped",          "report unmapped reads, when filtering using upper-limit thresholds (default: false)");
 	arg_invertfilter    = arg_lit0("v",  "invert",                 "invert the effect of the filter (default: false)\n"
 									"                            CAUTION:\n"
 									"                            --------\n"
