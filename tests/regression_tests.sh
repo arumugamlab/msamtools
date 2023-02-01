@@ -104,7 +104,7 @@ quick=0
 parse_cmdline $*
 
 # Versions to compare
-STABLE_EXE="../msamtools.v1.1.0";
+STABLE_EXE="../msamtools.v1.1.1";
 DEVEL_EXE="../msamtools";
 
 # Files
