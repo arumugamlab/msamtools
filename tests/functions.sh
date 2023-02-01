@@ -222,7 +222,7 @@ function get_filter_commands() {
 function get_profile_commands() {
   local infile=$1;
   for total in "--total=60000" ""; do
-      for multi in "all" "equal" "prop"; do
+      for multi in "all" "equal" "prop" "ignore"; do
         for unit in "" "--unit=rel" "--unit=ab" "--unit=tpm" "--unit=fpkm"; do
           for mincount in "" "--mincount=10"; do
             command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount -o __OUTFILE__ $infile";
