@@ -4,11 +4,15 @@
 #define MULTI_ADD_ALL (1)
 #define MULTI_SHARE_EQUAL (2)
 #define MULTI_SHARE_PROPORTIONAL (3)
+#define MULTI_IGNORE (4)
 
 #define UNIT_REL (1)
 #define UNIT_FPKM (2)
 #define UNIT_TPM (3)
 #define UNIT_ABN (4)
+
+#define LEFT_ALIGN (1)
+#define RIGHT_ALIGN (2)
 
 void mInitInsertCounts(int share_type);
 int  mEstimateInsertCountOnFile(samfile_t *input, int share_type);
@@ -89,6 +93,8 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 	/* TO DO: Should I differentiate between mate-types? Probably not! */
 			global->multi_mapper_count++;
 			switch(share_type) {
+				case MULTI_IGNORE:  /* For 2 distinct hits, MULTI_IGNORE skips them */
+					break;
 				case MULTI_ADD_ALL:     /* For 2 distinct hits, MULTI_ADD_ALL adds 2 to each independent of mate status */
 					global->ui_insert_count[fid0]+=2;
 					global->ui_insert_count[fid1]+=2;
@@ -120,11 +126,14 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 		}
 
 		default:
+			global->multi_mapper_count++;
+			if (share_type == MULTI_IGNORE) {
+				break;
+			}
+
 		{
 			uint8_t  *ub_target_hit = global->ub_target_hit;
 			mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
-
-			global->multi_mapper_count++;
 
 			/* Make a list of all targets hit by this insert */
 			mInitIVector(mappers, size);
@@ -251,7 +260,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 		strcpy(m->col_names[i], feature_name[i]);
 	}
 
-	/* 1. Get abundance based on uniquely mapped reads -- U(i) for each refseq i */
+	/* 1. Get abundance based on uniquely mapped inserts -- U(i) for each refseq i */
 
 	/* Get insert_counts */
 
@@ -265,6 +274,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 	switch(share_type) {
 
 		/* Every hit is counted. They were already in abundance. Just copy it */
+		case MULTI_IGNORE:
 		case MULTI_ADD_ALL:
 			memcpy(m->elem[row], abundance, n_features*sizeof(double));
 			break;
@@ -322,7 +332,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 					}
 
 					/* 2.2.2.2. Share this multi-mapper proportionately according to a(i,k)/S
-					 *          Let F(i) = Fraction(read belonging to refseq i)
+					 *          Let F(i) = Fraction(insert belonging to refseq i)
 					 *          It will depend on the abundance of i
 					 *                      a(i)      
 					 *          F(i) =  -------------
@@ -363,7 +373,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 			fprintf(stderr, "# End   PropSharing!\n"); 
 			memcpy(m->elem[row], abundance_t_k, n_features*sizeof(double));
 
-			/* Purge multimapped reads that mapped to features that had no unique reads */
+			/* Purge multimapped inserts that mapped to features that had no unique inserts */
 			for (j=0; j<multi_mappers->size; j++) {
 				mIVector* multi = (mIVector*) multi_mappers->elem[j];
 				int* elem = multi->elem;
@@ -404,6 +414,35 @@ int mCompareTemplate(const void *a, const void *b) {
 	return ret;
 }
 
+void mPrintInsertStats(gzFile stream, int align, const char* type, int number, int total, const char* post_text) {
+	int width = 7;
+	if (total > 0) {
+		width = 1 + log10(total);
+	}
+	gzprintf(stream, "# ");
+	if (align == LEFT_ALIGN) {
+		gzprintf(stream, "%-20s: ", type);
+	} else {
+		gzprintf(stream, "%20s: ", type);
+	}
+	if (number > 0) {
+		gzprintf(stream, "%*d (", width, number);
+	} else {
+		gzprintf(stream, "%*s (", width, "NA");
+	}
+	if (total > 0) {
+		gzprintf(stream, "%6.2f", 100.0*number/total);
+	} else {
+		gzprintf(stream, "%6s", "NA");
+	}
+	gzprintf(stream, "%%)");
+	if (post_text != NULL) {
+		gzprintf(stream, " %s\n", post_text);
+	} else {
+		gzprintf(stream, "\n");
+	}
+}
+
 #define subprogram "profile"
 
 int msam_profile_main(int argc, char* argv[]) {
@@ -419,6 +458,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	int              length_normalize = 1;
 	int              total_inserts = -1;
 	int              mapped_inserts = 0;
+	int              effective_inserts = 0;
 	int              this_sample = 0; /* index of this sample in the matrix is 0 */
 	int              n_targets;
 	FILE            *def_stream;
@@ -480,7 +520,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "They are presented in the order in which they appear in the BAM header. <label>\n"
                                                                  "is used as the first line, so that reading or 'joining' these files is easier.\n"
                                                                  "\n"
-                                                                 "--total option:      In metagenomics, an unmapped read could still be a valid\n"
+                                                                 "--total option:      In metagenomics, an unmapped insert could still be a valid\n"
                                                                  "                     sequence, just missing in the database being mapped against.\n"
                                                                  "                     This is the purpose of the '--total' option to track the\n"
                                                                  "                     fraction of 'unknown' entities in the sample. If --total\n"
@@ -493,7 +533,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                         'rel': relative abundance (default)\n"
                                                                  "                        'fpkm': fragments per kilobase of sequence per million reads\n"
                                                                  "                         'tpm': transcripts per million\n"
-                                                                 "                     If number of reads input to the aligner is given via --total,\n"
+                                                                 "                     If number of inserts input to the aligner is given via --total,\n"
                                                                  "                     fpkm and tpm will behave differently than in RNAseq data,\n"
                                                                  "                     as there is now a new entity called 'unknown'.\n"
                                                                  "Alignment filtering: 'profile' expects that every alignment listed is considered \n"
@@ -501,17 +541,18 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                     based on alignment length, read length, alignment percent\n"
                                                                  "                     identity, etc, this should have been done prior to \n"
                                                                  "                     '"subprogram"'. Please see 'filter' for such filtering.\n"
-                                                                 "Multi-mapper reads:  Reads mapping to multiple references need to be considered\n"
+                                                                 "Multi-mapper inserts: Inserts mapping to multiple references need to be considered\n"
                                                                  "                     carefully, as spurious mappings of promiscuous regions or\n"
                                                                  "                     short homology could lead to incorrect abundances of \n"
                                                                  "                     sequences. '"subprogram"' offers three options for this purpose.\n"
                                                                  "                     If an insert maps to N references at the same time:\n"
+                                                                 "                'ignore': insert is ignored.\n"
                                                                  "                   'all': each reference gets 1 insert added.\n"
                                                                  "                 'equal': each reference gets 1/N insert added.\n"
                                                                  "          'proportional': each reference gets a fraction proportional to its \n"
                                                                  "                          reference-sequence-length-normalized relative \n"
                                                                  "                          abundance estimated only based on uniquely\n"
-                                                                 "                          mapped reads."
+                                                                 "                          mapped inserts."
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
@@ -550,7 +591,7 @@ int msam_profile_main(int argc, char* argv[]) {
 		nerrors = arg_parse(argc, argv, argtable);
 
 		/* help needed? */
-		if (arg_help->count > 0) {
+		if (arg_help->count > 0 || argc < 2) {
 			mPrintHelp(subprogram, argtable);
 			exit(EXIT_SUCCESS);
 		}
@@ -594,9 +635,9 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	share_type = -1;
 	if (arg_multi->count > 0) {
-		/* Check with #defines MULTI_ADD_ALL=1; MULTI_SHARE_EQUAL=2; MULTI_SHARE_PROPORTIONAL=3; */
-		const char *types[4] = {"", "all", "equal", "proportional"};
-		for (i=1; i<=3; i++) {
+		/* Check with #defines MULTI_ADD_ALL=1; MULTI_SHARE_EQUAL=2; MULTI_SHARE_PROPORTIONAL=3; MULTI_IGNORE=4 */
+		const char *types[5] = {"", "all", "equal", "proportional", "ignore"};
+		for (i=1; i<=4; i++) {
 			/* Any prefix of the options will work. Make sure that the options don't share a prefix. */
 			if (strncmp(arg_multi->sval[0], types[i], strlen(arg_multi->sval[0])) == 0) {
 				share_type = i;
@@ -740,7 +781,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	if (arg_mincount->count > 0) {
 		int    mincount = arg_mincount->ival[0];
 		double purged_inserts = 0;
-		/* Mask features with fewer than min_count reads */
+		/* Mask features with fewer than min_count inserts */
 		/* We do that by moving inserts from them to Unknown */
 		for (i=1; i<abundance->ncols; i++) {
 			if (abundance->elem[this_sample][i] < mincount) {
@@ -770,21 +811,19 @@ int msam_profile_main(int argc, char* argv[]) {
 	/* Print command-line for book-keeping */
 	mPrintCommandLineGzip(output, argc, argv);
 
-	if (total_inserts > 0) {
-		gzprintf(output, "#   Total inserts: %d\n", total_inserts);
-		gzprintf(output, "#  Mapped inserts: %d (%.2f%%)\n", mapped_inserts - global->purged_insert_count, 100.0*(mapped_inserts - global->purged_insert_count)/total_inserts);
-		if (arg_mincount->count > 0) {
-			gzprintf(output, "# Uniquely mapped: NA (NA%%)\n");
-			gzprintf(output, "# Multiple mapped: NA (NA%%)\n");
-		} else {
-			gzprintf(output, "# Uniquely mapped: %d (%.2f%%)\n", global->uniq_mapper_count, 100.0*global->uniq_mapper_count/total_inserts);
-			gzprintf(output, "# Multiple mapped: %d (%.2f%%)\n", global->multi_mapper_count, 100.0*global->multi_mapper_count/total_inserts);
-		}
-	} else {
-		gzprintf(output, "#   Total inserts: NA\n");
-		gzprintf(output, "#  Mapped inserts: %d (NA%%)\n", mapped_inserts - global->purged_insert_count);
-		gzprintf(output, "# Uniquely mapped: %d (NA%%)\n", global->uniq_mapper_count);
-		gzprintf(output, "# Multiple mapped: %d (NA%%)\n", global->multi_mapper_count);
+	/* Print header with insert mapping stats */
+	effective_inserts = mapped_inserts - global->purged_insert_count;
+	if (share_type == MULTI_IGNORE) {
+		effective_inserts -= global->multi_mapper_count;
+	}
+	mPrintInsertStats(output, LEFT_ALIGN,  "Total inserts",      total_inserts,               total_inserts, NULL);
+	mPrintInsertStats(output, LEFT_ALIGN,  "Mapped inserts",     mapped_inserts,              total_inserts, NULL);
+	mPrintInsertStats(output, RIGHT_ALIGN, "- Multiple mapped ", global->multi_mapper_count,  total_inserts, NULL);
+	mPrintInsertStats(output, RIGHT_ALIGN, "- Uniquely mapped ", global->uniq_mapper_count,   total_inserts, NULL);
+	mPrintInsertStats(output, LEFT_ALIGN,  "Purged inserts",     global->purged_insert_count, total_inserts, "due to ambiguous mapping or low abundance features");
+	mPrintInsertStats(output, LEFT_ALIGN,  "Effective inserts",  effective_inserts,           total_inserts, NULL);
+
+	if (total_inserts <= 0) {
 		gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
 	}
 
@@ -796,6 +835,11 @@ int msam_profile_main(int argc, char* argv[]) {
 
 		/* We just add "purged inserts" back to Unknown */
 		abundance->elem[this_sample][0] = total_inserts - mapped_inserts + global->purged_insert_count;
+
+		/* We add "multi-mapped inserts" to Unknown if multi=ignore */
+		if (share_type == MULTI_IGNORE) {
+			abundance->elem[this_sample][0] += global->multi_mapper_count;
+		}
 
 		if (length_normalize) {
 			/* Remember: abundance has elem[0] as Unknown, which is missing in target_len[] */
@@ -832,7 +876,7 @@ int msam_profile_main(int argc, char* argv[]) {
 		case UNIT_FPKM:  /* Convert to FPKM */
 			/* We have fragments divided by seq length */
 			/* So multiply by 1000 to get per kb seq length */
-			/* To get per million reads, divide by total/10^6 */
+			/* To get per million inserts, divide by total/10^6 */
 			/* Altogether, *10^9/total */
 			if (total_inserts > 0) {
 				mMultiplyMatrixByScalar(abundance, 1.0E9/total_inserts);
