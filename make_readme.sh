@@ -213,8 +213,43 @@ The command above
   * keep only best-scoring hits per read (`--besthit`)
   * write output in uncompressed `BAM` format (`-bu`)
 * then pipes the output to **msamtools profile** * to
-  * share multihit reads proportionally among hits (`--multi=proportional`)
+  * share multihit inserts proportionally among hits (`--multi=proportional`)
   * calculate relative abundance profiles (`--unit=rel`)
+  * use sample label `SAMPLE` in the output file (`--label=SAMPLE`)
+  * and write compressed output to `SAMPLE.profile.txt.gz` (`-o`)
+
+### 3.4. Mapping a metagenome sample to a gene database and get the number of inserts uniquely mapped to each gene
+
+Here is an example workflow one would use after mapping metagenomic reads to IGC.
+
+#### Task
+
+Align **SAMPLE** (fastq files `SAMPLE.1.fq.gz` and `SAMPLE.2.fq.gz`) to the gene catalog `bwa-mem2` database in `GENE_DB`; filter as in Section 3.3 but retain only reads uniquely mapping to a single reference; and write insert-counts for uniquely mapped inserts for all genes to `SAMPLE.profile.txt.gz`.
+
+#### Command
+~~~
+bwa-mem2 mem GENE_DB SAMPLE.1.fq.gz SAMPLE.2.fq.gz \
+  | msamtools filter -S -bu -l 80 -p 95 -z 80 --uniqhit - \
+  | msamtools profile --multi=ignore --label=SAMPLE --nolen --unit=ab -o SAMPLE.profile.txt.gz -
+~~~
+
+#### Explanation
+
+The command above
+
+* aligns using `bwa-mem2` that generates `SAM` format
+* then pipes the output to **msamtools filter** * to
+  * read `SAM` format (`-S`)
+  * filter alignments that are
+    * at least `80bp` long (`-l 80`)
+    * at least `95%` identity (`-p 95`)
+    * at least `80%` of the read aligned (`-z 80`)
+  * keep only best-scoring hits per read provided best-hit is unique (`--uniqhit`)
+  * write output in uncompressed `BAM` format (`-bu`)
+* then pipes the output to **msamtools profile** * to
+  * ignore all multihit inserts (`--multi=ignore`)
+  * avoid sequence-length normalization (`--nolen`)
+  * calculate actual abundance profiles (`--unit=ab`)
   * use sample label `SAMPLE` in the output file (`--label=SAMPLE`)
   * and write compressed output to `SAMPLE.profile.txt.gz` (`-o`)
 
