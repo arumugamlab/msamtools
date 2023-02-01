@@ -467,7 +467,7 @@ int msam_filter_main(int argc, char* argv[]) {
 		nerrors = arg_parse(argc, argv, argtable);
 
 		/* help needed? */
-		if (arg_help->count > 0) {
+		if (arg_help->count > 0 || argc < 2) {
 			mPrintHelp(subprogram, argtable);
 			exit(EXIT_SUCCESS);
 		}
