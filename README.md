@@ -57,7 +57,7 @@ The first is the **bioconda** docker image corresponding to the bioconda
 release. This docker image provides just **msamtools**.
 E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.1.1--h5bf99c6_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.1.2--h5bf99c6_0'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
@@ -78,7 +78,7 @@ have a snakemake rules such as:
 rule profile_sample:
     input: "{sample}.db.coord-sorted.bam"
     output: "{sample}.db.profile.txt.gz"
-    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.1_0'
+    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.2_0'
     shell:
         """
         samtools sort -m 20G --threads 4 -n {input} \\
@@ -95,7 +95,7 @@ are currently 4 subprograms that you can call as shown below.
 ~~~
 
 Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.1.1 (using samtools/htslib 1.9)
+Version: 1.1.2 (using samtools/htslib 1.9)
 
 Usage:   msamtools <command> [options]
 
@@ -213,8 +213,43 @@ The command above
   * keep only best-scoring hits per read (`--besthit`)
   * write output in uncompressed `BAM` format (`-bu`)
 * then pipes the output to **msamtools profile** * to
-  * share multihit reads proportionally among hits (`--multi=proportional`)
+  * share multihit inserts proportionally among hits (`--multi=proportional`)
   * calculate relative abundance profiles (`--unit=rel`)
+  * use sample label `SAMPLE` in the output file (`--label=SAMPLE`)
+  * and write compressed output to `SAMPLE.profile.txt.gz` (`-o`)
+
+### 3.4. Mapping a metagenome sample to a gene database and get the number of inserts uniquely mapped to each gene
+
+Here is an example workflow one would use after mapping metagenomic reads to IGC.
+
+#### Task
+
+Align **SAMPLE** (fastq files `SAMPLE.1.fq.gz` and `SAMPLE.2.fq.gz`) to the gene catalog `bwa-mem2` database in `GENE_DB`; filter as in Section 3.3 but retain only reads uniquely mapping to a single reference; and write insert-counts for uniquely mapped inserts for all genes to `SAMPLE.profile.txt.gz`.
+
+#### Command
+~~~
+bwa-mem2 mem GENE_DB SAMPLE.1.fq.gz SAMPLE.2.fq.gz \
+  | msamtools filter -S -bu -l 80 -p 95 -z 80 --uniqhit - \
+  | msamtools profile --multi=ignore --label=SAMPLE --nolen --unit=ab -o SAMPLE.profile.txt.gz -
+~~~
+
+#### Explanation
+
+The command above
+
+* aligns using `bwa-mem2` that generates `SAM` format
+* then pipes the output to **msamtools filter** * to
+  * read `SAM` format (`-S`)
+  * filter alignments that are
+    * at least `80bp` long (`-l 80`)
+    * at least `95%` identity (`-p 95`)
+    * at least `80%` of the read aligned (`-z 80`)
+  * keep only best-scoring hits per read provided best-hit is unique (`--uniqhit`)
+  * write output in uncompressed `BAM` format (`-bu`)
+* then pipes the output to **msamtools profile** * to
+  * ignore all multihit inserts (`--multi=ignore`)
+  * avoid sequence-length normalization (`--nolen`)
+  * calculate actual abundance profiles (`--unit=ab`)
   * use sample label `SAMPLE` in the output file (`--label=SAMPLE`)
   * and write compressed output to `SAMPLE.profile.txt.gz` (`-o`)
 
@@ -544,7 +579,7 @@ In the output file, each sequence in the BAM file gets a line with its abundance
 They are presented in the order in which they appear in the BAM header. <label>
 is used as the first line, so that reading or 'joining' these files is easier.
 
---total option:      In metagenomics, an unmapped read could still be a valid
+--total option:      In metagenomics, an unmapped insert could still be a valid
                      sequence, just missing in the database being mapped against.
                      This is the purpose of the '--total' option to track the
                      fraction of 'unknown' entities in the sample. If --total
@@ -557,7 +592,7 @@ Units of abundance:  Currently four different units are available.
                          'rel': relative abundance (default)
                         'fpkm': fragments per kilobase of sequence per million reads
                          'tpm': transcripts per million
-                     If number of reads input to the aligner is given via --total,
+                     If number of inserts input to the aligner is given via --total,
                      fpkm and tpm will behave differently than in RNAseq data,
                      as there is now a new entity called 'unknown'.
 Alignment filtering: 'profile' expects that every alignment listed is considered 
@@ -565,17 +600,18 @@ Alignment filtering: 'profile' expects that every alignment listed is considered
                      based on alignment length, read length, alignment percent
                      identity, etc, this should have been done prior to 
                      'profile'. Please see 'filter' for such filtering.
-Multi-mapper reads:  Reads mapping to multiple references need to be considered
+Multi-mapper inserts: Inserts mapping to multiple references need to be considered
                      carefully, as spurious mappings of promiscuous regions or
                      short homology could lead to incorrect abundances of 
                      sequences. 'profile' offers three options for this purpose.
                      If an insert maps to N references at the same time:
+                'ignore': insert is ignored.
                    'all': each reference gets 1 insert added.
                  'equal': each reference gets 1/N insert added.
           'proportional': each reference gets a fraction proportional to its 
                           reference-sequence-length-normalized relative 
                           abundance estimated only based on uniquely
-                          mapped reads.
+                          mapped inserts.
 ~~~
 
 ## 6. msamtools coverage <a name="msamtools-coverage"></a>

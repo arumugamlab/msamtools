@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # NOTE: Run this script and output it to README.md
-# BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.1.1--h5bf99c6_0"
-# OWN_DOCKER="quay.io/arumugamlab/msamtools:1.1.1_0"
-#  ./make_readme.sh | sed 's^BIOCONDA_DOCKER^quay.io/biocontainers/msamtools:1.1.1--h5bf99c6_0^; s^OWN_DOCKER^quay.io/arumugamlab/msamtools:1.1.1_0^' > README.md
+# BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.1.2--h5bf99c6_0"
+# OWN_DOCKER="quay.io/arumugamlab/msamtools:1.1.2_0"
+#  ./make_readme.sh | sed 's^BIOCONDA_DOCKER^quay.io/biocontainers/msamtools:1.1.2--h5bf99c6_0^; s^OWN_DOCKER^quay.io/arumugamlab/msamtools:1.1.2_0^' > README.md
 #
 # README.md is ready!
 
