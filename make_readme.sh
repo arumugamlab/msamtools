@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # NOTE: Run this script and output it to README.md
-# BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.1.2--h5bf99c6_0"
+# BIOCONDA_DOCKER="quay.io/biocontainers/msamtools:1.1.2--h7132678_0"
 # OWN_DOCKER="quay.io/arumugamlab/msamtools:1.1.2_0"
-#  ./make_readme.sh | sed 's^BIOCONDA_DOCKER^quay.io/biocontainers/msamtools:1.1.2--h5bf99c6_0^; s^OWN_DOCKER^quay.io/arumugamlab/msamtools:1.1.2_0^' > README.md
+#  ./make_readme.sh | sed 's^BIOCONDA_DOCKER^quay.io/biocontainers/msamtools:1.1.2--h7132678_0^; s^OWN_DOCKER^quay.io/arumugamlab/msamtools:1.1.2_0^' > README.md
 #
 # README.md is ready!
-
 
 cat <<'EOF'
 # msamtools:  microbiome-related extension to samtools
@@ -59,7 +58,7 @@ If for some reason you cannot install via conda, please check [Advanced installa
 ### 1.3. Using online docker containers without installing locally<a name="use-docker"></a>
 
 **msamtools** is available as a docker container that can be used e.g. in
-snakemake workflows.
+`Snakemake` workflows.
 There are two possibilities to run **msamtools** using docker containers.
 
 #### 1.3.1. Using a docker container from the BioConda build <a name="use-docker-bioconda"></a>
@@ -119,7 +118,7 @@ Section 3 provides example workflows on how to combine them with each other or *
 
 ## 3. Example workflows using msamtools<a name="workflows"></a>
 
-Similar to **samtools**, I have designed **msamtools** to work on a stream, avoiding creation of intermediate files.
+Similar to **samtools**, I have designed **msamtools** to work on a stream, avoiding creation of intermediate files. Here are some example workflows using streams that **msamtools** will be useful in.
 
 ### 3.1. Alignment and filtering in one step
 

@@ -5,7 +5,7 @@ FROM alpine:3.15
 LABEL base_image="alpine:3.15"
 LABEL version="1"
 LABEL software="msamtools"
-LABEL software.version="1.1.0"
+LABEL software.version="1.1.2"
 LABEL about.summary="microbiome-related extension to samtools"
 LABEL about.home="https://github.com/arumugamlab/msamtools"
 LABEL about.documentation="https://github.com/arumugamlab/msamtools"
@@ -20,7 +20,7 @@ MAINTAINER Mani Arumugam <arumugam@sund.ku.dk>
 
 ################## INSTALLATION ######################
 
-ENV MSAM_VERSION 1.1.0
+ENV MSAM_VERSION 1.1.2
 
 RUN apk --no-cache update \
     && apk --no-cache upgrade \
