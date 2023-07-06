@@ -225,8 +225,10 @@ function get_profile_commands() {
       for multi in "all" "equal" "prop" "ignore"; do
         for unit in "" "--unit=rel" "--unit=ab" "--unit=tpm" "--unit=fpkm"; do
           for mincount in "" "--mincount=10"; do
-            command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount -o __OUTFILE__ $infile";
-            echo "$command";
+            for outformat in "" "--pandas"; do
+              command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount $outformat -o __OUTFILE__ $infile";
+              echo "$command";
+            done
           done
         done
       done
