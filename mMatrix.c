@@ -201,71 +201,6 @@ void mLogTransformMatrix(mMatrix *m) {
 }
 
 /***********
- * inter-matrix methods
- ***********/
-double mSquaredEuclideanDistance(mMatrix *a, mMatrix *b) {
-	int i;
-	double sum = 0;
-	if (a->nrows != b->nrows || a->ncols != b->ncols || a->ncols != 1) {
-		mDie("Cannot calculate Euclidean distances for %d X %d matrices", a->nrows, a->ncols);
-	}
-	for (i=0; i<a->nrows; i++) {
-		double dist = (a->elem[i][0] - b->elem[i][0]);
-		sum += dist*dist;
-	}
-	return sum;
-}
-
-double mEuclideanDistance(mMatrix *a, mMatrix *b) {
-	return sqrt(mSquaredEuclideanDistance(a, b));
-}
-
-double mBinaryEuclideanDistance(mMatrix *a, mMatrix *b) {
-	int i;
-	double sum = 0;
-	if (a->nrows != b->nrows || a->ncols != b->ncols || a->ncols != 1) {
-		mDie("Cannot calculate Euclidean distances for %d X %d matrices", a->nrows, a->ncols);
-	}
-	for (i=0; i<a->nrows; i++) {
-		double dist = (MIN(1,a->elem[i][0]) - MIN(1,b->elem[i][0]));
-		sum += dist*dist;
-	}
-	return sqrt(sum);
-}
-
-double mKullbackLeiblerDivergence(mMatrix *a, mMatrix *b) {
-	int i;
-	double sum = 0;
-	if (a->nrows != b->nrows || a->ncols != b->ncols || a->ncols != 1) {
-		mDie("Cannot calculate Kullback-Leibler divergence for %d X %d matrices", a->nrows, a->ncols);
-	}
-	for (i=0; i<a->nrows; i++) {
-		sum += a->elem[i][0]*log(a->elem[i][0]/b->elem[i][0]);
-	}
-	return sum;
-}
-
-double mJensenShannonDivergence(mMatrix *a, mMatrix *b) {
-	double divergence;
-	mMatrix* mean;
-
-	if (a->nrows != b->nrows || a->ncols != b->ncols || a->ncols != 1) {
-		mDie("Cannot calculate Jensen-Shannon divergence for %d X %d matrices", a->nrows, a->ncols);
-	}
-	
-	mean = mAddMatrices(a, b);
-	mDivideMatrixByScalar(mean, 2);
-	divergence = (mKullbackLeiblerDivergence(a, mean) + mKullbackLeiblerDivergence(b, mean))/2;
-	mFreeMatrix(mean);
-	mFree(mean);
-	return divergence;
-}
-
-double mJensenShannonDistance(mMatrix *a, mMatrix *b) {
-	return sqrt(mJensenShannonDivergence(a, b));
-}
-
-/***********
  * Matrix read/write methods
  ***********/
 void mMatrixFromArray(mMatrix *m, int nrows, int ncols, double **array) {
@@ -394,8 +329,11 @@ void mWriteRMatrixTransposed(FILE *stream, mMatrix *m) {
 	}
 }
 
-void mWriteRMatrixGzip(gzFile stream, mMatrix *m) {
+void mWriteMatrixGzip(gzFile stream, mMatrix *m, int pandas) {
 	int i, j;
+	if (pandas == 1) {
+		gzprintf(stream, "ID\t");
+	}
 	gzprintf(stream, "%s", m->col_names[0]);
 	for (j=1; j<m->ncols; j++) {
 		gzprintf(stream, "\t%s", m->col_names[j]);
@@ -410,8 +348,19 @@ void mWriteRMatrixGzip(gzFile stream, mMatrix *m) {
 	}
 }
 
-void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m) {
+void mWriteRMatrixGzip(gzFile stream, mMatrix *m) {
+	mWriteMatrixGzip(stream, m, 0); /* pandas = 0 */
+}
+
+void mWritePandasMatrixGzip(gzFile stream, mMatrix *m) {
+	mWriteMatrixGzip(stream, m, 1); /* pandas = 1 */
+}
+
+void mWriteMatrixTransposedGzip(gzFile stream, mMatrix *m, int pandas) {
 	int i, j;
+	if (pandas == 1) {
+		gzprintf(stream, "ID\t");
+	}
 	gzprintf(stream, "%s", m->row_names[0]);
 	for (j=1; j<m->nrows; j++) {
 		gzprintf(stream, "\t%s", m->row_names[j]);
@@ -426,101 +375,12 @@ void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m) {
 	}
 }
 
-/* IMatrix */
-
-/***********
- * memory management
- ***********/
-
-void mInitMatrixI(mMatrixI *m, int nrows, int ncols) {
-	int i;
-	m->elem      = (int**) mMalloc(nrows*sizeof(int*));
-	m->row_names = (char**) mMalloc(nrows*sizeof(char*));
-	m->col_names = (char**) mMalloc(ncols*sizeof(char*));
-	for (i=0; i<nrows; i++)
-		m->elem[i] = (int*) mMalloc(ncols*sizeof(int));
-	m->nrows = nrows;
-	m->ncols = ncols;
+void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m) {
+	mWriteMatrixTransposedGzip(stream, m, 0); /* pandas = 0 */
 }
 
-void mFreeMatrixI(mMatrixI *m) {
-	int i;
-	for (i=0; i<m->nrows; i++) {
-		mFree(m->elem[i]);
-		mFree(m->row_names[i]);
-	}
-	mFree(m->row_names);
-	for (i=0; i<m->ncols; i++) {
-		mFree(m->col_names[i]);
-	}
-	mFree(m->col_names);
-	mFree(m->elem);
-}
-
-void mReadRMatrixI(FILE *stream, mMatrixI *m, int nrows, int ncols, int header, int row_names) {
-	int i, j;
-	char *label;
-	char *buffer = (char*) mMalloc(128*sizeof(char));
-	if (header == 1) {
-		for (i=0; i<ncols; i++) {
-			if (fscanf(stream, "%s", buffer) == EOF) {
-				perror("mReadRMatrixI encountered unexpected EOF while reading Labels");
-			}
-			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
-			strcpy(label, buffer);
-			m->col_names[i] = label;
-		}
-	}
-	for (i=0; i<nrows; i++) {
-		int *elem = m->elem[i];
-		if (row_names == 1) {
-			if (fscanf(stream, "%s", buffer) == EOF) {
-				perror("mReadRMatrixI encountered unexpected EOF while reading Labels");
-			}
-			label = (char*) mMalloc((strlen(buffer)+1)*sizeof(char));
-			strcpy(label, buffer);
-			m->row_names[i] = label;
-		}
-		for (j=0; j<ncols; j++) {
-			if (fscanf(stream, "%d", elem+j) == EOF) {
-				perror("mReadRMatrixI encountered unexpected EOF while reading Data");
-			}
-		}
-	}
-	mFree(buffer);
-}
-
-void mWriteRMatrixI(FILE *stream, mMatrixI *m) {
-	int i, j;
-	fprintf(stream, "%s", m->col_names[0]);
-	for (j=1; j<m->ncols; j++) {
-		fprintf(stream, "\t%s", m->col_names[j]);
-	}
-	fprintf(stream, "\n");
-	for (i=0; i<m->nrows; i++) {
-		int *elem = m->elem[i];
-		fprintf(stream, "%s", m->row_names[i]);
-		for (j=0; j<m->ncols; j++) {
-			fprintf(stream, "\t%d", elem[j]);
-		}
-		fprintf(stream, "\n");
-	}
-}
-
-void mWriteRMatrixTransposedI(FILE *stream, mMatrixI *m) {
-	int i, j;
-	fprintf(stream, "%s", m->row_names[0]);
-	for (j=1; j<m->nrows; j++) {
-		fprintf(stream, "\t%s", m->row_names[j]);
-	}
-	fprintf(stream, "\n");
-	for (i=0; i<m->ncols; i++) {
-		fprintf(stream, "%s", m->col_names[i]);
-		for (j=0; j<m->nrows; j++) {
-			fprintf(stream, "\t%d", m->elem[j][i]);
-		}
-		fprintf(stream, "\n");
-	}
+void mWritePandasMatrixTransposedGzip(gzFile stream, mMatrix *m) {
+	mWriteMatrixTransposedGzip(stream, m, 1); /* pandas = 1 */
 }
 
 /* END_MATRIX */

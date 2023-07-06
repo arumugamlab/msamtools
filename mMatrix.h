@@ -27,6 +27,7 @@ void mWriteRMatrix(FILE *stream, mMatrix *m);
 void mWriteRMatrixTransposed(FILE *stream, mMatrix *m);
 void mWriteRMatrixGzip(gzFile stream, mMatrix *m);
 void mWriteRMatrixTransposedGzip(gzFile stream, mMatrix *m);
+void mWritePandasMatrixTransposedGzip(gzFile stream, mMatrix *m);
 
 /* destructive - change the matrix that is passed */
 void mAddToMatrix(mMatrix *a, mMatrix *b);

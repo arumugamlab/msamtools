@@ -478,6 +478,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	struct arg_int  *arg_total;
 	struct arg_int  *arg_mincount;
 	struct arg_str  *arg_unit;
+	struct arg_lit  *arg_pandas;
 	struct arg_lit  *arg_skiplen;
 	struct arg_str  *arg_multi;
 	int              set_argcount = 0;
@@ -504,6 +505,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
 	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
 	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
+	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default: only sample label)");
 	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
 	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
                                                                  "\n"
@@ -556,7 +558,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(12, sizeof(void*));
+	argtable = (void**) mCalloc(13, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -571,6 +573,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = arg_total;
 	argtable[set_argcount++] = arg_mincount;
 	argtable[set_argcount++] = arg_unit;
+	argtable[set_argcount++] = arg_pandas;
 	argtable[set_argcount++] = arg_skiplen;
 	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = end;
@@ -900,8 +903,11 @@ int msam_profile_main(int argc, char* argv[]) {
 	}
 
 	/* Write output */
-	mWriteRMatrixTransposedGzip(output, abundance);
-
+	if (arg_pandas->count > 0) {
+		mWritePandasMatrixTransposedGzip(output, abundance);
+	} else {
+		mWriteRMatrixTransposedGzip(output, abundance);
+	}
 	/* Close output */
 	gzclose(output);
 
