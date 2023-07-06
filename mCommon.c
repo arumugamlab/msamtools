@@ -146,23 +146,6 @@ void mGetFirstWord(char *source, char *word) {
 	word[i] = '\0';
 }
 
-/* Get the mate-paired template name for Illumina platform.
- * Make sure that template has been malloc'ed with enough length.
- * No memory allocation here. It will just copy the template part
- * of the name into target.
- */
-
-int mGetIlluminaTemplate(char *source, char *template) {
-	int length = strlen(source);
-	if (source[length-2] == '/') {
-		strncpy(template, source, length-2);
-		template[length-2] = '\0';
-		return 1;
-	} else {
-		return 0;
-	}
-}
-
 /***************************************************** 
  * Memory Allocation
  *****************************************************/
