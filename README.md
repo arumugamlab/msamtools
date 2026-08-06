@@ -57,7 +57,7 @@ The first is the **bioconda** docker image corresponding to the bioconda
 release. This docker image provides just **msamtools**.
 E.g., if you add this line in your snakemake rule
 ~~~
-singularity: 'docker://quay.io/biocontainers/msamtools:1.1.2--h7132678_0'
+singularity: 'docker://quay.io/biocontainers/msamtools:1.1.3--h577a1d6_1'
 ~~~
 you can use this dockerized version of **msamtools** by invoking **snakemake**
 as:
@@ -78,7 +78,7 @@ have a snakemake rules such as:
 rule profile_sample:
     input: "{sample}.db.coord-sorted.bam"
     output: "{sample}.db.profile.txt.gz"
-    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.2_0'
+    singularity: 'docker://quay.io/arumugamlab/msamtools:1.1.3_0'
     shell:
         """
         samtools sort -m 20G --threads 4 -n {input} \\
@@ -95,7 +95,7 @@ are currently 4 subprograms that you can call as shown below.
 ~~~
 
 Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.1.2 (using samtools/htslib 1.9)
+Version: 1.1.3 (using samtools/htslib 1.9)
 
 Usage:   msamtools <command> [options]
 
@@ -543,7 +543,7 @@ A full description is given below:
 Usage:
 ------
 
-msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--mincount=<int>] [--unit=<string>] [--nolen] [--multi=<string>]
+msamtools profile [-S] <bamfile> [--help] -o <file> --label=<string> [--genome=<string>] [--total=<int>] [--mincount=<int>] [--unit=<string>] [--pandas] [--nolen] [--multi=<string>]
 
 General options:
 ----------------
@@ -563,6 +563,7 @@ Specific options:
   --total=<int>             number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)
   --mincount=<int>          minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)
   --unit=<string>           unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)
+  --pandas                  print two columns (ID, sample-label) as header compatible with python pandas (default: only sample label)
   --nolen                   do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)
   --multi=<string>          how to deal with multi-mappers {all | equal | proportional} (default: proportional)
 
