@@ -10,11 +10,13 @@ mymaui_PROGRAMS = msamtools
 # We will also distribute a README.md markdown file
 EXTRA_DIST = README.md \
              LICENSE \
+             zoe-LICENSE \
              THIRD_PARTY_NOTICES.md
 
 # Install msamtools license information
 licensedir = $(datarootdir)/licenses/msamtools
 license_DATA = LICENSE \
+               zoe-LICENSE \
                THIRD_PARTY_NOTICES.md
 
 # Install licenses for third-party code incorporated during the build.

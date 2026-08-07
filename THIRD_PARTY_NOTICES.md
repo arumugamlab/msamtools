@@ -48,3 +48,19 @@ distributed under the MIT/Expat License.
 
 The complete copyright and license notice for the version used to build
 msamtools is provided in `htslib-LICENSE`.
+
+## ZOE / SNAP
+
+ZOE / SNAP is developed by Ian Korf.
+
+`zoeTools.c` and `zoeTools.h` are modified, reduced versions of files from
+the ZOE library distributed with SNAP.
+
+Upstream source:
+[https://github.com/KorfLab/SNAP](https://github.com/KorfLab/SNAP)
+
+The versions included in msamtools were re-derived from SNAP commit
+`4ad1e957cd8e68b63857cc1cb3380d39a7b518b1`.
+
+The upstream ZOE/SNAP code is distributed under the MIT License. The complete
+upstream copyright and license notice is provided in `zoe-LICENSE`.
