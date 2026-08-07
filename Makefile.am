@@ -8,7 +8,34 @@ SUBDIRS = deps
 mymaui_PROGRAMS = msamtools
 
 # We will also distribute a README.md markdown file
-EXTRA_DIST = README.md LICENSE
+EXTRA_DIST = README.md \
+             LICENSE \
+             zoe-LICENSE \
+             THIRD_PARTY_NOTICES.md
+
+# Install msamtools license information
+licensedir = $(datarootdir)/licenses/msamtools
+license_DATA = LICENSE \
+               zoe-LICENSE \
+               THIRD_PARTY_NOTICES.md
+
+# Install licenses for third-party code incorporated during the build.
+# samtools and HTSlib are downloaded into the build tree by the
+# dependency build machinery and are therefore not part of EXTRA_DIST.
+install-data-hook:
+	$(MKDIR_P) "$(DESTDIR)$(licensedir)"
+	$(INSTALL_DATA) \
+		"$(builddir)/deps/samtools/samtools-$(samtools_version)/LICENSE" \
+		"$(DESTDIR)$(licensedir)/samtools-LICENSE"
+	$(INSTALL_DATA) \
+		"$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/LICENSE" \
+		"$(DESTDIR)$(licensedir)/htslib-LICENSE"
+
+uninstall-hook:
+	rm -f \
+		"$(DESTDIR)$(licensedir)/samtools-LICENSE" \
+		"$(DESTDIR)$(licensedir)/htslib-LICENSE"
+	-rmdir "$(DESTDIR)$(licensedir)"
 
 # Where to install the programs
 mymauidir = $(bindir)
