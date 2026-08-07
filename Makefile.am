@@ -9,11 +9,13 @@ mymaui_PROGRAMS = msamtools
 
 # We will also distribute a README.md markdown file
 EXTRA_DIST = README.md \
-             LICENSE
+             LICENSE \
+             THIRD_PARTY_NOTICES.md
 
 # Install msamtools license information
 licensedir = $(datarootdir)/licenses/msamtools
-license_DATA = LICENSE
+license_DATA = LICENSE \
+               THIRD_PARTY_NOTICES.md
 
 # Install licenses for third-party code incorporated during the build.
 # samtools and HTSlib are downloaded into the build tree by the
