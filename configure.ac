@@ -55,8 +55,8 @@ AS_IF(
     [test "x$WGET" = "xnotfound"],
     [AC_MSG_ERROR([wget or curl not found in PATH])],
     [test "x$WGET" = "xcurl"],
-    [WGET_ARGS="--location --progress-bar -o -"],
-    [WGET_ARGS="--progress=dot:mega -O -"]
+    [WGET_ARGS="--location --silent"],
+    [WGET_ARGS="-q -O -"]
 )
 AC_SUBST([WGET_ARGS])
 
