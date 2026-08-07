@@ -6,7 +6,14 @@
 AC_PREREQ(2.62)
 AC_REVISION([$Revision: 1.1 $])
 AC_COPYRIGHT()
-AC_INIT([msamtools], [1.1.3], [http://arumugamlab.sund.ku.dk])
+AC_INIT(
+    [msamtools],
+    [1.1.3],
+    [https://github.com/arumugamlab/msamtools/issues],
+    [msamtools],
+    [https://github.com/arumugamlab/msamtools]
+)
+
 
 # we need the aux_dir for installing config.guess to bin/ later.
 # So store it in a variable now, and use AC_SUBST later
