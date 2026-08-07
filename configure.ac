@@ -9,8 +9,7 @@ AC_INIT(
     [1.1.3],
     [https://github.com/arumugamlab/msamtools/issues],
     [msamtools],
-    [https://github.com/arumugamlab/msamtools]
-)
+    [https://github.com/arumugamlab/msamtools])
 
 # we need the aux_dir for installing config.guess to bin/ later.
 # So store it in a variable now, and use AC_SUBST later
@@ -18,7 +17,7 @@ AC_INIT(
 AC_CONFIG_AUX_DIR([build-aux])
 aux_files_dir=build-aux
 
-AM_INIT_AUTOMAKE([1.16.5 -Wall foreign tar-pax subdir-objects])
+AM_INIT_AUTOMAKE([1.15 -Wall foreign tar-pax subdir-objects])
 
 #######################################################
 # Compilers and build tools
