@@ -80,33 +80,51 @@ AC_PROG_INSTALL
 
 # argtable
 
-AC_CHECK_LIB(argtable2, arg_parse,  [], [argtable2_devel=notfound])
-if test "x$argtable2_devel" = "xnotfound"; then
-    AC_MSG_ERROR([argtable2-devel not found])
-fi
+AC_CHECK_HEADERS(
+    [argtable2.h],
+    [],
+    [AC_MSG_ERROR([argtable2 development headers not found])]
+)
+
+AC_CHECK_LIB(
+    [argtable2],
+    [arg_parse],
+    [],
+    [AC_MSG_ERROR([argtable2 library not found])]
+)
 
 # libz
 
-AC_CHECK_LIB(z, inflate,  [], [zlib_devel=notfound])
-if test "x$zlib_devel" = "xnotfound"; then
-    AC_MSG_ERROR([zlib-devel not found])
-fi
+AC_CHECK_HEADERS(
+    [zlib.h],
+    [],
+    [AC_MSG_ERROR([zlib development headers not found])]
+)
 
-# log from libm
+AC_CHECK_LIB(
+    [z],
+    [inflate],
+    [],
+    [AC_MSG_ERROR([zlib library not found])]
+)
 
-AC_SEARCH_LIBS([log], [m], [],
-  [AC_MSG_ERROR([log() not found
+# log() from libm
 
-msamtools requires a working floating-point math library.
-FAILED.  This error must be resolved in order to build msamtools successfully.])])
+AC_SEARCH_LIBS(
+    [log],
+    [m],
+    [],
+    [AC_MSG_ERROR([msamtools requires a working floating-point math library])]
+)
 
 # pthread for samtools
 
-AC_SEARCH_LIBS([pthread_create], [pthread], [],
-  [AC_MSG_ERROR([pthread_create() not found
-
-msamtools requires a working pthread library.
-FAILED.  This error must be resolved in order to build msamtools successfully.])])
+AC_SEARCH_LIBS(
+    [pthread_create],
+    [pthread],
+    [],
+    [AC_MSG_ERROR([msamtools requires a working pthread library])]
+)
 
 #######################################################
 # Figure out host type
