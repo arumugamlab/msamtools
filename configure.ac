@@ -3,7 +3,7 @@
 #######################################################
 
 
-AC_PREREQ(2.62)
+AC_PREREQ([2.69])
 
 AC_INIT(
     [msamtools],
@@ -13,22 +13,11 @@ AC_INIT(
     [https://github.com/arumugamlab/msamtools]
 )
 
-
 # we need the aux_dir for installing config.guess to bin/ later.
 # So store it in a variable now, and use AC_SUBST later
 
 AC_CONFIG_AUX_DIR([build-aux])
 aux_files_dir=build-aux
-
-#######################################################
-# Define missing things: macro definitions and such
-#######################################################
-
-# AS_VAR_APPEND
-
-dnl autoconf versions before 2.63b don't have AS_VAR_APPEND
-m4_ifdef([AS_VAR_APPEND],,[as_fn_append () { eval $[1]=\$$[1]\$[2]; }
-AC_DEFUN([AS_VAR_APPEND],[as_fn_append $1 $2])])dnl
 
 # automake
 
