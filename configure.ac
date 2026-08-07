@@ -21,15 +21,14 @@ aux_files_dir=build-aux
 
 # automake
 
-AM_INIT_AUTOMAKE([-Wall gnu foreign tar-pax subdir-objects])
+AM_INIT_AUTOMAKE([1.16.5 -Wall foreign tar-pax subdir-objects])
 
 # Compilers etc
 
 AC_PROG_CC
 AC_PROG_RANLIB
-AC_LANG([C])
-m4_pattern_allow([AM_PROG_AR])
 AM_PROG_AR
+AC_LANG([C])
 
 #######################################################
 # Programs required for dependency download
@@ -127,42 +126,34 @@ AC_SEARCH_LIBS(
 )
 
 #######################################################
-# Figure out host type
+# Host configuration
 #######################################################
-
-# We use AC_CANONICAL_HOST to figure it out.
-# It requires that we distribute config.guess, config.sub and install.sh with the distro.
 
 AC_CANONICAL_HOST
 
-AC_SUBST([MYCFLAGS], ["-W -Wall -Wwrite-strings -std=gnu99 -pedantic"])
+AC_SUBST(
+    [MYCFLAGS],
+    ["-Wall -Wextra -Wwrite-strings -std=gnu99 -pedantic"]
+)
 
 AC_SUBST([MACHINE_TYPE], [$host_cpu])
+
 kernel_name=`uname -s`
 AC_SUBST([KERNEL_NAME], [$kernel_name])
 
-#SOFTWAREDIR="$datarootdir"
-#AC_SUBST([SOFTWAREDIR], [$SOFTWAREDIR])
-
-#######################################################
-# user specified input through environmental variables
-#######################################################
-
-# substitutions
-
-# local directories
-
 AC_SUBST([HOST],    [generic])
+
 AC_SUBST([AUX_DIR], [$aux_files_dir])
 
 #######################################################
 # Make outputs
 #######################################################
 
-AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([deps/Makefile])
-AC_CONFIG_FILES([deps/samtools/Makefile])
-AS_IF([test -f "data/samtools/Makefile"], [rm data/samtools/Makefile])
+AC_CONFIG_FILES([
+    Makefile
+    deps/Makefile
+    deps/samtools/Makefile
+])
 
 AC_OUTPUT
 
@@ -177,11 +168,11 @@ msamtools was successfully configured with the following options:
    Host type          : $host
    Install directory  : $prefix
 
-You can build msamtools executables by typing:
+You can build msamtools by typing:
 
    make
 
-You can install msamtools now by typing:
+You can install msamtools by typing:
 
    make install
 
