@@ -47,6 +47,12 @@ if test "x$GZIP" = "xnotfound"; then
     AC_MSG_ERROR([gzip not found in path])
 fi
 
+# Needed for samtools
+AC_CHECK_PROG([BZIP2], [bzip2], [found], [notfound])
+if test "x$BZIP2" = "xnotfound"; then
+    AC_MSG_ERROR([bzip2 not found in path])
+fi
+
 AC_CHECK_PROG([TAR], [tar], [found], [notfound])
 if test "x$TAR" = "xnotfound"; then
     AC_MSG_ERROR([tar not found in path])
