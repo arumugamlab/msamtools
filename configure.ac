@@ -4,8 +4,7 @@
 
 
 AC_PREREQ(2.62)
-AC_REVISION([$Revision: 1.1 $])
-AC_COPYRIGHT()
+
 AC_INIT(
     [msamtools],
     [1.1.3],
