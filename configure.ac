@@ -1,7 +1,6 @@
 #######################################################
-# Initialize autoconf/automake environment
+# Initialize Autoconf/Automake environment
 #######################################################
-
 
 AC_PREREQ([2.69])
 
@@ -19,11 +18,11 @@ AC_INIT(
 AC_CONFIG_AUX_DIR([build-aux])
 aux_files_dir=build-aux
 
-# automake
-
 AM_INIT_AUTOMAKE([1.16.5 -Wall foreign tar-pax subdir-objects])
 
-# Compilers etc
+#######################################################
+# Compilers and build tools
+#######################################################
 
 AC_PROG_CC
 AC_PROG_RANLIB
@@ -61,9 +60,6 @@ AS_IF(
     [WGET_ARGS="--progress=dot:mega -O -"]
 )
 AC_SUBST([WGET_ARGS])
-
-AC_ARG_VAR(BUILD, [Build ID for the programs])
-AC_SUBST(BUILD, [$BUILD])
 
 #######################################################
 # programs for installation
