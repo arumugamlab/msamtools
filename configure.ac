@@ -32,35 +32,36 @@ m4_pattern_allow([AM_PROG_AR])
 AM_PROG_AR
 
 #######################################################
-# programs for external file download and installation
+# Programs required for dependency download
 #######################################################
 
-# network download, uncompress etc
-
 AC_CHECK_PROG([GZIP], [gzip], [found], [notfound])
-if test "x$GZIP" = "xnotfound"; then
-    AC_MSG_ERROR([gzip not found in path])
-fi
+AS_IF(
+    [test "x$GZIP" = "xnotfound"],
+    [AC_MSG_ERROR([gzip not found in PATH])]
+)
 
-# Needed for samtools
 AC_CHECK_PROG([BZIP2], [bzip2], [found], [notfound])
-if test "x$BZIP2" = "xnotfound"; then
-    AC_MSG_ERROR([bzip2 not found in path])
-fi
+AS_IF(
+    [test "x$BZIP2" = "xnotfound"],
+    [AC_MSG_ERROR([bzip2 not found in PATH])]
+)
 
 AC_CHECK_PROG([TAR], [tar], [found], [notfound])
-if test "x$TAR" = "xnotfound"; then
-    AC_MSG_ERROR([tar not found in path])
-fi
+AS_IF(
+    [test "x$TAR" = "xnotfound"],
+    [AC_MSG_ERROR([tar not found in PATH])]
+)
 
 AC_CHECK_PROGS([WGET], [wget curl], [notfound])
-if test "x$WGET" = "xnotfound"; then
-    AC_MSG_ERROR([wget or curl not found in path])
-elif test "x$WGET" = "xcurl"; then
-    AC_SUBST([WGET_ARGS], ["--location --progress-bar -o -"])
-else
-    AC_SUBST([WGET_ARGS], ["--progress=dot:mega -O -"])
-fi
+AS_IF(
+    [test "x$WGET" = "xnotfound"],
+    [AC_MSG_ERROR([wget or curl not found in PATH])],
+    [test "x$WGET" = "xcurl"],
+    [WGET_ARGS="--location --progress-bar -o -"],
+    [WGET_ARGS="--progress=dot:mega -O -"]
+)
+AC_SUBST([WGET_ARGS])
 
 AC_ARG_VAR(BUILD, [Build ID for the programs])
 AC_SUBST(BUILD, [$BUILD])
