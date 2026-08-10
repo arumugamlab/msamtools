@@ -1,6 +1,11 @@
 # Third-party software
 
-msamtools uses third-party components from **samtools** and **HTSlib**.
+msamtools uses third-party components from **samtools**, **HTSlib** and **ZOE/SNAP**.
+
+The msamtools source distribution bundles modified versions of two files
+from ZOE source code. The upstream license text is distributed as well as
+installed alongside msamtools as:
+- `zoe-LICENSE`
 
 The msamtools source distribution does **not** bundle the samtools or HTSlib
 source code. During the build process, the required upstream versions are
