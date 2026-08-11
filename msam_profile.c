@@ -440,11 +440,7 @@ void mPrintInsertStats(gzFile stream, int align, const char* type, int number, i
 	} else {
 		gzprintf(stream, "%20s: ", type);
 	}
-	if (number > 0) {
-		gzprintf(stream, "%*d (", width, number);
-	} else {
-		gzprintf(stream, "%*s (", width, "NA");
-	}
+	gzprintf(stream, "%*d (", width, number);
 	if (total > 0) {
 		gzprintf(stream, "%6.2f", 100.0*number/total);
 	} else {
