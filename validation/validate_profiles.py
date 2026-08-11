@@ -20,7 +20,7 @@ No-sharing control:
 * one designated control community (default: ``baseline``);
 * the same three insert counts and three seeds;
 * generator settings
-  ``--shared-fraction 0 --exclude-cross-genome-multimappers``.
+  ``--shared-fraction 0 --exclude-cross-genome-multimappers --exclude-within-genome-repeats``.
 
 This adds 9 simulations, for 45 total synthetic datasets and
 45 x 4 = 180 profile evaluations.
@@ -400,6 +400,125 @@ def parse_profile_counts(path: Path) -> dict[str, int]:
     return result
 
 
+def read_expected_insert_counts(
+    path: Path,
+    assembly_to_feature: dict[str, str],
+) -> dict[str, float]:
+    """Count simulated source inserts per profiled feature."""
+
+    counts = {
+        feature: 0.0
+        for feature in assembly_to_feature.values()
+    }
+    counts["Unknown"] = 0.0
+
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+
+        if (
+            reader.fieldnames is None
+            or "source_assembly" not in reader.fieldnames
+        ):
+            raise ValueError(
+                f"Missing source_assembly column in {path}"
+            )
+
+        for row in reader:
+            assembly = row["source_assembly"].strip()
+
+            if assembly not in assembly_to_feature:
+                raise ValueError(
+                    f"Source assembly {assembly} absent from reference metadata"
+                )
+
+            counts[assembly_to_feature[assembly]] += 1.0
+
+    return counts
+
+
+def validate_exact_recovery(
+    run_dir: Path,
+    assembly_to_feature: dict[str, str],
+    num_inserts: int,
+) -> dict[str, dict[str, object]]:
+    """Assert exact insert-count recovery in the no-sharing control."""
+
+    expected = read_expected_insert_counts(
+        run_dir / "insert_sources.tsv",
+        assembly_to_feature,
+    )
+
+    if sum(expected.values()) != num_inserts:
+        raise ValueError(
+            f"Expected source counts sum to {sum(expected.values())}, "
+            f"not {num_inserts}"
+        )
+
+    observed_by_mode: dict[str, dict[str, float]] = {}
+    results: dict[str, dict[str, object]] = {}
+
+    for mode in MULTI_MODES:
+        profile_path = (
+            run_dir
+            / "profiles"
+            / f"exact_{mode}.tsv.gz"
+        )
+
+        observed = read_profile(profile_path)
+
+        if set(observed) != set(expected):
+            missing = sorted(set(expected) - set(observed))
+            extra = sorted(set(observed) - set(expected))
+
+            raise ValueError(
+                f"Exact-recovery feature mismatch for mode={mode}: "
+                f"missing={missing}, unexpected={extra}"
+            )
+
+        errors = {
+            feature: observed[feature] - expected[feature]
+            for feature in expected
+        }
+
+        max_error = max(abs(value) for value in errors.values())
+        exact_match = max_error == 0
+
+        if not exact_match:
+            mismatches = [
+                f"{feature}: expected={expected[feature]}, "
+                f"observed={observed[feature]}"
+                for feature in expected
+                if errors[feature] != 0
+            ]
+
+            raise ValueError(
+                f"Exact insert-count recovery failed for mode={mode}: "
+                + "; ".join(mismatches)
+            )
+
+        observed_by_mode[mode] = observed
+        results[mode] = {
+            "exact_count_match": 1,
+            "max_count_error": max_error,
+        }
+
+    first_mode = MULTI_MODES[0]
+    all_modes_identical = all(
+        observed_by_mode[mode] == observed_by_mode[first_mode]
+        for mode in MULTI_MODES[1:]
+    )
+
+    if not all_modes_identical:
+        raise ValueError(
+            "No-sharing exact-count profiles differ between --multi modes"
+        )
+
+    for mode in MULTI_MODES:
+        results[mode]["all_modes_identical_counts"] = 1
+
+    return results
+
+
 def rankdata(values: Sequence[float]) -> list[float]:
     """Return average ranks (1-based) with correct handling of ties."""
 
@@ -473,17 +592,39 @@ def calculate_metrics(truth: dict[str, float], estimate: dict[str, float]) -> di
     }
 
 
-def run_is_complete(run_dir: Path) -> bool:
-    """Return whether all compact simulation and profile outputs are present."""
+def run_is_complete(
+    run_dir: Path,
+    exact_recovery: bool = False,
+) -> bool:
+    """Return whether all required simulation/profile outputs are present."""
 
     required = [
         run_dir / "community_truth.tsv",
         run_dir / "simulation_summary.tsv",
         run_dir / "reference_metadata.tsv",
         run_dir / "reference_to_strain.tsv",
+        run_dir / "insert_sources.tsv",
     ]
-    required.extend(run_dir / "profiles" / f"{mode}.tsv.gz" for mode in MULTI_MODES)
-    required.extend(run_dir / "profiles" / f"{mode}.log" for mode in MULTI_MODES)
+
+    required.extend(
+        run_dir / "profiles" / f"{mode}.tsv.gz"
+        for mode in MULTI_MODES
+    )
+    required.extend(
+        run_dir / "profiles" / f"{mode}.log"
+        for mode in MULTI_MODES
+    )
+
+    if exact_recovery:
+        required.extend(
+            run_dir / "profiles" / f"exact_{mode}.tsv.gz"
+            for mode in MULTI_MODES
+        )
+        required.extend(
+            run_dir / "profiles" / f"exact_{mode}.log"
+            for mode in MULTI_MODES
+        )
+
     return all(path.exists() for path in required)
 
 
@@ -497,10 +638,11 @@ def generate_run(
     shared_fraction: float,
     exclude_within_genome_repeats: bool,
     exclude_cross_genome_multimappers: bool,
+    exact_recovery: bool,
 ) -> None:
     """Generate one synthetic SAM dataset unless a complete run is resumed."""
 
-    if args.resume and run_is_complete(run_dir):
+    if args.resume and run_is_complete(run_dir, exact_recovery=exact_recovery):
         print(f"  reusing complete run: {run_dir}", file=sys.stderr)
         return
 
@@ -536,26 +678,41 @@ def generate_run(
     run_command(command, log_path=run_dir / "generator.log")
 
 
-def run_profiles(args: argparse.Namespace, run_dir: Path, num_inserts: int) -> None:
-    """Run all four multi-mapper modes and return their command transcripts."""
+def run_profiles(
+    args: argparse.Namespace,
+    run_dir: Path,
+    num_inserts: int,
+    *,
+    exact_recovery: bool,
+) -> None:
+    """Run relative profiles and optional exact-count recovery profiles."""
 
-    if args.resume and run_is_complete(run_dir) and not (run_dir / "alignments.sam").exists():
-        return {
-            mode: (run_dir / "profiles" / f"{mode}.log").read_text(encoding="utf-8")
-            for mode in MULTI_MODES
-        }
+    if (
+        args.resume
+        and run_is_complete(
+            run_dir,
+            exact_recovery=exact_recovery,
+        )
+        and not (run_dir / "alignments.sam").exists()
+    ):
+        return
 
     sam_path = run_dir / "alignments.sam"
     genome_map = run_dir / "reference_to_strain.tsv"
+
     if not sam_path.exists():
-        raise FileNotFoundError(f"Missing generated SAM: {sam_path}")
+        raise FileNotFoundError(
+            f"Missing generated SAM: {sam_path}"
+        )
 
     profile_dir = run_dir / "profiles"
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    # Standard relative-abundance validation.
     for mode in MULTI_MODES:
         output_path = profile_dir / f"{mode}.tsv.gz"
         log_path = profile_dir / f"{mode}.log"
+
         command = [
             str(args.msamtools.resolve()),
             "profile",
@@ -573,8 +730,56 @@ def run_profiles(args: argparse.Namespace, run_dir: Path, num_inserts: int) -> N
             str(output_path.resolve()),
             str(sam_path.resolve()),
         ]
-        print(f"    profile --multi {mode}", file=sys.stderr)
-        run_command(command, log_path=log_path)
+
+        print(
+            f"    profile --multi {mode}",
+            file=sys.stderr,
+        )
+
+        run_command(
+            command,
+            log_path=log_path,
+        )
+
+    # Strict no-sharing control:
+    # raw insert counts must be recovered exactly.
+    if exact_recovery:
+        for mode in MULTI_MODES:
+            output_path = (
+                profile_dir / f"exact_{mode}.tsv.gz"
+            )
+            log_path = (
+                profile_dir / f"exact_{mode}.log"
+            )
+
+            command = [
+                str(args.msamtools.resolve()),
+                "profile",
+                "--unit=ab",
+                "--nolen",
+                "--pandas",
+                "--label",
+                "test",
+                "--genome",
+                str(genome_map.resolve()),
+                "--total",
+                str(num_inserts),
+                "--multi",
+                mode,
+                "-o",
+                str(output_path.resolve()),
+                str(sam_path.resolve()),
+            ]
+
+            print(
+                f"    exact recovery --multi {mode}",
+                file=sys.stderr,
+            )
+
+            run_command(
+                command,
+                log_path=log_path,
+            )
 
     if not args.keep_alignments:
         sam_path.unlink()
@@ -601,6 +806,27 @@ def evaluate_run(
     repeated_within = int(simulation["multiple_loci_single_genome_inserts"])
     single_mate_fraction = float(simulation["realized_single_mate_fraction"])
     sam_records = int(simulation["sam_alignment_records"])
+
+    exact_recovery_results = None
+
+    if validation_set == "no_sharing_control":
+        if expected_multi != 0:
+            raise ValueError(
+                f"No-sharing control contains {expected_multi} "
+                "cross-genome multi-mappers"
+            )
+
+        if repeated_within != 0:
+            raise ValueError(
+                f"No-sharing control contains {repeated_within} "
+                "within-genome repeated-locus inserts"
+            )
+
+        exact_recovery_results = validate_exact_recovery(
+            run_dir,
+            assembly_to_feature,
+            num_inserts,
+        )
 
     run_rows: list[dict[str, object]] = []
     feature_rows: list[dict[str, object]] = []
@@ -649,6 +875,9 @@ def evaluate_run(
             **metrics,
             "unknown_estimate": estimate["Unknown"],
         }
+
+        if exact_recovery_results is not None:
+            row.update(exact_recovery_results[mode])
 
         if ecoli_k12_feature is not None:
             k12_truth = truth[ecoli_k12_feature]
@@ -1070,6 +1299,7 @@ def main(argv: list[str] | None = None) -> int:
                             "shared_fraction": args.shared_fraction,
                             "exclude_within_genome_repeats": False,
                             "exclude_cross_genome_multimappers": False,
+                            "exact_recovery": False,
                             "run_dir": args.output_dir / "main" / community_path.stem / f"n{num_inserts}_seed{seed}",
                         }
                     )
@@ -1087,6 +1317,7 @@ def main(argv: list[str] | None = None) -> int:
                         "shared_fraction": 0.0,
                         "exclude_within_genome_repeats": True,
                         "exclude_cross_genome_multimappers": True,
+                        "exact_recovery": True,
                         "run_dir": args.output_dir / "no_sharing_control" / control_path.stem / f"n{num_inserts}_seed{seed}",
                     }
                 )
@@ -1111,8 +1342,9 @@ def main(argv: list[str] | None = None) -> int:
                 shared_fraction=float(spec["shared_fraction"]),
                 exclude_within_genome_repeats=bool(spec["exclude_within_genome_repeats"]),
                 exclude_cross_genome_multimappers=bool(spec["exclude_cross_genome_multimappers"]),
+                exact_recovery=bool(spec["exact_recovery"]),
             )
-            run_profiles(args, Path(spec["run_dir"]), int(spec["num_inserts"]))
+            run_profiles(args, Path(spec["run_dir"]), int(spec["num_inserts"]), exact_recovery=bool(spec["exact_recovery"]))
             run_rows, feature_rows = evaluate_run(
                 str(spec["validation_set"]),
                 str(spec["community_name"]),
