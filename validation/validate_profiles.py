@@ -1086,7 +1086,7 @@ def make_plots(
         1,
         len(main_communities),
         figsize=(5 * len(main_communities), 5),
-        sharey=False,
+        sharey=True,
     )
 
     if len(main_communities) == 1:
