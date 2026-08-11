@@ -469,9 +469,9 @@ def read_abundances(path: Path, genomes: Sequence[Genome]) -> dict[str, float]:
             if assembly in values:
                 raise ValueError(f"Duplicate abundance entry: {assembly}")
             value = float(row["relative_abundance"])
-            if not math.isfinite(value) or value <= 0:
+            if not math.isfinite(value) or value < 0:
                 raise ValueError(
-                    f"Abundance for {assembly} must be finite and > 0; got {value}"
+                    f"Abundance for {assembly} must be finite and >= 0; got {value}"
                 )
             values[assembly] = value
 
