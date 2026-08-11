@@ -46,6 +46,12 @@ Primary outputs
     * ``ecoli_k12_summary.png``
     * ``no_sharing_control_bray_curtis.png``
 
+``docs/validation/profile_validation.md``
+    Release-facing Markdown summary generated automatically by the validation
+    workflow. The three summary figures are copied to
+    ``docs/validation/figures/``. The destination can be changed with
+    ``--report-dir``.
+
 The run-level directories retain the compact simulator outputs and the four
 profile outputs. ``alignments.sam`` is deleted after successful profiling
 unless ``--keep-alignments`` is supplied.
@@ -111,6 +117,7 @@ import statistics
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Sequence
 
@@ -129,6 +136,7 @@ ECOLI_SAKAI_ASSEMBLY = "GCF_000008865.2"
 PROFILE_MULTI_RE = re.compile(r"Multiple mapped\s*:\s*([0-9]+)")
 PROFILE_TOTAL_RE = re.compile(r"Total inserts\s*:\s*([0-9]+)")
 PROFILE_MAPPED_RE = re.compile(r"Mapped inserts\s*:\s*([0-9]+)")
+PROFILE_VERSION_RE = re.compile(r"^# msamtools version\s+(.+?)\s*$", re.MULTILINE)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -166,6 +174,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=Path,
         default=Path("profile_validation_results"),
         help="validation output directory (default: profile_validation_results)",
+    )
+    parser.add_argument(
+        "--report-dir",
+        type=Path,
+        default=Path(__file__).resolve().parents[1] / "docs" / "validation",
+        help=(
+            "directory for the generated Markdown validation report and "
+            "release-facing figures (default: <repository>/docs/validation)"
+        ),
     )
     parser.add_argument(
         "--insert-counts",
@@ -1256,6 +1273,368 @@ def make_plots(
     plt.close(fig)
 
 
+
+def read_msamtools_version(path: Path) -> str:
+    """Read the msamtools version recorded in a profile header."""
+
+    with open_text_auto(path) as handle:
+        header_text = "".join(
+            line for line in handle
+            if line.startswith("#")
+        )
+
+    match = PROFILE_VERSION_RE.search(header_text)
+    if match is None:
+        raise ValueError(
+            f"Could not parse msamtools version from {path}"
+        )
+
+    return match.group(1).strip()
+
+
+def get_repository_commit() -> str:
+    """Return the Git commit containing this validation script, if available."""
+
+    script_dir = Path(__file__).resolve().parent
+    result = subprocess.run(
+        ["git", "-C", str(script_dir), "rev-parse", "HEAD"],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        return "unknown (not a Git checkout)"
+
+    commit = result.stdout.strip()
+    return commit or "unknown"
+
+
+def format_metric(value: float) -> str:
+    """Format report metrics compactly without hiding small values."""
+
+    if value == 0:
+        return "0"
+    if abs(value) < 1e-4:
+        return f"{value:.3e}"
+    return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def write_validation_report(
+    report_dir: Path,
+    output_dir: Path,
+    run_specs,
+    run_rows,
+    community_paths,
+    insert_counts,
+    seeds,
+    shared_fraction: float,
+) -> Path:
+    """Write the release-facing Markdown report and copy its figures."""
+
+    report_dir = report_dir.resolve()
+    figure_dir = report_dir / "figures"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    figure_dir.mkdir(parents=True, exist_ok=True)
+
+    figure_names = (
+        "bray_curtis_summary.png",
+        "ecoli_k12_summary.png",
+        "no_sharing_control_bray_curtis.png",
+    )
+
+    for name in figure_names:
+        source = output_dir / "plots" / name
+        if not source.is_file():
+            raise FileNotFoundError(
+                f"Expected validation figure not found: {source}"
+            )
+        shutil.copy2(source, figure_dir / name)
+
+    versions = {
+        read_msamtools_version(
+            Path(spec["run_dir"]) / "profiles" / "prop.tsv.gz"
+        )
+        for spec in run_specs
+    }
+    if len(versions) != 1:
+        raise ValueError(
+            "Validation runs contain multiple msamtools versions: "
+            + ", ".join(sorted(versions))
+        )
+    msamtools_version = next(iter(versions))
+
+    commit = get_repository_commit()
+    validation_date = date.today().isoformat()
+
+    main_rows = [
+        row for row in run_rows
+        if row["validation_set"] == "main"
+    ]
+    control_rows = [
+        row for row in run_rows
+        if row["validation_set"] == "no_sharing_control"
+    ]
+
+    if not main_rows or not control_rows:
+        raise ValueError(
+            "Both main and no-sharing validation results are required "
+            "to generate the release-facing report"
+        )
+
+    exact_count_pass = all(
+        int(row.get("exact_count_match", 0)) == 1
+        for row in control_rows
+    )
+    identical_modes_pass = all(
+        int(row.get("all_modes_identical_counts", 0)) == 1
+        for row in control_rows
+    )
+    max_count_error = max(
+        float(row.get("max_count_error", math.inf))
+        for row in control_rows
+    )
+
+    if (
+        not exact_count_pass
+        or not identical_modes_pass
+        or max_count_error != 0
+    ):
+        raise ValueError(
+            "Exact-recovery validation did not satisfy all release-report invariants"
+        )
+
+    mode_stats = {}
+    for mode in MULTI_MODES:
+        rows = [
+            row for row in main_rows
+            if row["multi_mode"] == mode
+        ]
+        distances = [float(row["bray_curtis"]) for row in rows]
+        mode_stats[mode] = {
+            "mean": statistics.fmean(distances),
+            "max": max(distances),
+        }
+
+    prop_rows = [
+        row for row in main_rows
+        if row["multi_mode"] == "prop"
+    ]
+
+    absent_rows = [
+        row for row in prop_rows
+        if math.isclose(
+            float(row["ecoli_k12_truth"]),
+            0.0,
+            rel_tol=0.0,
+            abs_tol=1e-15,
+        )
+    ]
+
+    absent_community = None
+    absent_max_estimate = None
+    if absent_rows:
+        absent_community = ", ".join(
+            sorted({str(row["community"]) for row in absent_rows})
+        )
+        absent_max_estimate = max(
+            float(row["ecoli_k12_estimate"])
+            for row in absent_rows
+        )
+
+    positive_truths = sorted({
+        float(row["ecoli_k12_truth"])
+        for row in prop_rows
+        if float(row["ecoli_k12_truth"]) > 0
+    })
+
+    rare_truth = positive_truths[0] if positive_truths else None
+    rare_rows = []
+    if rare_truth is not None:
+        rare_rows = [
+            row for row in prop_rows
+            if math.isclose(
+                float(row["ecoli_k12_truth"]),
+                rare_truth,
+                rel_tol=0.0,
+                abs_tol=1e-15,
+            )
+        ]
+
+    rare_community = None
+    rare_mean_estimate = None
+    rare_max_estimate = None
+    if rare_rows:
+        rare_community = ", ".join(
+            sorted({str(row["community"]) for row in rare_rows})
+        )
+        rare_estimates = [
+            float(row["ecoli_k12_estimate"])
+            for row in rare_rows
+        ]
+        rare_mean_estimate = statistics.fmean(rare_estimates)
+        rare_max_estimate = max(rare_estimates)
+
+    control_bray_max = max(
+        float(row["bray_curtis"])
+        for row in control_rows
+    )
+
+    main_run_count = sum(
+        spec["validation_set"] == "main"
+        for spec in run_specs
+    )
+    control_run_count = sum(
+        spec["validation_set"] == "no_sharing_control"
+        for spec in run_specs
+    )
+    relative_profile_count = len(run_specs) * len(MULTI_MODES)
+    exact_profile_count = control_run_count * len(MULTI_MODES)
+
+    first_run_dir = Path(run_specs[0]["run_dir"])
+    n_references = len(
+        read_reference_metadata(
+            first_run_dir / "reference_metadata.tsv"
+        )
+    )
+
+    communities_text = ", ".join(
+        f"`{path.stem}`" for path in community_paths
+    )
+    depths_text = "; ".join(f"{n:,}" for n in insert_counts)
+    seeds_text = ", ".join(str(seed) for seed in seeds)
+
+    lines = [
+        "# msamtools profile validation",
+        "",
+        "> **Generated automatically by `validation/validate_profiles.py`. "
+        "Do not edit numerical results manually.**",
+        "",
+        f"- **msamtools version:** `{msamtools_version}`",
+        f"- **Git commit:** `{commit}`",
+        f"- **Validation date:** {validation_date}",
+        "",
+        "## Validation design",
+        "",
+        f"- {n_references} complete bacterial chromosome references",
+        f"- Main communities: {communities_text}",
+        f"- Insert counts: {depths_text}",
+        f"- RNG seeds: {seeds_text}",
+        f"- Multi-mapper modes: {', '.join(f'`{mode}`' for mode in MULTI_MODES)}",
+        f"- Main shared-locus target fraction: {shared_fraction:g}",
+        f"- Main multimapping simulations: {main_run_count}",
+        f"- Strict no-sharing controls: {control_run_count}",
+        f"- Relative-abundance profile evaluations: {relative_profile_count}",
+        f"- Additional exact-count profile evaluations: {exact_profile_count}",
+        "",
+        "The strict no-sharing control excludes both cross-genome multimappers "
+        "and within-genome repeated loci.",
+        "",
+        "## Exact recovery without ambiguous mapping",
+        "",
+        "**PASS**",
+        "",
+        "- Exact per-reference insert recovery: **PASS**",
+        f"- Maximum insert-count error: **{format_metric(max_count_error)}**",
+        "- All `--multi` modes produced identical counts: **PASS**",
+        "",
+        "With ambiguous mappings excluded, `msamtools profile --unit=ab --nolen` "
+        "recovered the exact simulated source insert count for every profiled "
+        "reference under every multi-mapper mode.",
+        "",
+        "## Composition recovery with multimapping",
+        "",
+        "Bray-Curtis dissimilarity was calculated between each estimated "
+        "relative-abundance profile and its known generating composition.",
+        "",
+        "| `--multi` mode | Mean Bray-Curtis | Maximum Bray-Curtis |",
+        "|---|---:|---:|",
+    ]
+
+    for mode in MULTI_MODES:
+        lines.append(
+            f"| `{mode}` | {format_metric(mode_stats[mode]['mean'])} | "
+            f"{format_metric(mode_stats[mode]['max'])} |"
+        )
+
+    lines.extend([
+        "",
+        "![Bray-Curtis distance from the true community composition]"
+        "(figures/bray_curtis_summary.png)",
+        "",
+        "## Closely related strain stress tests",
+        "",
+        "The two *Escherichia coli* reference strains provide a natural "
+        "multi-mapping challenge in which one strain can be made rare or "
+        "completely absent while the related strain remains abundant.",
+        "",
+        "### Absent strain",
+        "",
+    ])
+
+    if absent_rows:
+        lines.extend([
+            f"- Community: `{absent_community}`",
+            "- True *E. coli* K-12 relative abundance: **0**",
+            "- Maximum abundance estimated with proportional sharing: "
+            f"**{format_metric(absent_max_estimate)}**",
+        ])
+        if absent_max_estimate == 0:
+            lines.append(
+                "- False-positive abundance with proportional sharing: **none observed**"
+            )
+    else:
+        lines.append(
+            "No zero-abundance *E. coli* K-12 community was present in this run."
+        )
+
+    lines.extend(["", "### Rare strain", ""])
+
+    if rare_rows:
+        lines.extend([
+            f"- Community: `{rare_community}`",
+            "- True *E. coli* K-12 relative abundance: "
+            f"**{format_metric(rare_truth)}**",
+            "- Mean abundance estimated with proportional sharing: "
+            f"**{format_metric(rare_mean_estimate)}**",
+            "- Maximum abundance estimated with proportional sharing: "
+            f"**{format_metric(rare_max_estimate)}**",
+        ])
+    else:
+        lines.append(
+            "No positive rare-strain community was available in this run."
+        )
+
+    lines.extend([
+        "",
+        "![Estimated E. coli K-12 abundance](figures/ecoli_k12_summary.png)",
+        "",
+        "## No-sharing control",
+        "",
+        "In the strict no-sharing control, all profile modes recover the same "
+        "exact insert counts. Relative-abundance estimates differ from the "
+        "generating composition only through numerical normalization and output precision.",
+        "",
+        "- Maximum Bray-Curtis distance from truth across all no-sharing runs "
+        f"and modes: **{format_metric(control_bray_max)}**",
+        "",
+        "![No-sharing control](figures/no_sharing_control_bray_curtis.png)",
+        "",
+        "## Reproducibility",
+        "",
+        "The validation workflow, genome manifest, community definitions, and "
+        "simulation code are maintained under `validation/`. Detailed run-level "
+        "TSV files are generated during validation and serve as machine-readable "
+        "audit outputs; this Markdown file and the figures above are the "
+        "release-facing summary.",
+        "",
+    ])
+
+    report_path = report_dir / "profile_validation.md"
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    return report_path
+
 def validate_paths(args: argparse.Namespace) -> None:
     """Validate required executable/script/input paths."""
 
@@ -1369,6 +1748,16 @@ def main(argv: list[str] | None = None) -> int:
             args.control_community,
             insert_counts,
         )
+        report_path = write_validation_report(
+            args.report_dir,
+            args.output_dir,
+            run_specs,
+            all_run_rows,
+            community_paths,
+            insert_counts,
+            seeds,
+            args.shared_fraction,
+        )
 
         print("\nValidation complete", file=sys.stderr)
         print("-------------------", file=sys.stderr)
@@ -1377,6 +1766,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Results: {args.output_dir / 'run_metrics.tsv'}", file=sys.stderr)
         print(f"Summary: {args.output_dir / 'aggregate_metrics.tsv'}", file=sys.stderr)
         print(f"Plots:   {args.output_dir / 'plots'}", file=sys.stderr)
+        print(f"Report:  {report_path}", file=sys.stderr)
         return 0
 
     except (OSError, ValueError, RuntimeError) as exc:
