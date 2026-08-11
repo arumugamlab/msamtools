@@ -72,6 +72,14 @@ multi-mappers::
         community_abundances.tsv \
         --exclude-within-genome-repeats
 
+Exclude all cross-genome multimappers for a strict no-sharing control::
+
+    python3 generate_synthetic_alignments.py \
+        prepared_genomes/validated_genomes.tsv \
+        community_abundances.tsv \
+        --shared-fraction 0 \
+        --exclude-cross-genome-multimappers
+
 Input: validated_genomes.tsv
 ----------------------------
 The validation report produced by ``prepare_genomes.py``. Required columns are::
@@ -308,6 +316,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "exclude candidate inserts with multiple exact loci confined to a "
             "single genome; genuine cross-genome multimappers are retained"
+        ),
+    )
+    parser.add_argument(
+        "--exclude-cross-genome-multimappers",
+        action="store_true",
+        help=(
+            "exclude candidate inserts whose exact occurrences span multiple "
+            "genomes; useful for strict no-sharing control simulations"
         ),
     )
     return parser.parse_args(argv)
@@ -694,6 +710,7 @@ def choose_final_candidates(
     shared_fraction: float,
     max_occurrences: int,
     exclude_within_genome_repeats: bool,
+    exclude_cross_genome_multimappers: bool,
     rng: random.Random,
 ) -> list[tuple[Candidate, list[Occurrence], str]]:
     """Select the final source inserts with controlled shared-locus enrichment."""
@@ -729,6 +746,12 @@ def choose_final_candidates(
                 exclude_within_genome_repeats
                 and len(hits) > 1
                 and len(target_assemblies) == 1
+            ):
+                continue
+
+            if (
+                exclude_cross_genome_multimappers
+                and len(target_assemblies) > 1
             ):
                 continue
 
@@ -1291,6 +1314,7 @@ def write_summary(
         ("candidate_multiplier", args.candidate_multiplier),
         ("max_occurrences", args.max_occurrences),
         ("exclude_within_genome_repeats", int(args.exclude_within_genome_repeats)),
+        ("exclude_cross_genome_multimappers", int(args.exclude_cross_genome_multimappers)),
         ("mismatch_weights", args.mismatch_weights),
     ]
 
@@ -1436,6 +1460,7 @@ def main(argv: list[str] | None = None) -> int:
             shared_fraction=args.shared_fraction,
             max_occurrences=args.max_occurrences,
             exclude_within_genome_repeats=args.exclude_within_genome_repeats,
+            exclude_cross_genome_multimappers=args.exclude_cross_genome_multimappers,
             rng=rng,
         )
 
