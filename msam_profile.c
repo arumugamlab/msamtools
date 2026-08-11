@@ -126,11 +126,6 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 		}
 
 		default:
-			global->multi_mapper_count++;
-			if (share_type == MULTI_IGNORE) {
-				break;
-			}
-
 		{
 			uint8_t  *ub_target_hit = global->ub_target_hit;
 			mIVector *mappers = (mIVector*) mMalloc(sizeof(mIVector)); /* Will be freed by main */
@@ -145,8 +140,31 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 				}
 			}
 
+			/* Reset target_hit flags to 0 */
+			for (i=0; i<mappers->size; i++) ub_target_hit[mappers->elem[i]] = 0;
+
+			/*
+			 * Multiple alignments can correspond to repeated loci within the
+			 * same profiled feature. In that case the insert is unambiguous
+			 * at the profiling level and should be counted once as unique.
+			 */
+			if (mappers->size == 1) {
+				global->ui_insert_count[mappers->elem[0]] += 2;
+				global->uniq_mapper_count++;
+
+				mFreeIVector(mappers);
+				mFree(mappers);
+				return;
+			}
+
+			/* More than one distinct feature: true multi-mapper. */
+			global->multi_mapper_count++;
+
 			/* Share or add the value 1 (for d_insert_count) or 2 (for ui_insert_count) across all mappers depending on the share type */
 			switch(share_type) {
+				case MULTI_IGNORE:
+					break;
+
 				case MULTI_ADD_ALL:
 					for (i=0; i<mappers->size; i++) {
 						global->ui_insert_count[mappers->elem[i]] += 2;
@@ -170,9 +188,6 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 					mDie("Do not understand share_type=%d", share_type);
 					break;
 			}
-
-			/* Reset target_hit flags to 0 */
-			for (i=0; i<mappers->size; i++) ub_target_hit[mappers->elem[i]] = 0;
 
 			/* Free mappers IVector */
 			if (share_type != MULTI_SHARE_PROPORTIONAL) { /* For MULTI_SHARE_PROPORTIONAL, will be freed by main */
