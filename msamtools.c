@@ -1,4 +1,5 @@
 #include "msam.h"
+#include "msam_version.h"
 
 /* This main entry file was rewritten after being inspired by the samtools codebase. */
 
@@ -8,7 +9,7 @@ static int usage(FILE *out)
 {
 	fprintf(out, "\n");
 	fprintf(out, "Program: %s (Metagenomics-related extension to samtools)\n", PROGRAM);
-    fprintf(out, "Version: %s (using htslib %s)\n", PACKAGE_VERSION, HTSLIB_VERSION);
+    fprintf(out, "Version: %s (git %s; using htslib %s)\n", PACKAGE_VERSION, MSAM_GIT_COMMIT, HTSLIB_VERSION);
 	fprintf(out, "\n");
 	fprintf(out, "Usage:   %s <command> [options]\n\n", PROGRAM);
 	fprintf(out, "Commands:\n");

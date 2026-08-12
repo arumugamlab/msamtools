@@ -1,6 +1,36 @@
 # Version info
 include versions.txt
 
+# Git provenance
+BUILT_SOURCES = msam_version.h
+
+.PHONY: FORCE
+msam_version.h: FORCE
+	@set -e; \
+	if git -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
+		commit=`git -C "$(srcdir)" rev-parse --short=12 HEAD`; \
+		printf '%s\n' \
+			'#ifndef MSAM_VERSION_H' \
+			'#define MSAM_VERSION_H' \
+			"#define MSAM_GIT_COMMIT \"$$commit\"" \
+			'#endif' > $@.tmp; \
+	elif test -f "$(srcdir)/msam_version.h"; then \
+		cat "$(srcdir)/msam_version.h" > $@.tmp; \
+	else \
+		printf '%s\n' \
+			'#ifndef MSAM_VERSION_H' \
+			'#define MSAM_VERSION_H' \
+			'#define MSAM_GIT_COMMIT "unknown"' \
+			'#endif' > $@.tmp; \
+	fi; \
+	if test -f $@ && cmp -s $@.tmp $@; then \
+		rm -f $@.tmp; \
+	else \
+		mv -f $@.tmp $@; \
+	fi
+
+FORCE:
+
 # We need htslib dependencies to be built first
 SUBDIRS = deps
 
@@ -32,6 +62,19 @@ uninstall-hook:
 	rm -f \
 		"$(DESTDIR)$(licensedir)/htslib-LICENSE"
 	-rmdir "$(DESTDIR)$(licensedir)"
+
+dist-hook:
+	@git -C "$(srcdir)" diff --quiet && \
+	 git -C "$(srcdir)" diff --cached --quiet || { \
+		echo "ERROR: refusing to create distribution from a dirty Git tree"; \
+		exit 1; \
+	}
+	@commit=`git -C "$(srcdir)" rev-parse --short=12 HEAD` || exit 1; \
+	printf '%s\n' \
+		'#ifndef MSAM_VERSION_H' \
+		'#define MSAM_VERSION_H' \
+		"#define MSAM_GIT_COMMIT \"$$commit\"" \
+		'#endif' > "$(distdir)/msam_version.h"
 
 # Where to install the programs
 mymauidir = $(bindir)
