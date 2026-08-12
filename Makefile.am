@@ -1,7 +1,7 @@
 # Version info
 include versions.txt
 
-# We need samtools dependencies to be built first
+# We need htslib dependencies to be built first
 SUBDIRS = deps
 
 # These are the installed programs
@@ -20,20 +20,16 @@ license_DATA = LICENSE \
                THIRD_PARTY_NOTICES.md
 
 # Install licenses for third-party code incorporated during the build.
-# samtools and HTSlib are downloaded into the build tree by the
+# HTSlib is downloaded into the build tree by the
 # dependency build machinery and are therefore not part of EXTRA_DIST.
 install-data-hook:
 	$(MKDIR_P) "$(DESTDIR)$(licensedir)"
 	$(INSTALL_DATA) \
-		"$(builddir)/deps/samtools/samtools-$(samtools_version)/LICENSE" \
-		"$(DESTDIR)$(licensedir)/samtools-LICENSE"
-	$(INSTALL_DATA) \
-		"$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/LICENSE" \
+		"$(builddir)/deps/htslib/htslib-$(htslib_version)/LICENSE" \
 		"$(DESTDIR)$(licensedir)/htslib-LICENSE"
 
 uninstall-hook:
 	rm -f \
-		"$(DESTDIR)$(licensedir)/samtools-LICENSE" \
 		"$(DESTDIR)$(licensedir)/htslib-LICENSE"
 	-rmdir "$(DESTDIR)$(licensedir)"
 
@@ -61,15 +57,15 @@ dist_libmaui_a_SOURCES = $(srcdir)/mCommon.c \
 
 # Specify CFLAGS and LDFLAGS
 
+ARFLAGS = cr
+
 AM_CFLAGS = $(MYCFLAGS) \
             -DPROGRAM=\"msamtools\" \
-            -DHTSLIB_VERSION=\"$(samtools_version)\" \
-            -I$(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version) \
-            -I$(builddir)/deps/samtools/samtools-$(samtools_version)
+            -DHTSLIB_VERSION=\"$(htslib_version)\" \
+            -I$(builddir)/deps/htslib/htslib-$(htslib_version)
 
 LDADD = $(builddir)/libmaui.a \
-        $(builddir)/deps/samtools/samtools-$(samtools_version)/libbam.a \
-        $(builddir)/deps/samtools/samtools-$(samtools_version)/htslib-$(samtools_version)/libhts.a
+        $(builddir)/deps/htslib/htslib-$(htslib_version)/libhts.a
 
 clean-local:
 	for file in libmaui.a; do \

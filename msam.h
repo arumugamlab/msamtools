@@ -6,9 +6,7 @@
 #include <regex.h>
 #include <zlib.h>
 #include "argtable2.h"
-#include "bam.h"
-#include "sam.h"
-#include "mBamVector.h"
+#include <htslib/sam.h>
 #include "mMatrix.h"
 #include "zoeTools.h"
 
@@ -16,11 +14,13 @@
 typedef int coverage_t;
 #define COVERAGE_T_FORMAT "%d"
 
+/* global variables grouped into an object */
+
 struct msam_global {
 	int            multiple_input;
 
 	/* features to count vs sequences in bam file */
-	bam_header_t  *header;
+	sam_hdr_t     *header;
 	int           *fmap; /* feature map: seq-->feature*/
 	int            n_features;
 	uint32_t      *feature_len;
@@ -49,13 +49,26 @@ struct msam_global {
 };
 typedef struct msam_global msam_global;
 
-/* global variables grouped into an object */
-
 extern msam_global *global;
+
+/* New wrapper struct to replace old samfile_t */
+
+typedef struct {
+	samFile   *file;
+	sam_hdr_t *header;
+} mSamFile;
+
+/* Wrapper functions for mSamFile */
+
+mSamFile* mOpenSamInput(const char *filename, const char *inmode);
+mSamFile* mOpenSamOutput(const char *filename, const char *outmode,
+                         const sam_hdr_t *header);
+int       mSamRead(mSamFile *input, bam1_t *b);
+int       mSamWrite(mSamFile *output, bam1_t *b);
+int       mSamClose(mSamFile *stream);
 
 /* Helper functions */
 
-samfile_t* mOpenSamFile(const char *filename, const char *inmode, char *headerfile);
 void       mMultipleFileError(const char *subprogram, void **argtable);
 int        mHeaderCheck(int count, const char* filenames[], const char *inmode);
 

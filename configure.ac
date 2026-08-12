@@ -111,7 +111,7 @@ AC_SEARCH_LIBS(
     [AC_MSG_ERROR([msamtools requires a working floating-point math library])]
 )
 
-# pthread for samtools
+# pthread for htslib
 
 AC_SEARCH_LIBS(
     [pthread_create],
@@ -147,7 +147,7 @@ AC_SUBST([AUX_DIR], [$aux_files_dir])
 AC_CONFIG_FILES([
     Makefile
     deps/Makefile
-    deps/samtools/Makefile
+    deps/htslib/Makefile
 ])
 
 AC_OUTPUT

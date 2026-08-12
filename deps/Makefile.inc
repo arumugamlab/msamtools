@@ -12,7 +12,7 @@ all-local: $(dep_complete)
 
 $(dep_complete): $(untar_complete)
 	@echo "Building $(software)"
-	@cd $(unpack_dir) && if [ -f "./configure" ]; then ./configure $(config_options); fi && $(MAKE)
+	@cd $(unpack_dir) && if [ -f "./configure" ]; then ./configure $(config_options); fi && $(MAKE) $(make_target)
 	@touch $(dep_complete)
 
 $(untar_complete): $(tar_file)

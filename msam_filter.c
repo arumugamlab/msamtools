@@ -1,10 +1,11 @@
 #include "msam.h"
+#include "mBamVector.h"
 
-void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped);
-void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert, int keep_unmapped);
-void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile_t*, mBamPool*));
-void mWriteBestHitBamPool(samfile_t *stream, mBamPool *pool);
-void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool);
+void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped);
+void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSummary*), void (*writer)(mSamFile*, mBamPool*), int rescore, int invert, int keep_unmapped);
+void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*));
+void mWriteBestHitBamPool(mSamFile *stream, mBamPool *pool);
+void mWriteUniqueBestHitBamPool(mSamFile *stream, mBamPool *pool);
 
 /* Filters return 1 when the condition fails. This makes it easy to call
  * each filter and if one of them fails, you already quit.
@@ -62,7 +63,7 @@ static int filter_lpz(mAlignmentSummary* a) {
 	return _FILTER_L(a) || _FILTER_P(a) || _FILTER_Z(a);
 }
 
-void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped) {
+void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped) {
 
 	/* filter function */
 
@@ -74,7 +75,7 @@ void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_onl
 
 	/* writer function */
 
-	void (*writer)(samfile_t*, mBamPool*);
+	void (*writer)(mSamFile*, mBamPool*);
 
 	/* Assign filter function */
 
@@ -114,7 +115,7 @@ void mFilterFileWrapper(samfile_t *input, samfile_t *output, int uniqbesthit_onl
  * will go through the same procedure, so no need to maintain two versions of code
  */
 
-void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSummary*), void (*writer)(samfile_t*, mBamPool*), int rescore, int invert, int keep_unmapped) {
+void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSummary*), void (*writer)(mSamFile*, mBamPool*), int rescore, int invert, int keep_unmapped) {
 
 	/* parameters for rescoring alignment score */
 	int       hit=1, miss=-1;
@@ -137,13 +138,13 @@ void mFilterFile(samfile_t *input, samfile_t *output, int (*filter)(mAlignmentSu
 	current = pool_current(pool);
 
 	prev_read[0] = '\0';
-	while (samread(input, current) >= 0) {
+	while (mSamRead(input, current) >= 0) {
 		bam1_core_t  core = current->core;
 /*
-fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
+fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
 */
 		if ( (prev_read[0] != '\0') && 
-		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		     ((strcmp(bam_get_qname(current), prev_read) != 0) || 
 		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
@@ -196,7 +197,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 				mDie("Either NM or MD must be present in SAM/BAM input for 'filter' command. Type '%s filter -h' for details.", PROGRAM);
 			}
 
-			bam_cigar2details(&current->core, bam1_cigar(current), &alignment->length, &alignment->query_length, &alignment->query_clip);
+			bam_cigar2details(&current->core, bam_get_cigar(current), &alignment->length, &alignment->query_length, &alignment->query_clip);
 			alignment->edit  = bam_aux2i(nm);
 		}
 
@@ -212,7 +213,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 		}
 
 		prev_flag = core.flag;
-		strncpy(prev_read, bam1_qname(current), 127);
+		strncpy(prev_read, bam_get_qname(current), 127);
 
 		/***
 		 * Do I pass the filter? "filter(alignment) == 1" means failed.
@@ -234,7 +235,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 	mFree(prev_read);
 }
 
-void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile_t*, mBamPool*)) {
+void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*)) {
 
 	/* parameters for rescoring alignment score */
 
@@ -254,13 +255,13 @@ void mFilterFileLite(samfile_t *input, samfile_t *output, void (*writer)(samfile
 	current = pool_current(pool);
 
 	prev_read[0] = '\0';
-	while (samread(input, current) >= 0) {
+	while (mSamRead(input, current) >= 0) {
 		bam1_core_t  core = current->core;
 /*
-fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
+fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
 */
 		if ( (prev_read[0] != '\0') && 
-		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		     ((strcmp(bam_get_qname(current), prev_read) != 0) || 
 		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
@@ -270,7 +271,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 		}
 
 		prev_flag = core.flag;
-		strncpy(prev_read, bam1_qname(current), 127);
+		strncpy(prev_read, bam_get_qname(current), 127);
 
 		/* Ignore an unmapped read */
 
@@ -285,7 +286,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam1_qname(current), prev_read, core.fla
 	mFree(prev_read);
 }
 
-void mWriteBestHitBamPool(samfile_t *stream, mBamPool *pool) {
+void mWriteBestHitBamPool(mSamFile *stream, mBamPool *pool) {
 	int        i;
 	bam1_t   **elem       = pool->elem;
 	int       *score      = (int*) mCalloc(pool->limit, sizeof(int));
@@ -294,7 +295,7 @@ void mWriteBestHitBamPool(samfile_t *stream, mBamPool *pool) {
 	for (i=0; i<pool->size; i++) {
 		uint8_t *as = bam_aux_get(elem[i], "AS");
 /*
-fprintf(stdout, "BEST: %2d/%2d, %s, %d\n", i, pool->size, bam1_qname(elem[i]), elem[i]->core.pos);
+fprintf(stdout, "BEST: %2d/%2d, %s, %d\n", i, pool->size, bam_get_qname(elem[i]), elem[i]->core.pos);
 */
 		if (as) {
 			score[i] = bam_aux2i(as);
@@ -307,13 +308,13 @@ fprintf(stdout, "BEST: %2d/%2d, %s, %d\n", i, pool->size, bam1_qname(elem[i]), e
 	}
 	for (i=0; i<pool->size; i++) {
 		if (score[i] == best_score) {
-			samwrite(stream, elem[i]);
+			mSamWrite(stream, elem[i]);
 		}
 	}
 	mFree(score);
 }
 
-void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool) {
+void mWriteUniqueBestHitBamPool(mSamFile *stream, mBamPool *pool) {
 	int        i;
 	bam1_t   **elem       = pool->elem;
 	int       *score      = (int*) mCalloc(pool->limit, sizeof(int));
@@ -337,7 +338,7 @@ void mWriteUniqueBestHitBamPool(samfile_t *stream, mBamPool *pool) {
 	if (best_count == 1) {
 		for (i=0; i<pool->size; i++) {
 			if (score[i] == best_score) {
-				samwrite(stream, elem[i]);
+				mSamWrite(stream, elem[i]);
 			}
 		}
 	}
@@ -352,8 +353,8 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	const char      *infile = NULL;
 
-	samfile_t       *input  = NULL;
-	samfile_t       *output = NULL;
+	mSamFile        *input  = NULL;
+	mSamFile        *output = NULL;
 
 	const char      *inmode;
 	char             outmode[6];
@@ -548,9 +549,9 @@ int msam_filter_main(int argc, char* argv[]) {
 	/* General operations */
 
 	infile = arg_samfile->filename[0];
-	input = mOpenSamFile(infile, inmode, NULL);
+	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
-	output = samopen("-", outmode, global->header);
+	output = mOpenSamOutput("-", outmode, global->header);
 
 	/* Specific operations */
 
@@ -558,8 +559,8 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	/* Wind-up operations */
 
-	samclose(input);
-	samclose(output);
+	mSamClose(input);
+	mSamClose(output);
 	arg_freetable(argtable, set_argcount);
 	mFree(argtable);
 	mFreeGlobal();

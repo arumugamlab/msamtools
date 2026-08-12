@@ -1,7 +1,6 @@
 #include <inttypes.h>
 #include "mCommon.h"
-#include "bam.h"
-#include "sam.h"
+#include <htslib/sam.h>
 #include "htslib/kstring.h"
 
 /*
@@ -21,7 +20,7 @@
  *              I leave the function for backward compatibility, but it is the 
  *              same as comparing full QNAMEs.
  */
-#define bam1_templatecmp(a,b) (strcmp(bam1_qname(a), bam1_qname(b)))
+#define bam1_templatecmp(a,b) (strcmp(bam_get_qname(a), bam_get_qname(b)))
 
 #define M_BAM_FOUTIE   2048
 #define M_BAM_FUNIDIR  4096
@@ -72,7 +71,7 @@ void mExpandBamVector(mBamVector *vec);
 void mFreeBamVector(mBamVector *vec);
 void mEmptyBamVector(mBamVector *vec);
 void mSortBamVector(mBamVector *vec, int(*compar)(const void *, const void *));
-void mWriteBamVector(samfile_t *stream, mBamVector *bamvector);
+void mWriteBamVector(mSamFile *stream, mBamVector *bamvector);
 
 /*
  *
@@ -94,4 +93,4 @@ void mExpandBamPool(mBamPool *pool);
 void mFreeBamPool(mBamPool *pool);
 bam1_t* mAdvanceBamPool(mBamPool *pool);
 void mReOriginateBamPool(mBamPool *pool);
-void mWriteBamPool(samfile_t *stream, mBamPool *pool);
+void mWriteBamPool(mSamFile *stream, mBamPool *pool);

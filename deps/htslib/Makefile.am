@@ -2,12 +2,12 @@
 
 # software information
 
-software = samtools
-library_file = libbam.a libhts.a
+software = htslib
+library_file = libhts.a
 
 include ../../versions.txt
 include defs.txt
 
-dep_files = $(unpack_dir)/libbam.a $(unpack_dir)/htslib-${samtools_version}/libhts.a
+dep_files = $(unpack_dir)/libhts.a
 
 include ../Makefile.inc

@@ -1,3 +1,4 @@
+#include "msam.h"
 #include "mBamVector.h"
 
 /* Generic BAM/SAM utilities */
@@ -23,7 +24,7 @@ int32_t bam_highquality_differences_only(const bam1_t *b, uint8_t minqual) {
 
 	/* Get quality */
 
-	uint8_t *q   = bam1_qual(b);
+	uint8_t *q   = bam_get_qual(b);
 
 	/* get MD values */
 
@@ -103,7 +104,7 @@ void bam_cigar2details(const bam1_core_t *c, const uint32_t *cigar, int32_t *ale
 void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 
 	bam1_core_t *c     = (bam1_core_t*) &b->core;
-	uint32_t    *cigar = bam1_cigar(b);
+	uint32_t    *cigar = bam_get_cigar(b);
 
 	/* MD stuff */
 
@@ -194,7 +195,7 @@ void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 void bam_get_extended_summary(const bam1_t *b, mAlignmentSummary *summary) {
 
 	bam1_core_t *c     = (bam1_core_t*) &b->core;
-	uint32_t    *cigar = bam1_cigar(b);
+	uint32_t    *cigar = bam_get_cigar(b);
 
 	/* MD stuff */
 
@@ -328,12 +329,12 @@ void mEmptyBamVector(mBamVector *vec) {
 	vec->size = 0;
 }
 
-void mWriteBamVector(samfile_t *stream, mBamVector *bamvector) {
+void mWriteBamVector(mSamFile *stream, mBamVector *bamvector) {
 	int i;
 	for (i=0; i<bamvector->size; i++) {
 		bam1_t *b = bamvector->elem[i];
 		if (b != NULL) {
-			samwrite(stream, b);
+			mSamWrite(stream, b);
 		}
 	}
 }
@@ -373,7 +374,9 @@ void mReOriginateBamPool(mBamPool *pool) {
 	if (pool->size == 0) {
 		return;
 	}
-	bam_copy1(pool->elem[0], pool->elem[pool->size]);
+	if (bam_copy1(pool->elem[0], pool->elem[pool->size]) == NULL)
+		mDie("Failed to copy BAM alignment");
+
 	pool->size = 0;
 }
 
@@ -395,10 +398,10 @@ void mFreeBamPool(mBamPool *pool) {
 	mFree(pool->elem);
 }
 
-void mWriteBamPool(samfile_t *stream, mBamPool *pool) {
+void mWriteBamPool(mSamFile *stream, mBamPool *pool) {
 	int i;
 	bam1_t **elem = pool->elem;
 	for (i=0; i<pool->size; i++) 
-		samwrite(stream, elem[i]);
+		mSamWrite(stream, elem[i]);
 }
 

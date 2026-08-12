@@ -1,5 +1,8 @@
 #include "msam.h"
 
+/*
+ * Handle msam_global global variable
+ */
 void mInitGlobal() {
 	global = (msam_global*) mMalloc(sizeof(msam_global));
 	global->MIN_LENGTH = 0;
@@ -29,10 +32,14 @@ void mFreeGlobal() {
 	global = NULL;
 }
 
+/*
+ * Useful functions for printing information
+ */
+
 void mPrintHelp (const char *subprogram, void **argtable) {
 	fprintf(stdout, "Usage:\n------\n\n%s %s", PROGRAM, subprogram);
 	arg_print_syntax(stdout, argtable, "\n");
-	fprintf(stdout,       "\nGeneral options:\n"
+	fprintf(stdout, "\nGeneral options:\n"
 				"----------------\n\n"
 				"These options specify the input/output formats of BAM/SAM files \n"
 				"(same meaning as in 'samtools view'):\n");
@@ -41,7 +48,7 @@ void mPrintHelp (const char *subprogram, void **argtable) {
 
 void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
 	int i;
-    fprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	fprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	fprintf(output, "# Command: msamtools");
 	for (i=0; i<argc; i++) fprintf(output, " %s", argv[i]);
 	fprintf(output, "\n");
@@ -49,7 +56,7 @@ void mPrintCommandLine(FILE *output, int argc, char *argv[]) {
 
 void mPrintCommandLineGzip(gzFile output, int argc, char *argv[]) {
 	int i;
-    gzprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	gzprintf(output, "# %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	gzprintf(output, "# Command: msamtools");
 	for (i=0; i<argc; i++) gzprintf(output, " %s", argv[i]);
 	gzprintf(output, "\n");
@@ -65,28 +72,84 @@ void mMultipleFileError(const char *subprogram, void **argtable) {
 	mQuit("");
 }
 
-samfile_t* mOpenSamFile(const char *filename, const char *inmode, char *headerfile) {
-	samfile_t *input;
+/*
+ * Handle sam file object
+ */
+mSamFile* mOpenSamInput(const char *filename, const char *inmode) {
+	mSamFile *input;
 
-	/* open input file */
-	/* since you pass headerfile, if there is a headerfile, it will be used */
+	input = malloc(sizeof(mSamFile));
+	if (input == NULL)
+		mDie("Out of memory");
 
-	input = samopen(filename, inmode, headerfile);
-	if (input == NULL) 
+	input->file = sam_open(filename, inmode);
+	if (input->file == NULL)
 		mDie("Cannot open %s for reading", filename);
+
+	input->header = sam_hdr_read(input->file);
+	if (input->header == NULL)
+		mDie("Cannot read header from %s", filename);
 
 	return input;
 }
 
+mSamFile* mOpenSamOutput(const char *filename, const char *outmode,
+                         const sam_hdr_t *header) {
+	mSamFile *output;
+
+	output = malloc(sizeof(mSamFile));
+	if (output == NULL)
+		mDie("Out of memory");
+
+	output->file = sam_open(filename, outmode);
+	if (output->file == NULL)
+		mDie("Cannot open %s for writing", filename);
+
+	output->header = sam_hdr_dup(header);
+	if (output->header == NULL)
+		mDie("Cannot duplicate SAM header");
+
+	if (strchr(outmode, 'b') != NULL || strchr(outmode, 'h') != NULL) {
+		if (sam_hdr_write(output->file, output->header) < 0)
+			mDie("Cannot write SAM header");
+	}
+
+	return output;
+}
+
+int mSamRead(mSamFile *input, bam1_t *b) {
+	return sam_read1(input->file, input->header, b);
+}
+
+int mSamWrite(mSamFile *output, bam1_t *b) {
+	return sam_write1(output->file, output->header, b);
+}
+
+int mSamClose(mSamFile *stream) {
+	int ret;
+
+	if (stream == NULL)
+		return 0;
+
+	ret = sam_close(stream->file);
+	sam_hdr_destroy(stream->header);
+	free(stream);
+
+	return ret;
+}
+
+/*
+ * Ensure that a list of sam/bam files have the same header
+ */
 int mHeaderCheck(int count, const char* filenames[], const char *inmode) {
 	int i, j;
-	samfile_t    *sam1    = mOpenSamFile(filenames[0], inmode, NULL);
-	bam_header_t *header1 = sam1->header;
+	mSamFile  *sam1    = mOpenSamInput(filenames[0], inmode);
+	sam_hdr_t *header1 = sam1->header;
 	if (header1 == 0)
 		mDie("No header found in %s. Please fix your bamfile!", filenames[0]);
 	for (i=1; i<count; i++) {
-		samfile_t *sam2 = mOpenSamFile(filenames[i], inmode, NULL);
-		bam_header_t *header2 = sam2->header;
+		mSamFile  *sam2 = mOpenSamInput(filenames[i], inmode);
+		sam_hdr_t *header2 = sam2->header;
 		if (header2 == 0)
 			mDie("No header found in %s. Please fix your bamfile!", filenames[i]);
 		if (header1->n_targets != header2->n_targets) {
@@ -103,12 +166,15 @@ int mHeaderCheck(int count, const char* filenames[], const char *inmode) {
 				mDie("@SQ name mismatch");
 			}
 		}
-		samclose(sam2);
+		mSamClose(sam2);
 	}
-	samclose(sam1);
+	mSamClose(sam1);
 	return 1;
 }
 
+/*
+ * Convenient functions for handling zoeHash
+ */
 zoeHash mReadIntegerHash(const char *filename) {
 	char     line[2048];
 	char     key[128];
