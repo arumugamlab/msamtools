@@ -1,4 +1,5 @@
 #include "msam.h"
+#include "mBamVector.h"
 #include "zoeTools.h"
 
 #define MULTI_ADD_ALL (1)
@@ -15,7 +16,7 @@
 #define RIGHT_ALIGN (2)
 
 void mInitInsertCounts(int share_type);
-int  mEstimateInsertCountOnFile(samfile_t *input, int share_type);
+int  mEstimateInsertCountOnFile(mSamFile *input, int share_type);
 void mWriteCompressedSeqAbundance();
 mMatrix* mInsertCountToAbundanceMatrix(int row, const char* rowname, int share_type);
 
@@ -200,7 +201,7 @@ void mEstimateInsertCountOnPool(mBamPool *pool, int share_type) {
 
 /* Estimate abundance on a given bamfile, by iterating through the alignment groups. */
 
-int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
+int mEstimateInsertCountOnFile(mSamFile *input, int share_type) {
 
 	int       pool_limit   = 64;
 	uint32_t  insert_count = 0;
@@ -218,17 +219,17 @@ int mEstimateInsertCountOnFile(samfile_t *input, int share_type) {
 	/* But here, mate-pairs are considered together as inserts.    */
 	/* So no need to check for mate-pair differences. Only qnames. */
 	prev_read[0] = '\0';
-	while (samread(input, current) >= 0) {
+	while (mSamRead(input, current) >= 0) {
 		if (current->core.tid == -1) {
 			continue;
 		}
-		if ( prev_read[0] != '\0' && strcmp(bam1_qname(current), prev_read) != 0) {
+		if ( prev_read[0] != '\0' && strcmp(bam_get_qname(current), prev_read) != 0) {
 			mEstimateInsertCountOnPool(pool, share_type);
 			mReOriginateBamPool(pool);
 			current = pool_current(pool);
 			insert_count++;
 		}
-		strncpy(prev_read, bam1_qname(current), 127);
+		strncpy(prev_read, bam_get_qname(current), 127);
 		current = mAdvanceBamPool(pool);
 	}
 	mEstimateInsertCountOnPool(pool, share_type);
@@ -462,7 +463,7 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	const char      *infile;
 	const char      *inmode;
-	samfile_t       *input  = NULL;
+	mSamFile        *input  = NULL;
 	mMatrix         *abundance;
 	int              share_type    = -1;
 	int              unit_type     = -1;
@@ -642,7 +643,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	inmode = M_INPUT_MODE(arg_samin);
 
 	infile = arg_samfile->filename[0];
-	input = mOpenSamFile(infile, inmode, NULL);
+	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
 
 	/* multi-mapper share type */
@@ -944,7 +945,7 @@ int msam_profile_main(int argc, char* argv[]) {
 		zoeDeleteHash(sequences);
 	}
 
-	samclose(input);
+	mSamClose(input);
 	arg_freetable(argtable, set_argcount);
 	mFree(argtable);
 

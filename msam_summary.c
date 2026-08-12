@@ -1,11 +1,12 @@
 #include "msam.h"
+#include "mBamVector.h"
 
 #define MAP_STATS (0)
 #define UNMAP_STATS (1)
 #define EDIT_STATS (2)
 #define SCOR_STATS (3)
 
-void mSummarizeAlignmentsHQ(samfile_t *input, FILE *output) {
+void mSummarizeAlignmentsHQ(mSamFile *input, FILE *output) {
 
 	int     i;
 	int     min_edit = 4096;
@@ -16,15 +17,15 @@ void mSummarizeAlignmentsHQ(samfile_t *input, FILE *output) {
 	char  **target_name = global->header->target_name;
 
 	prev_read[0] = '\0';
-	while (samread(input, b) >= 0) {
+	while (mSamRead(input, b) >= 0) {
 
 		int edit;
 		bam1_core_t *core = &b->core;
 		int tid           = core->tid;
-		int start         = core->pos;
-		int end           = bam_calend(core, bam1_cigar(b));
+		hts_pos_t start   = core->pos;
+		hts_pos_t end     = bam_endpos(b);
 
-		if (prev_read[0] != '\0' && strcmp(bam1_qname(b), prev_read) != 0) {
+		if (prev_read[0] != '\0' && strcmp(bam_get_qname(b), prev_read) != 0) {
 			if (min_edit != 4096) {
 				dist[min_edit]++;
 				min_edit = 4096;
@@ -33,10 +34,10 @@ void mSummarizeAlignmentsHQ(samfile_t *input, FILE *output) {
 		bam_get_extended_summary(b, alignment);
 		if (bam_highquality_differences_only(b, 20)) {
 			edit = alignment->mismatch + alignment->gapopen + alignment->gapextend;
-			fprintf(output, "%s\t%d\t%s\t%d\t%d\t%d\t%d\n", bam1_qname(b), alignment->query_length, target_name[tid], start, end, alignment->match, edit);
+			fprintf(output, "%s\t%d\t%s\t%" PRId64 "\t%" PRId64 "\t%d\t%d\n", bam_get_qname(b), alignment->query_length, target_name[tid], start, end, alignment->match, edit);
 			if (edit < min_edit) min_edit = edit;
 		}
-		strncpy(prev_read, bam1_qname(b), 127);
+		strncpy(prev_read, bam_get_qname(b), 127);
 	}
 	bam_destroy1(b);
 	if (min_edit != 4096) dist[min_edit]++;
@@ -48,78 +49,6 @@ void mSummarizeAlignmentsHQ(samfile_t *input, FILE *output) {
 	mFree(prev_read);
 }
 
-void mSummarizeAlignments_v1(samfile_t *input, FILE *output) {
-
-	int     i;
-	int     edit = 0;
-	char   *prev_read = (char*) mCalloc(128, sizeof(char));
-	bam1_t *b    = bam_init1();
-	long   *dist = (long*) mCalloc(500, sizeof(long));
-	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
-	char  **target_name = global->header->target_name;
-	uint32_t *target_len = global->header->target_len;
-
-	prev_read[0] = '\0';
-	while (samread(input, b) >= 0) {
-
-		bam1_core_t *core = &b->core;
-		int tid           = core->tid;
-		int start         = core->pos + 1;
-		int end           = bam_calend(core, bam1_cigar(b));
-
-		if (prev_read[0] != '\0' && strcmp(bam1_qname(b), prev_read) != 0) {
-/* wrong uninitialized reference. but not planning to fix this bug as this function is deprecated */
-			dist[edit]++;
-		}
-
-		/* Skip reads mapping to the edges of ref */
-		if ((start < 150) || (target_len[tid] - end < 150)) continue;
-
-		/* Skip non-primary multi-mappers */
-		if (core->flag & BAM_FSECONDARY) continue;
-
-		bam_get_extended_summary(b, alignment);
-		edit = alignment->edit;
-		fprintf(output, "%s\t%d\t%s\t%d\t%d\t%d\t%d\n", bam1_qname(b), alignment->query_length, target_name[tid], start, end, alignment->match, edit);
-		strncpy(prev_read, bam1_qname(b), 127);
-	}
-	bam_destroy1(b);
-	dist[edit]++;
-	for (i=0; i<500; i++) {
-		if (dist[i] > 0) {
-			fprintf(stderr, "%d\t%ld\n", i, dist[i]);
-		}
-	}
-	mFree(prev_read);
-}
-
-void mSummarizeAlignments_v2(samfile_t *input, FILE *output) {
-
-	int     edit;
-	bam1_t *b    = bam_init1();
-	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
-	char  **target_name = global->header->target_name;
-	uint32_t *target_len = global->header->target_len;
-
-	while (samread(input, b) >= 0) {
-
-		bam1_core_t *core = &b->core;
-		int tid           = core->tid;
-		int start         = core->pos + 1;
-		int end           = bam_calend(core, bam1_cigar(b));
-
-		/* Skip reads mapping to the edges of ref */
-		if ((start < 150) || (target_len[tid] - end < 150)) continue;
-
-		/* Skip non-primary multi-mappers */
-		if (core->flag & BAM_FSECONDARY) continue;
-
-		bam_get_extended_summary(b, alignment);
-		edit = alignment->edit;
-		fprintf(output, "%s\t%d\t%s\t%d\t%d\t%d\t%d\n", bam1_qname(b), alignment->query_length, target_name[tid], start, end, alignment->match, edit);
-	}
-	bam_destroy1(b);
-}
 
 /***************************************************************
  * Summarize alignment statistics for PRIMARY ALIGNMENTS ONLY! *
@@ -130,43 +59,44 @@ void mSummarizeAlignments_v2(samfile_t *input, FILE *output) {
  *  Also, I count softclip as mismatch. So beware!             *
  ***************************************************************/
 
-int mCountInserts(samfile_t *input) {
+int mCountInserts(mSamFile *input) {
 
 	bam1_t *b         = bam_init1();
 	char   *prev_read = (char*) mCalloc(128, sizeof(char));
 	int     count     = 0;
 
-	while (samread(input, b) >= 0) {
+	while (mSamRead(input, b) >= 0) {
 
 		bam1_core_t *core = &b->core;
 
 		/* Skip unmapped */
 		if (core->flag & BAM_FUNMAP) continue;
 
-		if (strcmp(bam1_qname(b), prev_read) != 0) {
+		if (strcmp(bam_get_qname(b), prev_read) != 0) {
 			count++;
 		}
 
-		strncpy(prev_read, bam1_qname(b), 127);
+		strncpy(prev_read, bam_get_qname(b), 127);
 	}
 	bam_destroy1(b);
 	mFree(prev_read);
 	return count;
 }
 
-void mSummarizeAlignments(samfile_t *input, FILE *output, uint32_t edge_len) {
+void mSummarizeAlignments(mSamFile *input, FILE *output, uint32_t edge_len) {
 
 	bam1_t *b    = bam_init1();
 	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
 	char  **target_name = global->header->target_name;
 	uint32_t *target_len = global->header->target_len;
 
-	while (samread(input, b) >= 0) {
+	while (mSamRead(input, b) >= 0) {
 
 		bam1_core_t *core = &b->core;
 		int tid           = core->tid;
-		uint32_t start    = core->pos + 1; /* I know I am assigning int to uint, but bam.c does it too! */
-		uint32_t end      = bam_calend(core, bam1_cigar(b));
+		hts_pos_t start   = core->pos + 1;
+		hts_pos_t end     = bam_endpos(b);
+		hts_pos_t tlen    = target_len[tid];
 
 		int32_t  glocal_len;
 
@@ -177,18 +107,18 @@ void mSummarizeAlignments(samfile_t *input, FILE *output, uint32_t edge_len) {
 		if (core->flag & BAM_FSECONDARY) continue;
 
 		/* Skip reads mapping to the edges of ref */
-		if ((start < edge_len) || (target_len[tid] - end < edge_len)) continue;
+		if ((start < edge_len) || (tlen - end < edge_len)) continue;
 
 		bam_get_extended_summary(b, alignment);
 		glocal_len = alignment->length + alignment->query_clip;
-		fprintf(output, "%s\t%d\t%s\t%d\t%d\t%.1f\n", bam1_qname(b), alignment->query_length, target_name[tid], glocal_len, alignment->match, 100.0 - 100.0*alignment->edit/glocal_len);
+		fprintf(output, "%s\t%d\t%s\t%d\t%d\t%.1f\n", bam_get_qname(b), alignment->query_length, target_name[tid], glocal_len, alignment->match, 100.0 - 100.0*alignment->edit/glocal_len);
 
 	}
 	bam_destroy1(b);
 	mFree(alignment);
 }
 
-void mSummarizeAlignmentsStats(int stats_type, samfile_t *input, FILE *output, uint32_t edge_len) {
+void mSummarizeAlignmentsStats(int stats_type, mSamFile *input, FILE *output, uint32_t edge_len) {
 
 	int     i;
 	int     idx;
@@ -202,12 +132,13 @@ void mSummarizeAlignmentsStats(int stats_type, samfile_t *input, FILE *output, u
 	uint64_t score    = 0;
 	uint32_t stats[5];
 
-	while (samread(input, b) >= 0) {
+	while (mSamRead(input, b) >= 0) {
 
 		bam1_core_t *core = &b->core;
-		int      tid      = core->tid;
-		int32_t  start    = core->pos + 1;
-		uint32_t end      = bam_calend(core, bam1_cigar(b));
+		int       tid     = core->tid;
+		hts_pos_t start   = core->pos + 1;
+		hts_pos_t end     = bam_endpos(b);
+		hts_pos_t tlen    = target_len[tid];
 
 		/* Skip unmapped */
 		if (core->flag & BAM_FUNMAP) continue;
@@ -216,7 +147,7 @@ void mSummarizeAlignmentsStats(int stats_type, samfile_t *input, FILE *output, u
 		if (core->flag & BAM_FSECONDARY) continue;
 
 		/* Skip reads mapping to the edges of ref */
-		if ((start < (int32_t) edge_len) || (target_len[tid] - end < edge_len)) continue;
+		if ((start < edge_len) || (tlen - end < edge_len)) continue;
 
 		bam_get_extended_summary(b, alignment);
 
@@ -257,9 +188,8 @@ int msam_summary_main(int argc, char* argv[]) {
 	/* common variables */
 
 	const char      *infile;
-	char            *headerfile = NULL;
 
-	samfile_t       *input  = NULL;
+	mSamFile        *input  = NULL;
 
 	const char      *inmode;
 
@@ -362,7 +292,7 @@ int msam_summary_main(int argc, char* argv[]) {
 	/* General operations */
 
 	infile = arg_samfile->filename[0];
-	input = mOpenSamFile(infile, inmode, headerfile);
+	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
 
 	/* Specific operations */
@@ -397,7 +327,7 @@ int msam_summary_main(int argc, char* argv[]) {
 
 	/* Wind-up operations */
 
-	samclose(input);
+	mSamClose(input);
 	arg_freetable(argtable, set_argcount);
 	mFree(argtable);
 

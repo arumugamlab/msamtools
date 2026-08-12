@@ -19,7 +19,7 @@ FROM alpine:3.23 AS source-remote
 ARG MSAM_VERSION
 
 RUN apk add --no-cache wget \
-    && wget \
+    && wget -q \
         "https://github.com/arumugamlab/msamtools/releases/download/${MSAM_VERSION}/msamtools-${MSAM_VERSION}.tar.gz" \
         -O /msamtools.tar.gz
 
@@ -71,15 +71,42 @@ RUN apk --no-cache update \
         zlib-dev \
         make \
         bash \
+        wget \
+        bzip2 \
         argtable2-dev \
     && cd /tmp \
     && tar xfz msamtools.tar.gz \
     && cd "msamtools-${MSAM_VERSION}" \
+    && HTSLIB_VERSION="$(awk '$1 == "htslib_version" {print $3}' versions.txt)" \
+    && test -n "${HTSLIB_VERSION}" \
     && ./configure --prefix=/usr \
     && make install \
-    && /usr/bin/install -c deps/samtools/samtools-1.9/samtools /usr/bin \
     && cd /tmp \
-    && rm -rf "msamtools-${MSAM_VERSION}" msamtools.tar.gz \
+    && wget -q \
+        "https://github.com/samtools/samtools/releases/download/${HTSLIB_VERSION}/samtools-${HTSLIB_VERSION}.tar.bz2" \
+        -O samtools.tar.bz2 \
+    && tar xjf samtools.tar.bz2 \
+    && cd "samtools-${HTSLIB_VERSION}" \
+    && ./configure \
+        --without-curses \
+        --disable-bz2 \
+        --disable-lzma \
+        --disable-libcurl \
+        --without-libdeflate \
+        --disable-lzma \
+        --disable-s3 \
+        --disable-gcs \
+        --disable-plugins \
+        --disable-ref-cache \
+    && make samtools \
+    && /usr/bin/install -c samtools /usr/bin/samtools \
+    && /usr/bin/install -c -m0644 LICENSE /usr/share/licenses/msamtools/samtools-LICENSE \
+    && cd /tmp \
+    && rm -rf \
+        "msamtools-${MSAM_VERSION}" \
+        "samtools-${HTSLIB_VERSION}" \
+        msamtools.tar.gz \
+        samtools.tar.bz2 \
     && apk del .build_deps
 
 ENTRYPOINT ["msamtools"]

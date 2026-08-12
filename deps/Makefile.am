@@ -1,2 +1,2 @@
-DIST_SUBDIRS = samtools
-SUBDIRS = samtools
+DIST_SUBDIRS = htslib
+SUBDIRS = htslib

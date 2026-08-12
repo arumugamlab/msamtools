@@ -1,0 +1,6 @@
+tar_file = htslib-$(htslib_version).tar.bz2
+download_url = https://github.com/samtools/htslib/releases/download/$(htslib_version)/$(tar_file)
+package_zip_format = bzip2
+unpack_dir = htslib-$(htslib_version)
+config_options = --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --disable-libcurl --disable-plugins --disable-ref-cache
+make_target = lib-static

@@ -1,16 +1,14 @@
 #include "msam.h"
+#include "mBamVector.h"
 
 /*
- * Note: samtools' bam_calend() function returns a 1-based coordinate instead of
- * a 0-based coordinate that the documentation promises. This is potentially 
- * because they want to easily estimate 
- *	len = end - beg;
+ * Note: bam_endpos() returns the 0-based exclusive end coordinate,
+ * i.e. the coordinate of the first reference base after the alignment.
+ * Therefore the covered interval is [start, end), and coverage is updated in mUpdateCoverageForAlignment() as:
  *
- * Therefore, the interpretation of bam_calend is not exactly as reported in 
- * 	http://samtools.sourceforge.net/samtools/bam/Functions/Functions.html#//apple_ref/c/func/bam_calend
+ *	for (i=start; i<end; i++)
  *
- * This is why the loop in mUpdateCoverageForAlignment() below goes
- *	(i=start; i<end; i++)
+ * This is equivalent to the behavior of the old samtools bam_calend().
  */
 
 void mInitCoverage() {
@@ -37,10 +35,10 @@ void mFreeCoverage() {
 }
 
 void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
-	int i;
-	int tid   = bam->core.tid;
-	int start = bam->core.pos;
-	int end   = bam_calend(&bam->core, bam1_cigar(bam));
+	int tid         = bam->core.tid;
+	hts_pos_t start = bam->core.pos;
+	hts_pos_t end   = bam_endpos(bam);
+	hts_pos_t i;
 
 	int         *covered  = global->covered;
 	coverage_t **coverage = global->coverage;
@@ -48,15 +46,15 @@ void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
 
 #ifdef DEBUG
 	fprintf(stderr, "Tagging target %d (%s) with %f: from %d to %d\n", tid, header->target_name[tid], in_coverage, start, end);
-	fprintf(stderr, "This tag was %d query bases long\n", bam_cigar2qlen(&bam->core, bam1_cigar(bam)));
+	fprintf(stderr, "This tag was %d query bases long\n", bam_cigar2qlen(&bam->core, bam_get_cigar(bam)));
 #endif
 
 	/* Why check before you write? Read takes less time than write, and write happens only n_targets times MAX */
 
 	if (covered[tid] == 0) {
-		int tlen      = global->header->target_len[tid];
-		covered[tid]  = 1; 
-		coverage[tid] = (coverage_t*) mCalloc(tlen, sizeof(coverage_t));
+		hts_pos_t tlen = global->header->target_len[tid];
+		covered[tid]   = 1; 
+		coverage[tid]  = (coverage_t*) mCalloc(tlen, sizeof(coverage_t));
 	}
 
 	/* It's important to assign this_coverage after the previous conditional clause.
@@ -87,7 +85,7 @@ void mEstimateCoverageOnPool(mBamPool *pool) {
 	}
 }
 
-void mEstimateCoverageOnFile(samfile_t *input) {
+void mEstimateCoverageOnFile(mSamFile *input) {
 
 	int       pool_limit = 64;
 	bam1_t   *current;
@@ -103,9 +101,9 @@ void mEstimateCoverageOnFile(samfile_t *input) {
 	current = pool_current(pool);
 
 	prev_read[0] = '\0';
-	while (samread(input, current) >= 0) {
+	while (mSamRead(input, current) >= 0) {
 		if ( (prev_read[0] != '\0') && 
-		     ((strcmp(bam1_qname(current), prev_read) != 0) || 
+		     ((strcmp(bam_get_qname(current), prev_read) != 0) || 
 		      (((current->core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
 		     )
 		   ) {
@@ -114,7 +112,7 @@ void mEstimateCoverageOnFile(samfile_t *input) {
 			current = pool_current(pool);
 		}
 		prev_flag = current->core.flag;
-		strncpy(prev_read, bam1_qname(current), 127);
+		strncpy(prev_read, bam_get_qname(current), 127);
 		current   = mAdvanceBamPool(pool);
 	}
 	mEstimateCoverageOnPool(pool);
@@ -132,9 +130,8 @@ void mWriteCoverageToStream(gzFile stream, int skip_uncovered, int wordsize) {
 	coverage_t **coverage = global->coverage;
 
 	for (tid=0; tid<n_targets; tid++) {
-		int32_t    i;
-		/* coverage_t sum  = 0; */
-		int32_t    tlen = global->header->target_len[tid];
+		hts_pos_t    i;
+		hts_pos_t    tlen = global->header->target_len[tid];
 
 		/* If this target is not covered, deal with it */
 
@@ -162,7 +159,6 @@ void mWriteCoverageToStream(gzFile stream, int skip_uncovered, int wordsize) {
 		gzprintf(stream, ">%s\n", global->header->target_name[tid]);
 		for (i=0; i<tlen-1; i++) {
 			coverage_t val = coverage[tid][i];
-			/*sum += val; */
 			if ((i+1)%wordsize == 0) {
 				gzprintf(stream, COVERAGE_T_FORMAT"\n", val);
 			} else {
@@ -170,7 +166,6 @@ void mWriteCoverageToStream(gzFile stream, int skip_uncovered, int wordsize) {
 			}
 		}
 		gzprintf(stream, COVERAGE_T_FORMAT"\n", coverage[tid][tlen-1]);
-		/*fprintf(stderr, "%s\t%f\n", global->header->target_name[tid], sum/tlen);*/
 	}
 }
 
@@ -181,10 +176,10 @@ void mWriteCoverageSummaryToStream(gzFile stream, int skip_uncovered) {
 	coverage_t **coverage = global->coverage;
 
 	for (tid=0; tid<n_targets; tid++) {
-		int32_t i;
-		int32_t touched = 0;
+		hts_pos_t i;
+		hts_pos_t touched = 0;
+		hts_pos_t tlen    = global->header->target_len[tid];
 		int64_t sum     = 0;
-		int32_t tlen    = global->header->target_len[tid];
 
 		/* If this target is not covered, deal with it */
 
@@ -213,9 +208,8 @@ int msam_coverage_main(int argc, char* argv[]) {
 	/* common variables */
 
 	const char      *infile;
-	char            *headerfile = NULL;
 
-	samfile_t       *input  = NULL;
+	mSamFile        *input  = NULL;
 
 	const char      *inmode;
 
@@ -344,7 +338,7 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	inmode = M_INPUT_MODE(arg_samin);
 	infile = arg_samfile->filename[0];
-	input = mOpenSamFile(infile, inmode, headerfile);
+	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
 
 	if (arg_wordsize->count > 0) {
@@ -371,7 +365,7 @@ int msam_coverage_main(int argc, char* argv[]) {
 	/* Wind-up operations */
 
 	mFreeCoverage();
-	samclose(input);
+	mSamClose(input);
 	arg_freetable(argtable, set_argcount);
 	mFree(argtable);
 
