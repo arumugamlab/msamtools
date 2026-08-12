@@ -93,6 +93,11 @@ RUN apk --no-cache update \
         --disable-lzma \
         --disable-libcurl \
         --without-libdeflate \
+        --disable-lzma \
+        --disable-s3 \
+        --disable-gcs \
+        --disable-plugins \
+        --disable-ref-cache \
     && make samtools \
     && /usr/bin/install -c samtools /usr/bin/samtools \
     && /usr/bin/install -c -m0644 LICENSE /usr/share/licenses/msamtools/samtools-LICENSE \
