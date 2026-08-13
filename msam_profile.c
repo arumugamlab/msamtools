@@ -435,19 +435,32 @@ void mPrintInsertStats(gzFile stream, int align, const char* type, int number, i
 	if (total > 0) {
 		width = 1 + log10(total);
 	}
+
+    /* Write the read type */
 	gzprintf(stream, "# ");
 	if (align == LEFT_ALIGN) {
 		gzprintf(stream, "%-20s: ", type);
 	} else {
 		gzprintf(stream, "%20s: ", type);
 	}
-	gzprintf(stream, "%*d (", width, number);
+
+    /* Write number of inserts */
+    /* For total inserts, if --total was not defined, write NA */
+    if (strcmp(type, "Total inserts") == 0 && number == -1) {
+        gzprintf(stream, "%*s (", width, "NA");
+    } else {
+        gzprintf(stream, "%*d (", width, number);
+    }
+
+    /* Write percentage */
 	if (total > 0) {
 		gzprintf(stream, "%6.2f", 100.0*number/total);
 	} else {
 		gzprintf(stream, "%6s", "NA");
 	}
 	gzprintf(stream, "%%)");
+
+    /* close */
 	if (post_text != NULL) {
 		gzprintf(stream, " %s\n", post_text);
 	} else {
