@@ -355,6 +355,8 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	mSamFile        *input  = NULL;
 	mSamFile        *output = NULL;
+	sam_hdr_t       *output_header = NULL;
+	mQNameCheckResult qname_check;
 
 	const char      *inmode;
 	char             outmode[6];
@@ -493,12 +495,15 @@ int msam_filter_main(int argc, char* argv[]) {
 		fprintf(stdout, "--besthit cannot be combined with --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
-/*
-	} else if (arg_minlength->count == 0 && arg_minpercentid->count == 0 && arg_minppt->count == 0 && arg_minqfrac->count == 0) {
-		fprintf(stdout, "--mode filter needs -l, -p, --ppt or -z\n");
+	} else if (arg_minlength->count       == 0 &&
+	           arg_minpercentid->count    == 0 &&
+	           arg_minppt->count          == 0 &&
+	           arg_uniqbesthitonly->count == 0 &&
+	           arg_besthitonly->count     == 0 &&
+	           arg_minqfrac->count        == 0) {
+		fprintf(stdout, "--mode filter needs -l, -p, --ppt, -z, --besthit or --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
-*/
 	} else {
 		int32_t percent_id  = 0;
 		if (arg_minpercentid->count > 0) {
@@ -551,7 +556,23 @@ int msam_filter_main(int argc, char* argv[]) {
 	infile = arg_samfile->filename[0];
 	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
-	output = mOpenSamOutput("-", outmode, global->header);
+
+	if (arg_besthitonly->count > 0 || arg_uniqbesthitonly->count > 0) {
+		qname_check = mSamCheckQNameGrouping(input);
+	} else {
+		qname_check = mQNameCheckNotRequired();
+	}
+
+	/*
+	 * Annotate only the output-header copy.  The input header remains
+	 * untouched.
+	 */
+	output_header = sam_hdr_dup(global->header);
+	if (output_header == NULL)
+		mDie("Cannot duplicate SAM header for output provenance");
+	mAddSamProvenance(output_header, argc, argv, &qname_check);
+	output = mOpenSamOutput("-", outmode, output_header);
+	sam_hdr_destroy(output_header);
 
 	/* Specific operations */
 
