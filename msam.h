@@ -54,8 +54,11 @@ extern msam_global *global;
 /* New wrapper struct to replace old samfile_t */
 
 typedef struct {
-	samFile   *file;
-	sam_hdr_t *header;
+	samFile    *file;
+	sam_hdr_t  *header;
+	bam1_t    **replay_buffer;
+	size_t      replay_count;
+	size_t      replay_index;
 } mSamFile;
 
 /* Wrapper functions for mSamFile */

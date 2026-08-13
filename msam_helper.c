@@ -90,6 +90,10 @@ mSamFile* mOpenSamInput(const char *filename, const char *inmode) {
 	if (input->header == NULL)
 		mDie("Cannot read header from %s", filename);
 
+	input->replay_buffer = NULL;
+	input->replay_count = 0;
+	input->replay_index = 0;
+
 	return input;
 }
 
@@ -109,6 +113,10 @@ mSamFile* mOpenSamOutput(const char *filename, const char *outmode,
 	if (output->header == NULL)
 		mDie("Cannot duplicate SAM header");
 
+	output->replay_buffer = NULL;
+	output->replay_count = 0;
+	output->replay_index = 0;
+
 	if (strchr(outmode, 'b') != NULL || strchr(outmode, 'h') != NULL) {
 		if (sam_hdr_write(output->file, output->header) < 0)
 			mDie("Cannot write SAM header");
@@ -118,6 +126,26 @@ mSamFile* mOpenSamOutput(const char *filename, const char *outmode,
 }
 
 int mSamRead(mSamFile *input, bam1_t *b) {
+	if (input->replay_index < input->replay_count) {
+		bam1_t *buffered = input->replay_buffer[input->replay_index];
+
+		if (bam_copy1(b, buffered) == NULL)
+			mDie("Out of memory while replaying buffered SAM/BAM record");
+
+		bam_destroy1(buffered);
+		input->replay_buffer[input->replay_index] = NULL;
+		input->replay_index++;
+
+		if (input->replay_index == input->replay_count) {
+			free(input->replay_buffer);
+			input->replay_buffer = NULL;
+			input->replay_count = 0;
+			input->replay_index = 0;
+		}
+
+		return 0;
+	}
+
 	return sam_read1(input->file, input->header, b);
 }
 
@@ -127,9 +155,18 @@ int mSamWrite(mSamFile *output, bam1_t *b) {
 
 int mSamClose(mSamFile *stream) {
 	int ret;
+	size_t i;
 
 	if (stream == NULL)
 		return 0;
+
+	if (stream->replay_buffer != NULL) {
+		for (i=stream->replay_index; i<stream->replay_count; i++) {
+			if (stream->replay_buffer[i] != NULL)
+				bam_destroy1(stream->replay_buffer[i]);
+		}
+		free(stream->replay_buffer);
+	}
 
 	ret = sam_close(stream->file);
 	sam_hdr_destroy(stream->header);
