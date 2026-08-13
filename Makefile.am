@@ -3,6 +3,7 @@ include versions.txt
 
 # Git provenance
 BUILT_SOURCES = msam_version.h
+DISTCLEANFILES = msam_version.h
 
 .PHONY: FORCE
 msam_version.h: FORCE
@@ -34,6 +35,10 @@ FORCE:
 # We need htslib dependencies to be built first
 SUBDIRS = deps
 
+# Fast deterministic correctness tests run by `make check`.
+TESTS = tests/test_smoke.sh
+TESTS_ENVIRONMENT = MSAMTOOLS='$(abs_builddir)/msamtools'
+
 # These are the installed programs
 mymaui_PROGRAMS = msamtools
 
@@ -41,7 +46,9 @@ mymaui_PROGRAMS = msamtools
 EXTRA_DIST = README.md \
              LICENSE \
              zoe-LICENSE \
-             THIRD_PARTY_NOTICES.md
+             THIRD_PARTY_NOTICES.md \
+             tests/test_functions.sh \
+             tests/test_smoke.sh
 
 # Install msamtools license information
 licensedir = $(datarootdir)/licenses/msamtools
