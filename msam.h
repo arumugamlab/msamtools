@@ -61,34 +61,48 @@ typedef struct {
 	size_t      replay_index;
 } mSamFile;
 
-/* Wrapper functions for mSamFile */
+/* objects to track whether sam file is qname-grouped */
 
-mSamFile* mOpenSamInput(const char *filename, const char *inmode);
-mSamFile* mOpenSamOutput(const char *filename, const char *outmode,
-                         const sam_hdr_t *header);
-int       mSamRead(mSamFile *input, bam1_t *b);
-int       mSamWrite(mSamFile *output, bam1_t *b);
-int       mSamClose(mSamFile *stream);
+typedef enum {
+	MSAM_QNAME_NOT_REQUIRED = 0,
+	MSAM_QNAME_HEADER_CONFIRMED,
+	MSAM_QNAME_SAMPLE_OK,
+	MSAM_QNAME_SAMPLE_WARNING
+} mQNameCheckStatus;
 
-/* Helper functions */
+typedef struct {
+	mQNameCheckStatus status;
+	size_t            qname_records_checked;
+	size_t            input_records_checked;
+	size_t            mapped_records_checked;
+} mQNameCheckResult;
 
-void       mMultipleFileError(const char *subprogram, void **argtable);
-int        mHeaderCheck(int count, const char* filenames[], const char *inmode);
-
-zoeHash mReadIntegerHash(const char *filename);
-void    mEmptyZoeHash(zoeHash hash);
+/* Helper functions for global variables struct */
 
 void mInitGlobal();
 void mFreeGlobal();
 
-FILE* mInitOutputStream(const char *filename, int gzip);
-void  mFreeOutputStream(FILE *output, int gzip);
+/* Wrapper functions for mSamFile */
+
+mSamFile* mOpenSamInput(const char *filename, const char *inmode);
+mSamFile* mOpenSamOutput(const char *filename, const char *outmode, const sam_hdr_t *header);
+int       mSamRead(mSamFile *input, bam1_t *b);
+int       mSamWrite(mSamFile *output, bam1_t *b);
+int       mSamClose(mSamFile *stream);
+
+/* Helper functions for qname-grouping test */
+
+mQNameCheckResult mQNameCheckNotRequired(void);
+mQNameCheckResult mSamCheckQNameGrouping(mSamFile *input);
+
+/* Other helper functions */
+
+void mAddSamProvenance(sam_hdr_t *header, int argc, char *argv[], const mQNameCheckResult *qname_check);
+void mPrintProfileProvenanceGzip(gzFile output, int argc, char *argv[], const mQNameCheckResult *qname_check);
+void mMultipleFileError(const char *subprogram, void **argtable);
+void mPrintHelp (const char *subprogram, void **argtable);
 
 #define M_INPUT_MODE(arg_samin) ((arg_samin->count == 0)?"rb":"r")
-
-void mPrintHelp (const char *subprogram, void **argtable);
-void mPrintCommandLine(FILE *output, int argc, char *argv[]);
-void mPrintCommandLineGzip(gzFile output, int argc, char *argv[]);
 
 /* Main functions for the subprograms */
 

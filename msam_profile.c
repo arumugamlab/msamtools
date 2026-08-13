@@ -465,6 +465,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	const char      *inmode;
 	mSamFile        *input  = NULL;
 	mMatrix         *abundance;
+	mQNameCheckResult qname_check;
 	int              share_type    = -1;
 	int              unit_type     = -1;
 	int              length_normalize = 1;
@@ -638,13 +639,13 @@ int msam_profile_main(int argc, char* argv[]) {
 		}
 	}
 
-	/* Set input/output modes */
+	/* Set input mode */
 
-	inmode = M_INPUT_MODE(arg_samin);
-
-	infile = arg_samfile->filename[0];
-	input = mOpenSamInput(infile, inmode);
+	inmode         = M_INPUT_MODE(arg_samin);
+	infile         = arg_samfile->filename[0];
+	input          = mOpenSamInput(infile, inmode);
 	global->header = input->header;
+	qname_check    = mSamCheckQNameGrouping(input);
 
 	/* multi-mapper share type */
 
@@ -726,6 +727,7 @@ int msam_profile_main(int argc, char* argv[]) {
 			mFree(seqname);
 		}
 		mSafeCloseFile(def_stream, 0);
+
 		keys = zoeKeysOfHash(genomes);
 		global->n_features = keys->size;
 		for (i=0; i<keys->size; i++) {
@@ -823,8 +825,8 @@ int msam_profile_main(int argc, char* argv[]) {
 		output = gzopen(arg_out->sval[0], "wb");
 	}
 
-	/* Print command-line for book-keeping */
-	mPrintCommandLineGzip(output, argc, argv);
+	/* Print structured provenance and QNAME grouping status */
+	mPrintProfileProvenanceGzip(output, argc, argv, &qname_check);
 
 	/* Print header with insert mapping stats */
 	effective_inserts = mapped_inserts - global->purged_insert_count;

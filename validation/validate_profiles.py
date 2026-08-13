@@ -136,7 +136,7 @@ ECOLI_SAKAI_ASSEMBLY = "GCF_000008865.2"
 PROFILE_MULTI_RE = re.compile(r"Multiple mapped\s*:\s*([0-9]+)")
 PROFILE_TOTAL_RE = re.compile(r"Total inserts\s*:\s*([0-9]+)")
 PROFILE_MAPPED_RE = re.compile(r"Mapped inserts\s*:\s*([0-9]+)")
-PROFILE_VERSION_RE = re.compile(r"^# msamtools version\s+(.+?)\s*$", re.MULTILINE)
+PROFILE_VERSION_RE = re.compile(r"^# msamtools version:\s+(.+?)\s*$", re.MULTILINE)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
