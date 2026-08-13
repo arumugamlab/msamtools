@@ -495,12 +495,15 @@ int msam_filter_main(int argc, char* argv[]) {
 		fprintf(stdout, "--besthit cannot be combined with --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
-/*
-	} else if (arg_minlength->count == 0 && arg_minpercentid->count == 0 && arg_minppt->count == 0 && arg_minqfrac->count == 0) {
-		fprintf(stdout, "--mode filter needs -l, -p, --ppt or -z\n");
+	} else if (arg_minlength->count       == 0 &&
+	           arg_minpercentid->count    == 0 &&
+	           arg_minppt->count          == 0 &&
+	           arg_uniqbesthitonly->count == 0 &&
+	           arg_besthitonly->count     == 0 &&
+	           arg_minqfrac->count        == 0) {
+		fprintf(stdout, "--mode filter needs -l, -p, --ppt, -z, --besthit or --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
-*/
 	} else {
 		int32_t percent_id  = 0;
 		if (arg_minpercentid->count > 0) {
