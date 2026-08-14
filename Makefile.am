@@ -36,7 +36,9 @@ FORCE:
 SUBDIRS = deps
 
 # Fast deterministic correctness tests run by `make check`.
-TESTS = tests/test_smoke.sh
+TESTS = tests/test_smoke.sh \
+        tests/test_profile.sh \
+        tests/test_qname_order.sh
 TESTS_ENVIRONMENT = MSAMTOOLS='$(abs_builddir)/msamtools'
 
 # These are the installed programs
@@ -48,7 +50,12 @@ EXTRA_DIST = README.md \
              zoe-LICENSE \
              THIRD_PARTY_NOTICES.md \
              tests/test_functions.sh \
-             tests/test_smoke.sh
+             tests/test_smoke.sh \
+             tests/test_profile.sh \
+             tests/test_qname_order.sh \
+             tests/fixtures/profile.sam \
+             tests/fixtures/qname_coordinate.sam \
+             tests/fixtures/qname_reopened.sam
 
 # Install msamtools license information
 licensedir = $(datarootdir)/licenses/msamtools
