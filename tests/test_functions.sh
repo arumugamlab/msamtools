@@ -123,3 +123,61 @@ assert_profile_contains()
 
     pass_check "$description"
 }
+
+sam_records()
+{
+    sam=$1
+
+    awk -F '\t' '
+        $1 !~ /^@/ {
+            if (n > 0) printf ",";
+            printf "%s:%s", $1, $2;
+            n++;
+        }
+        END {
+            print "";
+        }
+    ' "$sam"
+}
+
+assert_sam_records()
+{
+    sam=$1
+    expected=$2
+    description=$3
+
+    observed=$(sam_records "$sam")
+    if test "$observed" != "$expected"; then
+        echo "Expected SAM records:" >&2
+        echo "  $expected" >&2
+        echo "Observed SAM records:" >&2
+        echo "  $observed" >&2
+        fail "$description"
+    fi
+
+    pass_check "$description"
+}
+
+assert_sam_record_contains()
+{
+    sam=$1
+    qname=$2
+    flag=$3
+    expected=$4
+    description=$5
+
+    if ! awk -F '\t' -v q="$qname" -v f="$flag" -v text="$expected" '
+        $1 == q && $2 == f && index($0, text) > 0 {
+            found = 1;
+        }
+        END {
+            exit !found;
+        }
+    ' "$sam"; then
+        echo "Expected record $qname:$flag to contain:" >&2
+        echo "  $expected" >&2
+        fail "$description"
+    fi
+
+    pass_check "$description"
+}
