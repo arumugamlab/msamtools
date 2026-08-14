@@ -39,7 +39,8 @@ SUBDIRS = deps
 TESTS = tests/test_smoke.sh \
         tests/test_profile.sh \
         tests/test_qname_order.sh \
-        tests/test_filter.sh
+        tests/test_filter.sh \
+        tests/test_besthit.sh
 TESTS_ENVIRONMENT = MSAMTOOLS='$(abs_builddir)/msamtools'
 
 # These are the installed programs
@@ -55,8 +56,11 @@ EXTRA_DIST = README.md \
              tests/test_profile.sh \
              tests/test_qname_order.sh \
              tests/test_filter.sh \
+             tests/test_besthit.sh \
              tests/fixtures/profile.sam \
              tests/fixtures/filter.sam \
+             tests/fixtures/besthit.sam \
+             tests/fixtures/besthit_rescore.sam \
              tests/fixtures/qname_coordinate.sam \
              tests/fixtures/qname_reopened.sam
 
