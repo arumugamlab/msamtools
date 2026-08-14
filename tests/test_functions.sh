@@ -38,6 +38,23 @@ assert_contains()
     pass_check "$description"
 }
 
+assert_not_contains()
+{
+    file=$1
+    unexpected=$2
+    description=$3
+
+    if grep -F -- "$unexpected" "$file" >/dev/null 2>&1; then
+        echo "Did not expect to find:" >&2
+        echo "  $unexpected" >&2
+        echo "in $file, whose contents were:" >&2
+        cat "$file" >&2
+        fail "$description"
+    fi
+
+    pass_check "$description"
+}
+
 assert_empty()
 {
     file=$1
