@@ -94,9 +94,8 @@ void mSummarizeAlignments(mSamFile *input, FILE *output, uint32_t edge_len) {
 
 		bam1_core_t *core = &b->core;
 		int tid           = core->tid;
-		hts_pos_t start   = core->pos + 1;
+		hts_pos_t start   = core->pos;
 		hts_pos_t end     = bam_endpos(b);
-		hts_pos_t tlen    = target_len[tid];
 
 		int32_t  glocal_len;
 
@@ -107,7 +106,7 @@ void mSummarizeAlignments(mSamFile *input, FILE *output, uint32_t edge_len) {
 		if (core->flag & BAM_FSECONDARY) continue;
 
 		/* Skip reads mapping to the edges of ref */
-		if ((start < edge_len) || (tlen - end < edge_len)) continue;
+		if ((start < edge_len) || (target_len[tid] - end < edge_len)) continue;
 
 		bam_get_extended_summary(b, alignment);
 		glocal_len = alignment->length + alignment->query_clip;
@@ -136,9 +135,8 @@ void mSummarizeAlignmentsStats(int stats_type, mSamFile *input, FILE *output, ui
 
 		bam1_core_t *core = &b->core;
 		int       tid     = core->tid;
-		hts_pos_t start   = core->pos + 1;
+		hts_pos_t start   = core->pos;
 		hts_pos_t end     = bam_endpos(b);
-		hts_pos_t tlen    = target_len[tid];
 
 		/* Skip unmapped */
 		if (core->flag & BAM_FUNMAP) continue;
@@ -147,7 +145,7 @@ void mSummarizeAlignmentsStats(int stats_type, mSamFile *input, FILE *output, ui
 		if (core->flag & BAM_FSECONDARY) continue;
 
 		/* Skip reads mapping to the edges of ref */
-		if ((start < edge_len) || (tlen - end < edge_len)) continue;
+		if ((start < edge_len) || (target_len[tid] - end < edge_len)) continue;
 
 		bam_get_extended_summary(b, alignment);
 

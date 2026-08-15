@@ -6,7 +6,7 @@ void mQuit(const char *format, ...) {
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fprintf(stderr, "\n");
-	exit(EXIT_SUCCESS);
+	exit(EXIT_FAILURE);
 }
 
 void mWarn(const char *format, ...) {

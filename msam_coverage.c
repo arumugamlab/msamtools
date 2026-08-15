@@ -36,6 +36,9 @@ void mFreeCoverage() {
 
 void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
 	int tid         = bam->core.tid;
+
+	if (tid < 0) return;
+
 	hts_pos_t start = bam->core.pos;
 	hts_pos_t end   = bam_endpos(bam);
 	hts_pos_t i;
@@ -173,13 +176,13 @@ void mWriteCoverageSummaryToStream(gzFile stream, int skip_uncovered) {
 	int          tid;
 	int          n_targets  = global->header->n_targets;
 	int         *covered    = global->covered;
-	coverage_t **coverage = global->coverage;
+	coverage_t **coverage   = global->coverage;
 
 	for (tid=0; tid<n_targets; tid++) {
 		hts_pos_t i;
 		hts_pos_t touched = 0;
 		hts_pos_t tlen    = global->header->target_len[tid];
-		int64_t sum     = 0;
+		int64_t   sum     = 0;
 
 		/* If this target is not covered, deal with it */
 
@@ -192,7 +195,7 @@ void mWriteCoverageSummaryToStream(gzFile stream, int skip_uncovered) {
 
 		/* Write to the given output stream */
 
-		for (i=0; i<tlen-1; i++) {
+		for (i=0; i<tlen; i++) {
 			coverage_t val = coverage[tid][i];
 			touched += (val != 0);
 			sum += val;
