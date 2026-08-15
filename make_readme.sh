@@ -824,4 +824,28 @@ make distcheck
 This creates a source archive, performs an out-of-tree build from that
 distribution, and runs the complete test suite against it.
 
+#### 8.4.5. Validation <a name="validation"></a>
+
+Reproducible profile validation using synthetic metagenomic alignments is
+described in the [profile validation report](docs/validation/profile_validation.md).
+
+The scripts and input files needed for these steps are provided under
+`validation/`. See the profile validation report for the
+parameters and validation results.
+
+The validation results can be reproduced by:
+
+```console
+cd validation
+python prepare_genomes.py genomes.tsv
+python validation/validate_profiles.py --msamtools ../msamtools --control-community balanced_skew prepared_genomes/validated_genomes.tsv communities/
+```
+
+This does the following:
+1. preparing the reference genomes;
+2. generating synthetic alignments with known community composition;
+3. running the msamtools profiling modes;
+4. comparing the resulting profiles with the known truth and generating the
+   validation report and figures.
+
 EOF
