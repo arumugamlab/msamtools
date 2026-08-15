@@ -44,7 +44,8 @@ TESTS = tests/test_smoke.sh \
         tests/test_summary.sh \
         tests/test_errors.sh \
         tests/test_integration.sh \
-        tests/test_streaming.sh
+        tests/test_streaming.sh \
+        tests/test_coverage.sh
 TESTS_ENVIRONMENT = MSAMTOOLS='$(abs_builddir)/msamtools'
 
 # These are the installed programs
@@ -65,6 +66,7 @@ EXTRA_DIST = README.md \
              tests/test_errors.sh \
              tests/test_integration.sh \
              tests/test_streaming.sh \
+             tests/test_coverage.sh \
              tests/fixtures/profile.sam \
              tests/fixtures/filter.sam \
              tests/fixtures/besthit.sam \
@@ -73,6 +75,7 @@ EXTRA_DIST = README.md \
              tests/fixtures/summary_count.sam \
              tests/fixtures/summary_edge.sam \
              tests/fixtures/integration.sam \
+             tests/fixtures/coverage.sam \
              tests/fixtures/qname_coordinate.sam \
              tests/fixtures/qname_reopened.sam
 

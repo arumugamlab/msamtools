@@ -1,0 +1,10 @@
+@HD	VN:1.6	SO:queryname
+@SQ	SN:A	LN:10
+@SQ	SN:B	LN:5
+@SQ	SN:C	LN:10
+a_first	0	A	1	60	1M	*	0	0	A	I	NM:i:0
+a_last	0	A	10	60	1M	*	0	0	A	I	NM:i:0
+a_mid1	0	A	3	60	4M	*	0	0	AAAA	IIII	NM:i:0
+a_mid2	0	A	5	60	3M	*	0	0	AAA	III	NM:i:0
+c_last	0	C	10	60	1M	*	0	0	A	I	NM:i:0
+unmapped	4	*	0	0	*	*	0	0	A	I
