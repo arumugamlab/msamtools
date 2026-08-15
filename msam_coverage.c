@@ -36,6 +36,9 @@ void mFreeCoverage() {
 
 void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
 	int tid         = bam->core.tid;
+
+	if (tid < 0) return;
+
 	hts_pos_t start = bam->core.pos;
 	hts_pos_t end   = bam_endpos(bam);
 	hts_pos_t i;
