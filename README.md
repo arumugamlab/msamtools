@@ -95,7 +95,7 @@ are currently 4 subprograms that you can call as shown below.
 ~~~
 
 Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.1.3 (using samtools/htslib 1.9)
+Version: 1.1.3 (git bfef08c7c3cd; using htslib 1.24)
 
 Usage:   msamtools <command> [options]
 
@@ -854,6 +854,7 @@ anyway to be sure:
  2. gzip
  3. tar
  4. wget
+ 5. bzip2 (for installing HTSlib)
 
 If any of these is missing in your system, or cannot be found in your
 application path, please fix that first.
@@ -870,10 +871,8 @@ build.
 
 ### 8.3. For normal users <a name="normal-users"></a>
 
-If you are a normal user, then the easiest way is to obtain the package file
-and build the program right away. The following commands were written when
-version 1.1.0 was the latest, so please update the version number in the
-commands below.
+If you are a normal user, then the easiest way is to obtain a release
+tarball and build the program directly from it.
 
 **Note:** Newer C compilers from gcc use `-std=gnu99` by default, which I had
 not tested on version 0.9 as my gcc version is quite outdated with `-std=gnu89` as default.
@@ -885,22 +884,26 @@ upgraded to be compatible with `-std=gnu99`.
 (Thanks [Russel88](https://github.com/Russel88) for reporting this).
 
 ```console
-wget https://github.com/arumugamlab/msamtools/releases/download/1.1.0/msamtools-1.1.0.tar.gz
-tar xfz msamtools-1.1.0.tar.gz
-cd msamtools-1.1.0
+wget https://github.com/arumugamlab/msamtools/releases/download/MSAM_VERSION/msamtools-MSAM_VERSION.tar.gz
+tar xfz msamtools-MSAM_VERSION.tar.gz
+cd msamtools-MSAM_VERSION
 ./configure
 make
+make check
 ```
 
-This should create `msamtools` executable.
+This builds the `msamtools` executable and runs the fast deterministic test
+suite. To install the program under the configured installation prefix, run:
+```console
+make install
+```
 
 ### 8.4. For advanced users <a name="advanced-users"></a>
 
-If you are an advanced user who would like to contribute to the code base
-or if you just like to do things the hard way, you can check out the source
-code and build the program in a series of steps involving `autoconf` and
-`automake`. If these names confuse you or scare you, then please follow the
-instructions for [normal users](#normal-users).
+If you are an advanced user who would like to contribute to the code base,
+you can check out the source code, bootstrap the build system using GNU
+Autotools, and build and test the program. If these tools are unfamiliar,
+please follow the instructions for [normal users](#normal-users).
 
 #### 8.4.1. Getting the source code <a name="source-code"></a>
 
@@ -954,7 +957,7 @@ $ unzip master.zip
 $ cd msamtools-master
 ```
 
-#### 8.4.2. Running autoconf and automake <a name="automake"></a>
+#### 8.4.2. Bootstrapping the build system <a name="automake"></a>
 
 You can check the contents of the repository in the package directory.
 ```console
@@ -966,21 +969,33 @@ LICENSE       mCommon.c       msam_filter.c    msamtools.c     zoeTools.h
 Makefile.am   mCommon.h       msam.h           README.md
 ```
 
-You will note that the `configure` script does not exist in the package.
-This is because you need to generate the `configure` script using
-`aclocal`, `autoconf` and `automake`.
-```
-aclocal
-autoconf
-mkdir build-aux
-automake --add-missing
+You will note that the `configure` script does not exist in the repository.
+Generate the Autotools build files with:
+```console
+autoreconf -fi
 ```
 
 #### 8.4.3. Building the program <a name="build"></a>
 
-You can then build msamtools as follows:
+You can then build and test msamtools as follows:
 ```console
 ./configure
 make
+make check
 ```
+
+The fast deterministic test suite uses small hand-crafted SAM fixtures and
+checks exact behavior of filtering, best-hit and unique-hit selection,
+profiling, coverage, alignment summaries, command-line validation, QNAME
+grouping, integration between commands, and streaming behavior.
+
+#### 8.4.4. Checking a source distribution <a name="distcheck"></a>
+
+Maintainers preparing a source distribution can run:
+```console
+make distcheck
+```
+
+This creates a source archive, performs an out-of-tree build from that
+distribution, and runs the complete test suite against it.
 
