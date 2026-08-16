@@ -237,9 +237,20 @@ int msam_summary_main(int argc, char* argv[]) {
 		if (arg_samfile->count > 1 && global->multiple_input == 0) {
 			mMultipleFileError(subprogram, argtable);
 		}
+
+		/* Is there an edge to avoid? */
+		edge = 0;
+		if (arg_edge->count > 0) {
+			if (arg_edge->ival[0] < 0) {
+				fprintf(stdout, "-e must be a positive integer\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
+			edge = (uint32_t) arg_edge->ival[0];
+		}
 	}
 
-	/* Set input/output modes */
+	/* Set input modes */
 
 	inmode = M_INPUT_MODE(arg_samin);
 
@@ -250,12 +261,6 @@ int msam_summary_main(int argc, char* argv[]) {
 	global->header = input->header;
 
 	/* Specific operations */
-
-	/* Is there an edge to avoid? */
-
-	edge = 0;
-	if (arg_edge->count > 0)
-		edge = (uint32_t) arg_edge->ival[0];
 
 	if (arg_stats->count > 0) {
 		int i;

@@ -78,5 +78,14 @@ pass_check "unknown summary statistics mode should fail"
 assert_contains "$tmpdir/stats.stderr" "Do not understand nonsense as mode" \
     "unknown summary mode should identify the invalid value"
 
+# Summary rejects negative edge value.
+if "$MSAMTOOLS" summary -e -1 "$summary_fixture" \
+    >"$tmpdir/pid.stdout" 2>"$tmpdir/pid.stderr"; then
+    fail "negative edge length should fail"
+fi
+pass_check "negative edge length should fail"
+assert_contains "$tmpdir/pid.stdout" "must be a positive integer" \
+    "negative edge error should explain the allowed values"
+
 report_checks
 exit 0
