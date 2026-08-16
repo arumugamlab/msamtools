@@ -35,8 +35,6 @@ int32_t bam_cigar2alnlen(const bam1_core_t *c, const uint32_t *cigar);
 
 void bam_cigar2details(const bam1_core_t *c, const uint32_t *cigar, int32_t *alen, int32_t *qlen, int32_t *qclip);
 
-int32_t bam_highquality_differences_only(const bam1_t *b, uint8_t minqual);
-
 struct mAlignmentSummary {
 	int32_t match;
 	int32_t mismatch;
