@@ -8,6 +8,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 filter_fixture="$script_dir/fixtures/filter.sam"
 profile_fixture="$script_dir/fixtures/profile.sam"
 summary_fixture="$script_dir/fixtures/summary.sam"
+coverage_fixture="$script_dir/fixtures/coverage.sam"
 
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-errors-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
@@ -77,6 +78,33 @@ fi
 pass_check "unknown summary statistics mode should fail"
 assert_contains "$tmpdir/stats.stderr" "Do not understand nonsense as mode" \
     "unknown summary mode should identify the invalid value"
+
+# Summary rejects negative edge value.
+if "$MSAMTOOLS" summary -e -1 "$summary_fixture" \
+    >"$tmpdir/pid.stdout" 2>"$tmpdir/pid.stderr"; then
+    fail "negative edge length should fail"
+fi
+pass_check "negative edge length should fail"
+assert_contains "$tmpdir/pid.stdout" "must be a positive integer" \
+    "negative edge error should explain the allowed values"
+
+# Coverage rejects negative wordsize value.
+if "$MSAMTOOLS" coverage -w -1 -o "$tmpdir/pid.gz" "$coverage_fixture" \
+    >"$tmpdir/pid.stdout" 2>"$tmpdir/pid.stderr"; then
+    fail "negative word size should fail"
+fi
+pass_check "negative word size should fail"
+assert_contains "$tmpdir/pid.stdout" "must be a non-zero positive integer" \
+    "negative word size should explain the allowed values"
+
+# Coverage rejects zero wordsize value.
+if "$MSAMTOOLS" coverage -w 0 -o "$tmpdir/pid.gz" "$coverage_fixture" \
+    >"$tmpdir/pid.stdout" 2>"$tmpdir/pid.stderr"; then
+    fail "zero word size should fail"
+fi
+pass_check "zero word size should fail"
+assert_contains "$tmpdir/pid.stdout" "must be a non-zero positive integer" \
+    "zero word size should explain the allowed values"
 
 report_checks
 exit 0

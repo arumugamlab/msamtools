@@ -321,6 +321,15 @@ int msam_coverage_main(int argc, char* argv[]) {
 		if (arg_samfile->count > 1 && global->multiple_input == 0) {
 			mMultipleFileError(subprogram, argtable);
 		}
+
+		if (arg_wordsize->count > 0) {
+			wordsize = arg_wordsize->ival[0];
+			if (wordsize < 1) {
+				fprintf(stdout, "-w must be a non-zero positive integer\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
+		}
 	}
 
 	if (arg_out->count != 1) {
@@ -343,10 +352,6 @@ int msam_coverage_main(int argc, char* argv[]) {
 	infile = arg_samfile->filename[0];
 	input = mOpenSamInput(infile, inmode);
 	global->header = input->header;
-
-	if (arg_wordsize->count > 0) {
-		wordsize = arg_wordsize->ival[0];
-	}
 
 	/* Specific operations */
 

@@ -6,50 +6,6 @@
 #define EDIT_STATS (2)
 #define SCOR_STATS (3)
 
-void mSummarizeAlignmentsHQ(mSamFile *input, FILE *output) {
-
-	int     i;
-	int     min_edit = 4096;
-	char   *prev_read = (char*) mCalloc(128, sizeof(char));
-	bam1_t *b    = bam_init1();
-	long   *dist = (long*) mCalloc(500, sizeof(long));
-	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
-	char  **target_name = global->header->target_name;
-
-	prev_read[0] = '\0';
-	while (mSamRead(input, b) >= 0) {
-
-		int edit;
-		bam1_core_t *core = &b->core;
-		int tid           = core->tid;
-		hts_pos_t start   = core->pos;
-		hts_pos_t end     = bam_endpos(b);
-
-		if (prev_read[0] != '\0' && strcmp(bam_get_qname(b), prev_read) != 0) {
-			if (min_edit != 4096) {
-				dist[min_edit]++;
-				min_edit = 4096;
-			}
-		}
-		bam_get_extended_summary(b, alignment);
-		if (bam_highquality_differences_only(b, 20)) {
-			edit = alignment->mismatch + alignment->gapopen + alignment->gapextend;
-			fprintf(output, "%s\t%d\t%s\t%" PRId64 "\t%" PRId64 "\t%d\t%d\n", bam_get_qname(b), alignment->query_length, target_name[tid], start, end, alignment->match, edit);
-			if (edit < min_edit) min_edit = edit;
-		}
-		strncpy(prev_read, bam_get_qname(b), 127);
-	}
-	bam_destroy1(b);
-	if (min_edit != 4096) dist[min_edit]++;
-	for (i=0; i<500; i++) {
-		if (dist[i] > 0) {
-			fprintf(stderr, "%d\t%ld\n", i, dist[i]);
-		}
-	}
-	mFree(prev_read);
-}
-
-
 /***************************************************************
  * Summarize alignment statistics for PRIMARY ALIGNMENTS ONLY! *
  * For statistics, counting multiple mappers more than once    *
@@ -281,9 +237,20 @@ int msam_summary_main(int argc, char* argv[]) {
 		if (arg_samfile->count > 1 && global->multiple_input == 0) {
 			mMultipleFileError(subprogram, argtable);
 		}
+
+		/* Is there an edge to avoid? */
+		edge = 0;
+		if (arg_edge->count > 0) {
+			if (arg_edge->ival[0] < 0) {
+				fprintf(stdout, "-e must be a positive integer\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
+			edge = (uint32_t) arg_edge->ival[0];
+		}
 	}
 
-	/* Set input/output modes */
+	/* Set input modes */
 
 	inmode = M_INPUT_MODE(arg_samin);
 
@@ -294,12 +261,6 @@ int msam_summary_main(int argc, char* argv[]) {
 	global->header = input->header;
 
 	/* Specific operations */
-
-	/* Is there an edge to avoid? */
-
-	edge = 0;
-	if (arg_edge->count > 0)
-		edge = (uint32_t) arg_edge->ival[0];
 
 	if (arg_stats->count > 0) {
 		int i;
