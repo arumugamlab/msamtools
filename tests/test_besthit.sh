@@ -31,8 +31,8 @@ run_filter()
 # read/mate pool.
 run_filter besthit --besthit "$fixture"
 assert_sam_records "$tmpdir/besthit.sam" \
-    "filterwin:0,paired:321,paired:129,same_ref:256,single:0,tie2:0,tie2:256,tie3:0,tie3:256,unique2:256,unique3:256" \
-    "--besthit should retain all and only highest-scoring hits"
+    "filterwin:0,interleaved:65,interleaved:385,interleaved_tie:65,interleaved_tie:321,interleaved_tie:129,paired:321,paired:129,same_ref:256,single:0,tie2:0,tie2:256,tie3:0,tie3:256,unique2:256,unique3:256" \
+    "--besthit should select hits per mate and write READ1 before READ2"
 assert_contains "$tmpdir/besthit.sam" \
     "QNAME grouping check: confirmed by input header SO:queryname" \
     "best-hit SAM header should record QNAME-order confirmation"
@@ -40,15 +40,15 @@ assert_contains "$tmpdir/besthit.sam" \
 # --uniqhit retains the best alignment only when the highest score is unique.
 run_filter uniqhit --uniqhit "$fixture"
 assert_sam_records "$tmpdir/uniqhit.sam" \
-    "filterwin:0,paired:321,paired:129,same_ref:256,single:0,unique2:256,unique3:256" \
-    "--uniqhit should discard groups tied for the best score"
+    "filterwin:0,interleaved:65,interleaved:385,interleaved_tie:129,paired:321,paired:129,same_ref:256,single:0,unique2:256,unique3:256" \
+    "--uniqhit should apply uniqueness per mate and write READ1 before READ2"
 
 # Per-alignment filtering happens before best-hit selection.  filterwin's
 # higher-AS A alignment is only 90% identical and is removed by -p 95.
 run_filter filtered_besthit -p 95 --besthit "$fixture"
 assert_sam_records "$tmpdir/filtered_besthit.sam" \
-    "filterwin:256,paired:321,paired:129,same_ref:256,single:0,tie2:0,tie2:256,tie3:0,tie3:256,unique2:256,unique3:256" \
-    "alignment filtering should precede best-hit selection"
+    "filterwin:256,interleaved:65,interleaved:385,interleaved_tie:65,interleaved_tie:321,interleaved_tie:129,paired:321,paired:129,same_ref:256,single:0,tie2:0,tie2:256,tie3:0,tie3:256,unique2:256,unique3:256" \
+    "alignment filtering should precede mate-aware best-hit selection"
 
 # --rescore recomputes AS before best-hit selection when the normal filtering
 # path is active.  Existing AS favors A; edit-distance rescoring favors B.
