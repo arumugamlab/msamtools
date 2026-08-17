@@ -18,8 +18,8 @@
 int mCountInserts(mSamFile *input) {
 
 	bam1_t *b         = bam_init1();
-	char   *prev_read = (char*) mCalloc(128, sizeof(char));
-	int     count     = 0;
+	char    prev_read[BAM_MAX_QNAME_LEN + 1] = "";
+	int     count = 0;
 
 	while (mSamRead(input, b) >= 0) {
 
@@ -32,10 +32,9 @@ int mCountInserts(mSamFile *input) {
 			count++;
 		}
 
-		strncpy(prev_read, bam_get_qname(b), 127);
+		strcpy(prev_read, bam_get_qname(b));
 	}
 	bam_destroy1(b);
-	mFree(prev_read);
 	return count;
 }
 

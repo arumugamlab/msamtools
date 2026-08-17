@@ -123,7 +123,7 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 
 	/* features to filter on */
 
@@ -213,7 +213,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 		}
 
 		prev_flag = core.flag;
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 
 		/***
 		 * Do I pass the filter? "filter(alignment) == 1" means failed.
@@ -232,7 +232,6 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 	mFreeBamPool(pool);
 	mFree(pool);
 	mFree(alignment);
-	mFree(prev_read);
 }
 
 void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*)) {
@@ -242,7 +241,7 @@ void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 
 	/* features to filter on */
 
@@ -271,7 +270,7 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 		}
 
 		prev_flag = core.flag;
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 
 		/* Ignore an unmapped read */
 
@@ -283,7 +282,6 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 	writer(output, pool);
 	mFreeBamPool(pool);
 	mFree(pool);
-	mFree(prev_read);
 }
 
 void mWriteBestHitBamPool(mSamFile *stream, mBamPool *pool) {

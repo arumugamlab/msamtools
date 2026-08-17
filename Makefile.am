@@ -76,6 +76,7 @@ EXTRA_DIST = README.md \
              tests/fixtures/summary_edge.sam \
              tests/fixtures/integration.sam \
              tests/fixtures/coverage.sam \
+             tests/fixtures/long_qname.sam \
              tests/fixtures/qname_coordinate.sam \
              tests/fixtures/qname_reopened.sam
 

@@ -92,7 +92,7 @@ void mEstimateCoverageOnFile(mSamFile *input) {
 
 	int       pool_limit = 64;
 	bam1_t   *current;
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 	mBamPool *pool      = (mBamPool*) mCalloc(1, sizeof(mBamPool));
 
 	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
@@ -115,13 +115,12 @@ void mEstimateCoverageOnFile(mSamFile *input) {
 			current = pool_current(pool);
 		}
 		prev_flag = current->core.flag;
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 		current   = mAdvanceBamPool(pool);
 	}
 	mEstimateCoverageOnPool(pool);
 	mFreeBamPool(pool);
 	mFree(pool);
-	mFree(prev_read);
 }
 
 /* Write compressed coverage data using pipe: child is the compressor */

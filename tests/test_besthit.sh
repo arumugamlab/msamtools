@@ -7,6 +7,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 fixture="$script_dir/fixtures/besthit.sam"
 rescore_fixture="$script_dir/fixtures/besthit_rescore.sam"
+long_qname_fixture="$script_dir/fixtures/long_qname.sam"
 
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-besthit-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
@@ -63,6 +64,59 @@ assert_sam_records "$tmpdir/rescore_recomputed.sam" \
 assert_sam_record_contains "$tmpdir/rescore_recomputed.sam" \
     "rescore" "256" "AS:i:100" \
     "rescored winning alignment should contain the recomputed AS value"
+
+run_filter long_qname_besthit --besthit "$long_qname_fixture"
+awk -F '\t' '
+    $1 !~ /^@/ {
+        as = "";
+        for (i = 12; i <= NF; i++) {
+            if ($i ~ /^AS:i:/) {
+                as = $i;
+                break;
+            }
+        }
+        print length($1) "\t" $2 "\t" $3 "\t" as;
+    }
+' "$tmpdir/long_qname_besthit.sam" >"$tmpdir/long_qname_besthit.records"
+cat >"$tmpdir/long_qname_besthit.expected" <<'EOF'
+127	0	A	AS:i:100
+128	0	A	AS:i:100
+254	0	A	AS:i:100
+254	0	B	AS:i:100
+EOF
+if ! cmp -s "$tmpdir/long_qname_besthit.expected" \
+    "$tmpdir/long_qname_besthit.records"; then
+    echo "Expected long-QNAME best-hit records:" >&2
+    cat "$tmpdir/long_qname_besthit.expected" >&2
+    echo "Observed long-QNAME best-hit records:" >&2
+    cat "$tmpdir/long_qname_besthit.records" >&2
+    fail "--besthit should keep one winner per complete QNAME"
+fi
+pass_check "--besthit should keep one winner per complete QNAME"
+
+run_filter long_qname_filtered_besthit -p 90 --besthit "$long_qname_fixture"
+awk -F '\t' '
+    $1 !~ /^@/ {
+        as = "";
+        for (i = 12; i <= NF; i++) {
+            if ($i ~ /^AS:i:/) {
+                as = $i;
+                break;
+            }
+        }
+        print length($1) "\t" $2 "\t" $3 "\t" as;
+    }
+' "$tmpdir/long_qname_filtered_besthit.sam" \
+    >"$tmpdir/long_qname_filtered_besthit.records"
+if ! cmp -s "$tmpdir/long_qname_besthit.expected" \
+    "$tmpdir/long_qname_filtered_besthit.records"; then
+    echo "Expected filtered long-QNAME best-hit records:" >&2
+    cat "$tmpdir/long_qname_besthit.expected" >&2
+    echo "Observed filtered long-QNAME best-hit records:" >&2
+    cat "$tmpdir/long_qname_filtered_besthit.records" >&2
+    fail "filtered --besthit should keep one winner per complete QNAME"
+fi
+pass_check "filtered --besthit should keep one winner per complete QNAME"
 
 report_checks
 exit 0

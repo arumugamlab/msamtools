@@ -134,6 +134,7 @@ assert_profile_contains()
     if ! gzip -cd -- "$profile" | grep -F -- "$expected" >/dev/null 2>&1; then
         echo "Expected to find in decompressed profile:" >&2
         echo "  $expected" >&2
+       echo "But file contents were:"
         gzip -cd -- "$profile" >&2
         fail "$description"
     fi
