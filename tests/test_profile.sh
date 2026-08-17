@@ -6,6 +6,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/test_functions.sh"
 
 fixture="$script_dir/fixtures/profile.sam"
+long_qname_fixture="$script_dir/fixtures/long_qname.sam"
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-profile-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 mkdir -p "$tmpdir" || exit 1
@@ -63,6 +64,31 @@ run_profile proportional
 assert_profile_value "$tmpdir/proportional.tsv.gz" Unknown 0 1e-9
 assert_profile_value "$tmpdir/proportional.tsv.gz" A 5.833333333333 1e-6
 assert_profile_value "$tmpdir/proportional.tsv.gz" B 1.166666666667 1e-6
+
+long_qname_output="$tmpdir/long_qname.tsv.gz"
+long_qname_stderr="$tmpdir/long_qname.stderr"
+if ! "$MSAMTOOLS" profile -S \
+    --label long_qname \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi equal \
+    --pandas \
+    -o "$long_qname_output" \
+    "$long_qname_fixture" \
+    >/dev/null 2>"$long_qname_stderr"; then
+    cat "$long_qname_stderr" >&2
+    fail "profile should accept full-length legal QNAMEs"
+fi
+pass_check "profile should accept full-length legal QNAMEs"
+assert_profile_contains "$long_qname_output" "Mapped inserts      : 4" \
+    "profile should count four complete long-QNAME groups"
+assert_profile_contains "$long_qname_output" "- Multiple mapped : 4" \
+    "profile should classify all long-QNAME groups as multimapped"
+assert_profile_contains "$long_qname_output" "- Uniquely mapped : 0" \
+    "profile should not split long-QNAME multimappers into unique hits"
+assert_profile_value "$long_qname_output" A 2 1e-9
+assert_profile_value "$long_qname_output" B 2 1e-9
 
 report_checks
 exit 0

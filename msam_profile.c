@@ -208,7 +208,7 @@ int mEstimateInsertCountOnFile(mSamFile *input, int share_type) {
 
 	bam1_t   *current;
 	mBamPool *pool      = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 
 	/* init pool */
 
@@ -229,7 +229,7 @@ int mEstimateInsertCountOnFile(mSamFile *input, int share_type) {
 			current = pool_current(pool);
 			insert_count++;
 		}
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 		current = mAdvanceBamPool(pool);
 	}
 	mEstimateInsertCountOnPool(pool, share_type);
@@ -237,7 +237,6 @@ int mEstimateInsertCountOnFile(mSamFile *input, int share_type) {
 
 	mFreeBamPool(pool);
 	mFree(pool);
-	mFree(prev_read);
 	return insert_count;
 }
 

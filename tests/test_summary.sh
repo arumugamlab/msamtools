@@ -8,6 +8,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 fixture="$script_dir/fixtures/summary.sam"
 count_fixture="$script_dir/fixtures/summary_count.sam"
 edge_fixture="$script_dir/fixtures/summary_edge.sam"
+long_qname_fixture="$script_dir/fixtures/long_qname.sam"
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-summary-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 mkdir -p "$tmpdir" || exit 1
@@ -119,10 +120,29 @@ if ! "$MSAMTOOLS" summary -S -c "$count_fixture" \
     fail "summary --count should succeed"
 fi
 pass_check "summary --count should succeed"
-assert_contains "$count_stdout" "3" \
-    "--count should count mapped QNAME groups once"
+if [ "$(cat "$count_stdout")" != "3" ]; then
+    fail "--count should count mapped QNAME groups exactly once"
+fi
 assert_empty "$count_stderr" \
     "--count should not write to stderr"
+
+long_count_stdout="$tmpdir/long_qname_count.stdout"
+long_count_stderr="$tmpdir/long_qname_count.stderr"
+if ! "$MSAMTOOLS" summary -S -c "$long_qname_fixture" \
+    >"$long_count_stdout" 2>"$long_count_stderr"; then
+    cat "$long_count_stderr" >&2
+    fail "summary --count should accept full-length legal QNAMEs"
+fi
+pass_check "summary --count should accept full-length legal QNAMEs"
+if test "$(cat "$long_count_stdout")" != "4"; then
+    echo "Expected insert count: 4" >&2
+    echo -n "Observed insert count: " >&2
+    cat "$long_count_stdout" >&2
+    fail "summary --count should group complete QNAMEs without truncation"
+fi
+pass_check "summary --count should group complete QNAMEs without truncation"
+assert_empty "$long_count_stderr" \
+    "long-QNAME count should not write to stderr"
 
 report_checks
 exit 0

@@ -19,7 +19,7 @@ void mWriteUniqueBestHitBamPool(mSamFile *stream, mBamPool *pool);
  * The following trick is to make sure that
  *  (1) if ppt is like  950, then you need above 950
  *  (2) if ppt is like -950, then you need below 950
-
+ *
 	dist = 1000*(alignment->length-alignment->edit);
 	if (PPT < 0) dist = -dist;
 	if (dist < alignment->length*PPT) continue;
@@ -74,22 +74,18 @@ void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only,
 	int (*filters[8])(mAlignmentSummary *alignment) = {NULL, filter_l, filter_p, filter_lp, filter_z, filter_lz, filter_pz, filter_lpz};
 
 	/* writer function */
-
 	void (*writer)(mSamFile*, mBamPool*);
 
 	/* Assign filter function */
-
 	if (global->MIN_LENGTH > 0) filter_choice |= 1; /* 001 for l */
 	if (global->PPT       != 0) filter_choice |= 2; /* 010 for p */
 	if (global->MAX_CLIP < 100) filter_choice |= 4; /* 100 for z */
-
 	if (filter_choice == 0 && besthit_only == 0 && uniqbesthit_only == 0) {
 		mDie("'filter' command requires atleast one of --ppt, -l, -p, -z, --besthit or --uniqhit");
 	}
 	filter = filters[filter_choice];
 
 	/* Assign writer function */
-
 	if (uniqbesthit_only)
 		writer = mWriteUniqueBestHitBamPool;
 	else if (besthit_only)
@@ -104,17 +100,6 @@ void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only,
 	}
 }
 
-/****************************
- * NOTE on 27.11.2010:
- * I had a separate mode for besthit selection since that will involve
- * keeping a list of scores, processing it and then printing.
- * But I did a test on BFAST alignment of MH6, and the difference of
- * using a list and not using it was just 3m47s from 3m44s. So I decided
- * to make it the standard way to process groups. So, if any one of -l, -z, -p, --ppt
- * is specified, then both -m filter and -m filter --besthit
- * will go through the same procedure, so no need to maintain two versions of code
- */
-
 void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSummary*), void (*writer)(mSamFile*, mBamPool*), int rescore, int invert, int keep_unmapped) {
 
 	/* parameters for rescoring alignment score */
@@ -123,36 +108,24 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 
 	/* features to filter on */
-
 	uint8_t  *nm;
-	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
-	uint32_t  prev_flag = 0;
 	mAlignmentSummary* alignment = (mAlignmentSummary*) mMalloc(sizeof(mAlignmentSummary));
 
 	/* init pool */
 
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
-
 	prev_read[0] = '\0';
 	while (mSamRead(input, current) >= 0) {
-		bam1_core_t  core = current->core;
-/*
-fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
-*/
-		if ( (prev_read[0] != '\0') && 
-		     ((strcmp(bam_get_qname(current), prev_read) != 0) || 
-		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
-		     )
-		   ) {
+		if ( (prev_read[0] != '\0') &&
+		     (strcmp(bam_get_qname(current), prev_read) != 0) ) {
 			writer(output, pool);
 			mReOriginateBamPool(pool);
 			current = pool_current(pool);
 		}
-
 		/*****
 		 * Ignore an unmapped read, unless your selection uses upper limits.
 		 *
@@ -168,7 +141,6 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 		 *
 		 * This is also not done during --besthit and --uniqhit modes, as they will be combined with lower-limits.
 		 *****/
-
 		if (current->core.flag & BAM_FUNMAP) {
 			if (keep_unmapped != 0) {
 				if (global->PPT >= 0 && invert == 1)
@@ -188,7 +160,6 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 		 */
 
 		/* Get alignment stats */
-
 		if (bam_aux_get(current, "MD")) {
 			bam_get_summary(current, alignment);
 		} else {
@@ -202,7 +173,6 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 		}
 
 		/* Rescore if necessary */
-
 		if (rescore) {
 			int score = (alignment->length - alignment->edit)*hit + alignment->edit*miss;
 			uint8_t *as = bam_aux_get(current, "AS");
@@ -212,27 +182,21 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 			bam_aux_append(current, "AS", 'i', 4, (uint8_t*)&score);
 		}
 
-		prev_flag = core.flag;
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 
 		/***
 		 * Do I pass the filter? "filter(alignment) == 1" means failed.
-		 * under invert=0, filter=0,1 means continue=0,1 resp.
-		 * under invert=1, filter=0,1 means continue=1,0 resp.
-		 * The combination that covers this is: continue=(invert!=filter)
+		 * under invert=0, filter=0,1 means advance=1,0 resp.
+		 * under invert=1, filter=0,1 means advance=0,1 resp.
+		 * The combination that covers this is: advance=(invert==filter)
 		 */
-
-		if (filter(alignment) != invert) {
-			continue;
-		}
-
-		current = mAdvanceBamPool(pool);
+		if (filter(alignment) == invert)
+			current = mAdvanceBamPool(pool);
 	}
 	writer(output, pool);
 	mFreeBamPool(pool);
 	mFree(pool);
 	mFree(alignment);
-	mFree(prev_read);
 }
 
 void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*)) {
@@ -242,36 +206,24 @@ void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*
 	int       pool_limit = 64;
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char     *prev_read = (char*) mCalloc(128, sizeof(char));
+	char      prev_read[BAM_MAX_QNAME_LEN + 1];
 
 	/* features to filter on */
-
-	uint32_t  mutual_pairs = (BAM_FREAD1 | BAM_FREAD2);
-	uint32_t  prev_flag = 0;
 
 	/* init pool */
 
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
-
 	prev_read[0] = '\0';
 	while (mSamRead(input, current) >= 0) {
 		bam1_core_t  core = current->core;
-/*
-fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.flag, prev_flag, (core.flag|prev_flag) & mutual_pairs);
-*/
-		if ( (prev_read[0] != '\0') && 
-		     ((strcmp(bam_get_qname(current), prev_read) != 0) || 
-		      (((core.flag | prev_flag) & mutual_pairs) == mutual_pairs)
-		     )
-		   ) {
+		if ( (prev_read[0] != '\0') &&
+		     (strcmp(bam_get_qname(current), prev_read) != 0) ) {
 			writer(output, pool);
 			mReOriginateBamPool(pool);
 			current = pool_current(pool);
 		}
-
-		prev_flag = core.flag;
-		strncpy(prev_read, bam_get_qname(current), 127);
+		strcpy(prev_read, bam_get_qname(current));
 
 		/* Ignore an unmapped read */
 
@@ -283,66 +235,79 @@ fprintf(stdout, "%s\t%s\t%d\t%d\t%d\n", bam_get_qname(current), prev_read, core.
 	writer(output, pool);
 	mFreeBamPool(pool);
 	mFree(pool);
-	mFree(prev_read);
+}
+
+static int mBamMatchesMate(const bam1_t *b, uint32_t mate_flag) {
+	return (b->core.flag & (BAM_FREAD1 | BAM_FREAD2)) == mate_flag;
+}
+
+static int mBamPoolIsPaired(mBamPool *pool) {
+	int i;
+
+	for (i=0; i<pool->size; i++) {
+		if (pool->elem[i]->core.flag & (BAM_FREAD1 | BAM_FREAD2))
+			return 1;
+	}
+	return 0;
+}
+
+static void mWriteBestHitBamPoolByMate(mSamFile *stream, mBamPool *pool, uint32_t mate_flag, int unique_only) {
+	int        i;
+	int        best_count = 0;
+	int32_t    best_score = INT32_MIN;
+	bam1_t   **elem       = pool->elem;
+
+	for (i=0; i<pool->size; i++) {
+		uint8_t *as;
+		int32_t  score;
+
+		if (!mBamMatchesMate(elem[i], mate_flag))
+			continue;
+
+		as = bam_aux_get(elem[i], "AS");
+		if (!as)
+			mDie("Required field AS not found in SAM/BAM input. Type '%s -h' for details.", PROGRAM);
+
+		score = bam_aux2i(as);
+		if (score > best_score) {
+			best_score = score;
+			best_count = 1;
+		} else if (score == best_score) {
+			best_count++;
+		}
+	}
+
+	if (best_count == 0 || (unique_only && best_count != 1))
+		return;
+
+	for (i=0; i<pool->size; i++) {
+		uint8_t *as;
+
+		if (!mBamMatchesMate(elem[i], mate_flag))
+			continue;
+
+		as = bam_aux_get(elem[i], "AS");
+		if (bam_aux2i(as) == best_score)
+			mSamWrite(stream, elem[i]);
+	}
 }
 
 void mWriteBestHitBamPool(mSamFile *stream, mBamPool *pool) {
-	int        i;
-	bam1_t   **elem       = pool->elem;
-	int       *score      = (int*) mCalloc(pool->limit, sizeof(int));
-	int32_t    best_score = INT32_MIN;
-	
-	for (i=0; i<pool->size; i++) {
-		uint8_t *as = bam_aux_get(elem[i], "AS");
-/*
-fprintf(stdout, "BEST: %2d/%2d, %s, %d\n", i, pool->size, bam_get_qname(elem[i]), elem[i]->core.pos);
-*/
-		if (as) {
-			score[i] = bam_aux2i(as);
-			if (score[i] > best_score) {
-				best_score = score[i];
-			}
-		} else {
-			mDie("Required field AS not found in SAM/BAM input. Type '%s -h' for details.", PROGRAM);
-		}
+	if (mBamPoolIsPaired(pool)) {
+		mWriteBestHitBamPoolByMate(stream, pool, BAM_FREAD1, 0);
+		mWriteBestHitBamPoolByMate(stream, pool, BAM_FREAD2, 0);
+	} else {
+		mWriteBestHitBamPoolByMate(stream, pool, 0, 0);
 	}
-	for (i=0; i<pool->size; i++) {
-		if (score[i] == best_score) {
-			mSamWrite(stream, elem[i]);
-		}
-	}
-	mFree(score);
 }
 
 void mWriteUniqueBestHitBamPool(mSamFile *stream, mBamPool *pool) {
-	int        i;
-	bam1_t   **elem       = pool->elem;
-	int       *score      = (int*) mCalloc(pool->limit, sizeof(int));
-	int32_t    best_score = INT32_MIN;
-	int        best_count = 0;
-	
-	for (i=0; i<pool->size; i++) {
-		uint8_t *as = bam_aux_get(elem[i], "AS");
-		if (as) {
-			score[i] = bam_aux2i(as);
-			if (score[i] > best_score) {
-				best_score = score[i];
-				best_count = 1;
-			} else if (score[i] == best_score) {
-				best_count++;
-			}
-		} else {
-			mDie("Required field AS not found in SAM/BAM input. Type '%s -h' for details.", PROGRAM);
-		}
+	if (mBamPoolIsPaired(pool)) {
+		mWriteBestHitBamPoolByMate(stream, pool, BAM_FREAD1, 1);
+		mWriteBestHitBamPoolByMate(stream, pool, BAM_FREAD2, 1);
+	} else {
+		mWriteBestHitBamPoolByMate(stream, pool, 0, 1);
 	}
-	if (best_count == 1) {
-		for (i=0; i<pool->size; i++) {
-			if (score[i] == best_score) {
-				mSamWrite(stream, elem[i]);
-			}
-		}
-	}
-	mFree(score);
 }
 
 #define subprogram "filter"
@@ -362,7 +327,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	char             outmode[6];
 
 	/* argtable related */
-
 	void           **argtable;
 	struct arg_lit  *arg_samin;
 	struct arg_lit  *arg_bamout;
@@ -371,7 +335,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	struct arg_file *arg_samfile;
 	struct arg_lit  *arg_help;
 	struct arg_end  *end;
-
 	struct arg_lit  *arg_rescore;
 	struct arg_int  *arg_minlength;
 	struct arg_int  *arg_minpercentid;
@@ -386,17 +349,14 @@ int msam_filter_main(int argc, char* argv[]) {
 
 	mInitGlobal();
 	global->multiple_input = 0;
-
 	arg_bamout       = arg_lit0("b", NULL, "output BAM (default: false)");
 	arg_uncompressed = arg_lit0("u", NULL, "uncompressed BAM output (force -b) (default: false)");
 	arg_write_header = arg_lit0("h", NULL, "print header for the SAM output (default: false)");
-
 	arg_samin        = arg_lit0("S",  NULL,                     "input is SAM (default: false)");
 	arg_samfile      = arg_filen(NULL, NULL, "<bamfile>", 1, 1, "input SAM/BAM file");
 	arg_help         = arg_lit0(NULL, "help",                   "print this help and exit\n\n"
 								    "Specific options:\n"
 								    "-----------------\n");
-
 	/* Specific args */
 	arg_minlength       = arg_int0("l",  NULL,     NULL,           "min. length of alignment (default: 0)");
 	arg_minpercentid    = arg_int0("p",  NULL,     NULL,           "min. sequence identity of alignment, in percentage, integer between 0 and 100; requires NM field to be present (default: 0)");
@@ -434,7 +394,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	arg_besthitonly     = arg_lit0(NULL, "besthit",                "keep all highest scoring hit(s) per read (default: false)");
 	arg_uniqbesthitonly = arg_lit0(NULL, "uniqhit",                "keep only one highest scoring hit per read, only if it is unique (default: false)");
 	end                 = arg_end(16); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
-
 	argtable = (void**) mCalloc(16, sizeof(void*));
 
 	/* Common args */
@@ -459,7 +418,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = end;
 
 	/* parse command line */
-
 	{
 		int nerrors;
 		if (arg_nullcheck(argtable) != 0) {
@@ -481,12 +439,10 @@ int msam_filter_main(int argc, char* argv[]) {
 			fprintf(stderr, "Use --help for usage instructions!\n");
 			mQuit("");
 		}
-
 		if (arg_samfile->count > 1 && global->multiple_input == 0) {
 			mMultipleFileError(subprogram, argtable);
 		}
 	}
-
 	if (arg_invertfilter->count > 0 && (arg_besthitonly->count > 0 || arg_uniqbesthitonly->count > 0)) {
 		fprintf(stdout, "--invert cannot be combined with --besthit or --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
@@ -509,7 +465,6 @@ int msam_filter_main(int argc, char* argv[]) {
 		if (arg_minpercentid->count > 0) {
 			percent_id  = arg_minpercentid->ival[0];
 		}
-
 		global->PPT = 10*percent_id;
 		if (arg_minppt->count > 0) {
 			global->PPT = arg_minppt->ival[0];
@@ -525,7 +480,6 @@ int msam_filter_main(int argc, char* argv[]) {
 		if (arg_minqfrac->count > 0) {
 			global->MAX_CLIP = 100 - arg_minqfrac->ival[0];
 		}
-
 		if (global->MAX_CLIP < 0 || global->MAX_CLIP > 100) {
 			fprintf(stdout, "-z must be in the range [-100,100]\n");
 			mPrintHelp(subprogram, argtable);
@@ -539,7 +493,6 @@ int msam_filter_main(int argc, char* argv[]) {
 	}
 
 	/* Set input mode */
-
 	inmode = M_INPUT_MODE(arg_samin);
 
 	/* Set output mode */
