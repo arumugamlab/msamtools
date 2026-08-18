@@ -6,6 +6,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/test_functions.sh"
 
 fixture="$script_dir/fixtures/filter.sam"
+cigar_eqx_fixture="$script_dir/fixtures/cigar_eqx.sam"
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-filter-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 mkdir -p "$tmpdir" || exit 1
@@ -159,6 +160,41 @@ assert_sam_record_contains "$tmpdir/rescored.sam" id98 0 "AS:i:96" \
     "--rescore should assign the expected score to a 98-percent identity alignment"
 assert_sam_record_contains "$tmpdir/rescored.sam" md_precedence 0 "AS:i:100" \
     "--rescore should use MD-precedence edit counts"
+
+# M and =/X are equivalent representations of aligned query/reference bases.
+# Use MD-tagged records to exercise bam_get_summary() without indels.
+run_cigar_filter()
+{
+    name=$1
+    shift
+    output="$tmpdir/$name.sam"
+    stderr="$tmpdir/$name.stderr"
+
+    if ! "$MSAMTOOLS" filter -S "$@" "$cigar_eqx_fixture" \
+        >"$output" 2>"$stderr"; then
+        cat "$stderr" >&2
+        fail "CIGAR M/=/X filter case '$name' should succeed"
+    fi
+    pass_check "CIGAR M/=/X filter case '$name' should succeed"
+}
+
+run_cigar_filter cigar_pid_98 -p 98
+assert_sam_records "$tmpdir/cigar_pid_98.sam" \
+    "md_eqx100:0,md_eqx98:0,md_m100:0,md_m98:0" \
+    "-p should give equivalent identity results for M and =/X CIGARs"
+
+run_cigar_filter cigar_length_100 -l 100
+assert_sam_records "$tmpdir/cigar_length_100.sam" \
+    "md_eqx100:0,md_eqx98:0,md_m100:0,md_m98:0" \
+    "-l should count M, = and X equally toward alignment length"
+
+# These NM-only records contain 10 soft-clipped bases and 90 aligned bases.
+# Correct query length is 100 regardless of whether the aligned portion uses
+# M or =/X, so both representations pass the inclusive -z 90 boundary.
+run_cigar_filter cigar_qfrac_90 -z 90
+assert_sam_records "$tmpdir/cigar_qfrac_90.sam" \
+    "md_eqx0:0,md_eqx100:0,md_eqx98:0,md_m0:0,md_m100:0,md_m98:0,nm_eqx90:256,nm_m90:256" \
+    "-z should count M, = and X equally toward query length"
 
 report_checks
 exit 0

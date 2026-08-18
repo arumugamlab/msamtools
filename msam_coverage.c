@@ -2,13 +2,9 @@
 #include "mBamVector.h"
 
 /*
- * Note: bam_endpos() returns the 0-based exclusive end coordinate,
- * i.e. the coordinate of the first reference base after the alignment.
- * Therefore the covered interval is [start, end), and coverage is updated in mUpdateCoverageForAlignment() as:
- *
- *	for (i=start; i<end; i++)
- *
- * This is equivalent to the behavior of the old samtools bam_calend().
+ * Coverage represents aligned query-base depth on reference coordinates.
+ * M, = and X contribute coverage; D and N advance the reference without
+ * contributing coverage; I, S, H and P do not consume reference positions.
  */
 
 void mInitCoverage() {
@@ -35,28 +31,20 @@ void mFreeCoverage() {
 }
 
 void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
-	int tid         = bam->core.tid;
-
-	if (tid < 0) return;
-
-	hts_pos_t start = bam->core.pos;
-	hts_pos_t end   = bam_endpos(bam);
-	hts_pos_t i;
-
+	int          tid = bam->core.tid;
+	int          k;
+	hts_pos_t    pos;
 	int         *covered  = global->covered;
 	coverage_t **coverage = global->coverage;
 	coverage_t  *this_coverage;
+	uint32_t    *cigar;
 
-#ifdef DEBUG
-	fprintf(stderr, "Tagging target %d (%s) with %f: from %d to %d\n", tid, header->target_name[tid], in_coverage, start, end);
-	fprintf(stderr, "This tag was %d query bases long\n", bam_cigar2qlen(&bam->core, bam_get_cigar(bam)));
-#endif
+	if (tid < 0) return;
 
 	/* Why check before you write? Read takes less time than write, and write happens only n_targets times MAX */
-
 	if (covered[tid] == 0) {
 		hts_pos_t tlen = global->header->target_len[tid];
-		covered[tid]   = 1; 
+		covered[tid]   = 1;
 		coverage[tid]  = (coverage_t*) mCalloc(tlen, sizeof(coverage_t));
 	}
 
@@ -64,10 +52,37 @@ void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
 	 * It is possible that coverage[tid] is not created yet, in which case the previous clause will create it.
 	 * So wait until it finishes allocating memory before using it here!
 	 */
-
 	this_coverage = coverage[tid];
-	for (i=start; i<end; i++) {
-		this_coverage[i] += in_coverage;
+
+	pos   = bam->core.pos;
+	cigar = bam_get_cigar(bam);
+
+	for (k=0; k<bam->core.n_cigar; k++) {
+		int op = bam_cigar_op(cigar[k]);
+		int w  = bam_cigar_oplen(cigar[k]);
+		int i;
+
+		switch (op) {
+			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
+				for (i=0; i<w; i++) {
+					this_coverage[pos+i] += in_coverage;
+				}
+				pos += w;
+				break;
+
+			case BAM_CDEL:
+			case BAM_CREF_SKIP:
+				pos += w;
+				break;
+
+			case BAM_CINS:
+			case BAM_CSOFT_CLIP:
+			case BAM_CHARD_CLIP:
+			case BAM_CPAD:
+				break;
+		}
 	}
 }
 

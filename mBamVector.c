@@ -31,7 +31,7 @@ void bam_cigar2details(const bam1_core_t *c, const uint32_t *cigar, int32_t *ale
 			*qlen  += w;
 		} else if (!(op == BAM_CREF_SKIP || op == BAM_CPAD)) {
 			*alen += w;
-			if (op == BAM_CMATCH || op == BAM_CINS)
+			if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF || op == BAM_CINS)
 				*qlen += w;
 		}
 	}
@@ -52,7 +52,8 @@ void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 	ks_tokaux_t aux;
 	char *p;
 
-	int32_t alen = 0, qlen = 0, qclip = 0, match = 0, edit = 0;
+	int32_t alen = 0, qlen = 0, qclip = 0;
+	int32_t match = 0, mismatch = 0, edit = 0;
 
 	uint32_t k;
 
@@ -62,6 +63,8 @@ void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 		switch (op) {
 		/* Aligned Position */
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				match += w;
 				qlen  += w;
 				alen  += w;
@@ -111,8 +114,9 @@ void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 			if (p > md && p[-1] != '^')
 				for (x=p; x<aux.p; x++)
 					edit++;
+                    mismatch++;
 		}
-		match -= edit;
+		match -= mismatch;
 	}
 
 	summary->match = match;
@@ -153,6 +157,8 @@ void bam_get_extended_summary(const bam1_t *b, mAlignmentSummary *summary) {
 		switch (op) {
 			/* Aligned Position */
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				match += w;
 				qlen  += w;
 				alen  += w;
