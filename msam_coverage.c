@@ -32,7 +32,7 @@ void mFreeCoverage() {
 
 void mUpdateCoverageForAlignment(bam1_t *bam, coverage_t in_coverage) {
 	int          tid = bam->core.tid;
-	int          k;
+	uint32_t     k;
 	hts_pos_t    pos;
 	int         *covered  = global->covered;
 	coverage_t **coverage = global->coverage;

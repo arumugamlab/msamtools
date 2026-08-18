@@ -3,7 +3,6 @@
 
 void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only, int besthit_only, int rescore, int invert, int keep_unmapped);
 void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSummary*), void (*writer)(mSamFile*, mBamPool*), int rescore, int invert, int keep_unmapped);
-void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*));
 void mWriteBestHitBamPool(mSamFile *stream, mBamPool *pool);
 void mWriteUniqueBestHitBamPool(mSamFile *stream, mBamPool *pool);
 
@@ -93,11 +92,7 @@ void mFilterFileWrapper(mSamFile *input, mSamFile *output, int uniqbesthit_only,
 	else
 		writer = mWriteBamPool;
 
-	if (filter_choice == 0) { /* No alignment filtering, just besthit or uniqhit */
-		mFilterFileLite(input, output, writer);
-	} else { /* Need alignment filter and then perhaps besthit/uniqhit */
-		mFilterFile(input, output, filter, writer, rescore, invert, keep_unmapped);
-	}
+	mFilterFile(input, output, filter, writer, rescore, invert, keep_unmapped);
 }
 
 void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSummary*), void (*writer)(mSamFile*, mBamPool*), int rescore, int invert, int keep_unmapped) {
@@ -106,6 +101,7 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 	int       hit=1, miss=-1;
 
 	int       pool_limit = 64;
+	int       need_alignment_stats = (filter != NULL || rescore);
 	bam1_t   *current;
 	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
 	char      prev_read[BAM_MAX_QNAME_LEN + 1];
@@ -119,6 +115,7 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 	mInitBamPool(pool, pool_limit);
 	current = pool_current(pool);
 	prev_read[0] = '\0';
+
 	while (mSamRead(input, current) >= 0) {
 		if ( (prev_read[0] != '\0') &&
 		     (strcmp(bam_get_qname(current), prev_read) != 0) ) {
@@ -126,56 +123,44 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 			mReOriginateBamPool(pool);
 			current = pool_current(pool);
 		}
+
 		/*****
 		 * Ignore an unmapped read, unless your selection uses upper limits.
 		 *
-		 * Normally, filter uses lower-limits, e.g. minimum percent id, minimum alignment length, etc.
-		 * In all these cases, there is no need to process "unmapped" reads, because they are below threshold.
-		 *
-		 * However, when we use -v, then we are converting limits to upper-limits.
-		 * Here, unmapped reads technically satisfy the criteria, but usually they are useless in output files.
-		 * Thus, the default behavior is to ignore unmapped reads and avoid processing them.
-		 *
-		 * There are some cases, e.g. writing out unaligned read names or fastq sequences, where they do become useful.
-		 * In those cases, using --keep_unmapped will write out unmapped read entries from the BAM file.
-		 *
-		 * This is also not done during --besthit and --uniqhit modes, as they will be combined with lower-limits.
+		 * Standalone --besthit/--uniqhit also ignore unmapped records.
 		 *****/
 		if (current->core.flag & BAM_FUNMAP) {
-			if (keep_unmapped != 0) {
+			if (filter != NULL && keep_unmapped != 0) {
 				if (global->PPT >= 0 && invert == 1)
 					current = mAdvanceBamPool(pool);
 			}
 			continue;
 		}
 
-		/***
-		 * For filtering, we need the following: length, query_length, edit.
-		 * For rescoring, we need the same as above.
-
-			if (MD is present):
-				calculate #hits and #misses from MD
-			elsif (NM is present):
-				#misses = NM; #hits = length - #misses;
+		/*
+		 * Alignment statistics are needed only for ordinary filtering
+		 * or rescoring.  Plain --besthit/--uniqhit can use the existing
+		 * AS values without parsing MD/NM or the CIGAR.
 		 */
+		if (need_alignment_stats) {
+			if (bam_aux_get(current, "MD")) {
+				bam_get_summary(current, alignment);
+			} else {
+				nm = bam_aux_get(current, "NM");
+				if (!nm) {
+					mDie("Either NM or MD must be present in SAM/BAM input for 'filter' command. Type '%s filter -h' for details.", PROGRAM);
+				}
 
-		/* Get alignment stats */
-		if (bam_aux_get(current, "MD")) {
-			bam_get_summary(current, alignment);
-		} else {
-			nm = bam_aux_get(current, "NM");
-			if (!nm) {
-				mDie("Either NM or MD must be present in SAM/BAM input for 'filter' command. Type '%s filter -h' for details.", PROGRAM);
+				bam_cigar2details(&current->core, bam_get_cigar(current), &alignment->length, &alignment->query_length, &alignment->query_clip);
+				alignment->edit = bam_aux2i(nm);
 			}
-
-			bam_cigar2details(&current->core, bam_get_cigar(current), &alignment->length, &alignment->query_length, &alignment->query_clip);
-			alignment->edit  = bam_aux2i(nm);
 		}
 
 		/* Rescore if necessary */
 		if (rescore) {
 			int score = (alignment->length - alignment->edit)*hit + alignment->edit*miss;
 			uint8_t *as = bam_aux_get(current, "AS");
+
 			if (as) {
 				bam_aux_del(current, as);
 			}
@@ -184,57 +169,24 @@ void mFilterFile(mSamFile *input, mSamFile *output, int (*filter)(mAlignmentSumm
 
 		strcpy(prev_read, bam_get_qname(current));
 
-		/***
-		 * Do I pass the filter? "filter(alignment) == 1" means failed.
-		 * under invert=0, filter=0,1 means advance=1,0 resp.
-		 * under invert=1, filter=0,1 means advance=0,1 resp.
-		 * The combination that covers this is: advance=(invert==filter)
+		/*
+		 * With no ordinary filter, every mapped alignment enters the
+		 * QNAME pool.  Otherwise retain only alignments passing the filter.
+		 * When do I retain the current alignment (meaning, advance the pool)?
+		 *   "filter(alignment) == 1" means filter failed.
+		 *   under invert=0, filter=0,1 means advance=1,0 resp.
+		 *   under invert=1, filter=0,1 means advance=0,1 resp.
+		 *   The combination that covers this is: advance=(invert==filter)
 		 */
-		if (filter(alignment) == invert)
+		if (filter == NULL || filter(alignment) == invert) {
 			current = mAdvanceBamPool(pool);
+		}
 	}
+
 	writer(output, pool);
 	mFreeBamPool(pool);
 	mFree(pool);
 	mFree(alignment);
-}
-
-void mFilterFileLite(mSamFile *input, mSamFile *output, void (*writer)(mSamFile*, mBamPool*)) {
-
-	/* parameters for rescoring alignment score */
-
-	int       pool_limit = 64;
-	bam1_t   *current;
-	mBamPool *pool = (mBamPool*) mCalloc(1, sizeof(mBamPool));
-	char      prev_read[BAM_MAX_QNAME_LEN + 1];
-
-	/* features to filter on */
-
-	/* init pool */
-
-	mInitBamPool(pool, pool_limit);
-	current = pool_current(pool);
-	prev_read[0] = '\0';
-	while (mSamRead(input, current) >= 0) {
-		bam1_core_t  core = current->core;
-		if ( (prev_read[0] != '\0') &&
-		     (strcmp(bam_get_qname(current), prev_read) != 0) ) {
-			writer(output, pool);
-			mReOriginateBamPool(pool);
-			current = pool_current(pool);
-		}
-		strcpy(prev_read, bam_get_qname(current));
-
-		/* Ignore an unmapped read */
-
-		if (core.flag & BAM_FUNMAP)
-			continue;
-
-		current = mAdvanceBamPool(pool);
-	}
-	writer(output, pool);
-	mFreeBamPool(pool);
-	mFree(pool);
 }
 
 static int mBamMatchesMate(const bam1_t *b, uint32_t mate_flag) {
