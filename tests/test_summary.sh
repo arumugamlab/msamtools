@@ -9,6 +9,7 @@ fixture="$script_dir/fixtures/summary.sam"
 count_fixture="$script_dir/fixtures/summary_count.sam"
 edge_fixture="$script_dir/fixtures/summary_edge.sam"
 long_qname_fixture="$script_dir/fixtures/long_qname.sam"
+cigar_eqx_fixture="$script_dir/fixtures/cigar_eqx.sam"
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-summary-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 mkdir -p "$tmpdir" || exit 1
@@ -143,6 +144,24 @@ fi
 pass_check "summary --count should group complete QNAMEs without truncation"
 assert_empty "$long_count_stderr" \
     "long-QNAME count should not write to stderr"
+
+run_summary cigar_eqx "$cigar_eqx_fixture"
+cat >"$tmpdir/cigar_eqx.expected" <<'EOF'
+md_eqx0	10	A	10	0	0.0
+md_eqx100	100	A	100	100	100.0
+md_eqx98	100	A	100	98	98.0
+md_m0	10	A	10	0	0.0
+md_m100	100	A	100	100	100.0
+md_m98	100	A	100	98	98.0
+EOF
+if ! cmp -s "$tmpdir/cigar_eqx.expected" "$tmpdir/cigar_eqx.stdout"; then
+    echo "Expected M/=/X summary output:" >&2
+    cat "$tmpdir/cigar_eqx.expected" >&2
+    echo "Observed M/=/X summary output:" >&2
+    cat "$tmpdir/cigar_eqx.stdout" >&2
+    fail "summary should report equivalent statistics for M and =/X CIGARs"
+fi
+pass_check "summary should report equivalent statistics for M and =/X CIGARs"
 
 report_checks
 exit 0

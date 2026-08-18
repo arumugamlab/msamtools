@@ -31,7 +31,7 @@ void bam_cigar2details(const bam1_core_t *c, const uint32_t *cigar, int32_t *ale
 			*qlen  += w;
 		} else if (!(op == BAM_CREF_SKIP || op == BAM_CPAD)) {
 			*alen += w;
-			if (op == BAM_CMATCH || op == BAM_CINS)
+			if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF || op == BAM_CINS)
 				*qlen += w;
 		}
 	}
@@ -62,6 +62,8 @@ void bam_get_summary(const bam1_t *b, mAlignmentSummary *summary) {
 		switch (op) {
 		/* Aligned Position */
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				match += w;
 				qlen  += w;
 				alen  += w;
@@ -153,6 +155,8 @@ void bam_get_extended_summary(const bam1_t *b, mAlignmentSummary *summary) {
 		switch (op) {
 			/* Aligned Position */
 			case BAM_CMATCH:
+			case BAM_CEQUAL:
+			case BAM_CDIFF:
 				match += w;
 				qlen  += w;
 				alen  += w;
