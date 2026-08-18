@@ -70,6 +70,24 @@ pass_check "profile without required output arguments should fail"
 assert_contains "$tmpdir/profile.stdout" "Use --help for usage instructions" \
     "profile parse failure should provide usage guidance"
 
+# Profile does not allow --pandas and --no-pandas together.
+# Profile pandas output modes are mutually exclusive.
+if "$MSAMTOOLS" profile -S \
+    --label conflict \
+    --unit ab \
+    --nolen \
+    --pandas --no-pandas \
+    -o "$tmpdir/pandas_conflict.tsv.gz" \
+    "$profile_fixture" \
+    >"$tmpdir/pandas_conflict.stdout" \
+    2>"$tmpdir/pandas_conflict.stderr"; then
+    fail "--pandas and --no-pandas together should fail"
+fi
+pass_check "--pandas and --no-pandas together should fail"
+assert_contains "$tmpdir/pandas_conflict.stdout" \
+    "--pandas and --no-pandas cannot be used together" \
+    "pandas output modes should explain the conflict"
+
 # Summary rejects unknown statistics modes.
 if "$MSAMTOOLS" summary -S --stats nonsense "$summary_fixture" \
     >"$tmpdir/stats.stdout" 2>"$tmpdir/stats.stderr"; then

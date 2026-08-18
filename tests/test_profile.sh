@@ -172,5 +172,78 @@ assert_profile_value "$mincount_output" A 1.333333333333 1e-6
 assert_profile_value "$mincount_output" B 1.333333333333 1e-6
 assert_profile_value "$mincount_output" C 0 1e-9
 
+# Default output should be pandas-style.
+default_output="$tmpdir/default_output.tsv.gz"
+if ! "$MSAMTOOLS" profile -S \
+    --label default_output \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi equal \
+    -o "$default_output" \
+    "$fixture" \
+    >/dev/null 2>"$tmpdir/default_output.stderr"; then
+    cat "$tmpdir/default_output.stderr" >&2
+    fail "profile should succeed with default output format"
+fi
+pass_check "profile should succeed with default output format"
+
+default_header=$(gzip -cd -- "$default_output" |
+    awk '!/^#/ { print; exit }')
+if [ "$default_header" != "ID	default_output" ]; then
+    fail "profile should use pandas-style output by default"
+fi
+pass_check "profile should use pandas-style output by default"
+
+
+# Explicit --pandas remains accepted and produces the default format.
+pandas_output="$tmpdir/pandas_output.tsv.gz"
+if ! "$MSAMTOOLS" profile -S \
+    --label pandas_output \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi equal \
+    --pandas \
+    -o "$pandas_output" \
+    "$fixture" \
+    >/dev/null 2>"$tmpdir/pandas_output.stderr"; then
+    cat "$tmpdir/pandas_output.stderr" >&2
+    fail "profile --pandas should remain accepted"
+fi
+pass_check "profile --pandas should remain accepted"
+
+pandas_header=$(gzip -cd -- "$pandas_output" |
+    awk '!/^#/ { print; exit }')
+if [ "$pandas_header" != "ID	pandas_output" ]; then
+    fail "--pandas should produce pandas-style output"
+fi
+pass_check "--pandas should produce pandas-style output"
+
+
+# --no-pandas restores the legacy header format.
+legacy_output="$tmpdir/legacy_output.tsv.gz"
+if ! "$MSAMTOOLS" profile -S \
+    --label legacy_output \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi equal \
+    --no-pandas \
+    -o "$legacy_output" \
+    "$fixture" \
+    >/dev/null 2>"$tmpdir/legacy_output.stderr"; then
+    cat "$tmpdir/legacy_output.stderr" >&2
+    fail "profile --no-pandas should succeed"
+fi
+pass_check "profile --no-pandas should succeed"
+
+legacy_header=$(gzip -cd -- "$legacy_output" |
+    awk '!/^#/ { print; exit }')
+if [ "$legacy_header" != "legacy_output" ]; then
+    fail "--no-pandas should restore legacy profile output"
+fi
+pass_check "--no-pandas should restore legacy profile output"
+
 report_checks
 exit 0
