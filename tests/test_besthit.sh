@@ -65,6 +65,19 @@ assert_sam_record_contains "$tmpdir/rescore_recomputed.sam" \
     "rescore" "256" "AS:i:100" \
     "rescored winning alignment should contain the recomputed AS value"
 
+run_filter rescore_standalone --rescore --besthit "$rescore_fixture"
+assert_sam_records "$tmpdir/rescore_standalone.sam" \
+    "rescore:256" \
+    "standalone --rescore --besthit should select using recomputed scores"
+assert_sam_record_contains "$tmpdir/rescore_standalone.sam" \
+    "rescore" "256" "AS:i:100" \
+    "standalone --rescore --besthit should write the recomputed AS value"
+
+run_filter rescore_standalone_uniq --rescore --uniqhit "$rescore_fixture"
+assert_sam_records "$tmpdir/rescore_standalone_uniq.sam" \
+    "rescore:256" \
+    "standalone --rescore --uniqhit should select using recomputed scores"
+
 run_filter long_qname_besthit --besthit "$long_qname_fixture"
 awk -F '\t' '
     $1 !~ /^@/ {
