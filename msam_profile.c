@@ -232,8 +232,10 @@ int mEstimateInsertCountOnFile(mSamFile *input, int share_type) {
 		strcpy(prev_read, bam_get_qname(current));
 		current = mAdvanceBamPool(pool);
 	}
-	mEstimateInsertCountOnPool(pool, share_type);
-	insert_count++;
+	if (pool->size > 0) {
+		mEstimateInsertCountOnPool(pool, share_type);
+		insert_count++;
+	}
 
 	mFreeBamPool(pool);
 	mFree(pool);

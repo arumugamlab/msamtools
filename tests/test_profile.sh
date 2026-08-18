@@ -90,5 +90,43 @@ assert_profile_contains "$long_qname_output" "- Uniquely mapped : 0" \
 assert_profile_value "$long_qname_output" A 2 1e-9
 assert_profile_value "$long_qname_output" B 2 1e-9
 
+run_zero_profile()
+{
+    name=$1
+    input=$2
+    output="$tmpdir/$name.tsv.gz"
+    stderr="$tmpdir/$name.stderr"
+
+    if ! "$MSAMTOOLS" profile -S \
+        --label "$name" \
+        --unit ab \
+        --nolen \
+        --multi equal \
+        --pandas \
+        -o "$output" \
+        "$input" \
+        >/dev/null 2>"$stderr"; then
+        cat "$stderr" >&2
+        fail "profile should handle $name input"
+    fi
+    pass_check "profile should handle $name input"
+
+    assert_profile_contains "$output" "Mapped inserts      :       0" \
+        "$name profile should report zero mapped inserts"
+    assert_profile_contains "$output" "- Multiple mapped :       0" \
+        "$name profile should report zero multimapped inserts"
+    assert_profile_contains "$output" "- Uniquely mapped :       0" \
+        "$name profile should report zero uniquely mapped inserts"
+    assert_profile_contains "$output" "Effective inserts   :       0" \
+        "$name profile should report zero effective inserts"
+
+    assert_profile_value "$output" Unknown 0 1e-9
+    assert_profile_value "$output" A 0 1e-9
+    assert_profile_value "$output" B 0 1e-9
+}
+
+run_zero_profile empty "$script_dir/fixtures/profile_empty.sam"
+run_zero_profile unmapped "$script_dir/fixtures/profile_unmapped.sam"
+
 report_checks
 exit 0
