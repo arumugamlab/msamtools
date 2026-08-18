@@ -311,13 +311,13 @@ int msam_filter_main(int argc, char* argv[]) {
 								    "-----------------\n");
 	/* Specific args */
 	arg_minlength       = arg_int0("l",  NULL,     NULL,           "min. length of alignment (default: 0)");
-	arg_minpercentid    = arg_int0("p",  NULL,     NULL,           "min. sequence identity of alignment, in percentage, integer between 0 and 100; requires NM field to be present (default: 0)");
-	arg_minppt          = arg_int0(NULL, "ppt",    NULL,           "min/max sequence identity of alignment, in parts per thousand, integer between -1000 and 1000; requires NM field to be present (default: 0)\n"
+	arg_minpercentid    = arg_int0("p",  NULL,     NULL,           "min. sequence identity of alignment, in percentage, integer between 0 and 100; requires MD or NM field to be present (default: 0)");
+	arg_minppt          = arg_int0(NULL, "ppt",    NULL,           "min/max sequence identity of alignment, in parts per thousand, integer between -1000 and 1000; requires MD or NM field to be present (default: 0)\n"
 									"                            NOTE:\n"
 									"                            -----\n"
 									"                                  When using --ppt, +ve values mean minimum ppt and -ve values mean maximum ppt.\n"
-									"                                  E.g., '--ppt 950' will report alignments with ppt>950,\n"
-									"                                  and '--ppt -950' will report alignments with ppt<=950.");
+									"                                  E.g., '--ppt 950' will report alignments with ppt >= 950,\n"
+									"                                  and '--ppt -950' will report alignments with ppt <= 950.");
 	arg_minqfrac        = arg_int0("z",  NULL,     NULL,           "min. percent of the query that must be aligned, between 0 and 100 (default: 0)");
 	arg_keepunmapped    = arg_lit0("k",  "keep_unmapped",          "report unmapped reads, when filtering using upper-limit thresholds (default: false)");
 	arg_invertfilter    = arg_lit0("v",  "invert",                 "invert the effect of the filter (default: false)\n"
@@ -338,7 +338,7 @@ int msam_filter_main(int argc, char* argv[]) {
 									"----------------\n\n"
 									"The following special filters cannot be combined with -v, but require:\n"
 									"  (1) the alignments to be sorted by name,\n"
-									"  (2) AS field (alignment score) to be present.\n"
+									"  (2) AS field (alignment score) to be present, unless --rescore is used.\n"
 									"You can usually achieve sorting by:\n"
 									"  samtools sort -n -T tmp.sort input.bam  | "PROGRAM" -m filter --besthit -\n"
 									"If AS is missing, you can rescore alignments by:\n"
@@ -403,6 +403,10 @@ int msam_filter_main(int argc, char* argv[]) {
 		fprintf(stdout, "--besthit cannot be combined with --uniqhit\n");
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
+	} else if (arg_minpercentid->count > 0 && arg_minppt->count > 0) {
+		fprintf(stdout, "-p cannot be combined with --ppt\n");
+		mPrintHelp(subprogram, argtable);
+		mQuit("");
 	} else if (arg_minlength->count       == 0 &&
 	           arg_minpercentid->count    == 0 &&
 	           arg_minppt->count          == 0 &&
@@ -413,34 +417,43 @@ int msam_filter_main(int argc, char* argv[]) {
 		mPrintHelp(subprogram, argtable);
 		mQuit("");
 	} else {
-		int32_t percent_id  = 0;
+		global->PPT = 0;
 		if (arg_minpercentid->count > 0) {
+			int32_t percent_id  = 0;
 			percent_id  = arg_minpercentid->ival[0];
-		}
-		global->PPT = 10*percent_id;
-		if (arg_minppt->count > 0) {
+			if (percent_id < 0 || percent_id > 100) {
+				fprintf(stdout, "-p must be in the range [0,100]\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
+			global->PPT = 10*percent_id;
+		} else if (arg_minppt->count > 0) {
 			global->PPT = arg_minppt->ival[0];
-		}
-
-		if (global->PPT < -1000 || global->PPT > 1000) {
-			fprintf(stdout, "-p or --ppt must be in the range [-100,100] or [-1000,1000], respectively\n");
-			mPrintHelp(subprogram, argtable);
-			mQuit("");
+			if (global->PPT < -1000 || global->PPT > 1000) {
+				fprintf(stdout, "--ppt must be in the range [-1000,1000]\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
 		}
 
 		global->MAX_CLIP     = 100;
 		if (arg_minqfrac->count > 0) {
 			global->MAX_CLIP = 100 - arg_minqfrac->ival[0];
-		}
-		if (global->MAX_CLIP < 0 || global->MAX_CLIP > 100) {
-			fprintf(stdout, "-z must be in the range [-100,100]\n");
-			mPrintHelp(subprogram, argtable);
-			mQuit("");
+			if (global->MAX_CLIP < 0 || global->MAX_CLIP > 100) {
+				fprintf(stdout, "-z must be in the range [0,100]\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
 		}
 
 		global->MIN_LENGTH   = 0;
 		if (arg_minlength->count > 0) {
 			global->MIN_LENGTH   = (int32_t) arg_minlength->ival[0];
+			if (global->MIN_LENGTH < 0) {
+				fprintf(stdout, "-l must be a non-negative integer\n");
+				mPrintHelp(subprogram, argtable);
+				mQuit("");
+			}
 		}
 	}
 

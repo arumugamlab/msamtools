@@ -562,12 +562,12 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_label           = arg_str1(NULL, "label",    NULL,     "label to use for the profile; typically the sample id (required)");
 	arg_genome          = arg_str0(NULL, "genome",   NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
 	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
-	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
+	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: unknown)");
 	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default: only sample label)");
+	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default)");
 	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy profile header without the ID column");
 	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
-	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
+	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional | ignore} (default: proportional)\n"
                                                                  "\n"
                                                                  "Description\n"
                                                                  "-----------\n"
@@ -686,11 +686,17 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	if (arg_total->count > 0) {
 		total_inserts = arg_total->ival[0];
-		if (total_inserts < 0) {
+		if (total_inserts <= 0) {
 			fprintf(stdout, "--total must be a positive integer\n");
 			mPrintHelp(subprogram, argtable);
 			mQuit("");
 		}
+	}
+
+	if (arg_mincount->count > 0 && arg_mincount->ival[0] < 0) {
+		fprintf(stdout, "--mincount must be a non-negative integer\n");
+		mPrintHelp(subprogram, argtable);
+		mQuit("");
 	}
 
 	/* Set input mode */
