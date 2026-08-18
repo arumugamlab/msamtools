@@ -2,9 +2,14 @@
 @SQ	SN:A	LN:10
 @SQ	SN:B	LN:5
 @SQ	SN:C	LN:10
+@SQ	SN:D	LN:8
 a_first	0	A	1	60	1M	*	0	0	A	I	NM:i:0
 a_last	0	A	10	60	1M	*	0	0	A	I	NM:i:0
 a_mid1	0	A	3	60	4M	*	0	0	AAAA	IIII	NM:i:0
 a_mid2	0	A	5	60	3M	*	0	0	AAA	III	NM:i:0
 c_last	0	C	10	60	1M	*	0	0	A	I	NM:i:0
+d_del	0	D	1	60	2M1D2M	*	0	0	AAAA	IIII	NM:i:1
+d_ins	0	D	1	60	2M1I2M	*	0	0	AAAAA	IIIII	NM:i:1
+d_m	0	D	1	60	5M	*	0	0	AAAAA	IIIII	NM:i:0
+d_skip	0	D	1	60	2M1N2M	*	0	0	AAAA	IIII	NM:i:0
 unmapped	4	*	0	0	*	*	0	0	A	I

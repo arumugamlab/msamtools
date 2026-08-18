@@ -40,13 +40,16 @@ cat >"$tmpdir/positions.expected" <<'EOF'
 0 0 0 0
 0 0 0 0
 0 1
+>D
+4 4 2 4
+3 0 0 0
 EOF
 if ! cmp -s "$tmpdir/positions.expected" "$tmpdir/positions.txt"; then
     echo "Expected:" >&2; cat "$tmpdir/positions.expected" >&2
     echo "Observed:" >&2; cat "$tmpdir/positions.txt" >&2
-    fail "coverage should report exact per-position values and word wrapping"
+    fail "coverage should report exact per-position values, CIGAR semantics, and word wrapping"
 fi
-pass_check "coverage should report exact per-position values and word wrapping"
+pass_check "coverage should report exact per-position values, CIGAR semantics, and word wrapping"
 
 run_coverage summary --summary
 gzip -cd -- "$tmpdir/summary.gz" >"$tmpdir/summary.txt" ||
@@ -55,6 +58,7 @@ cat >"$tmpdir/summary.expected" <<'EOF'
 A	0.70000000	0.90
 B	0	0
 C	0.10000000	0.10
+D	0.62500000	2.12
 EOF
 if ! cmp -s "$tmpdir/summary.expected" "$tmpdir/summary.txt"; then
     echo "Expected:" >&2; cat "$tmpdir/summary.expected" >&2
@@ -69,6 +73,7 @@ gzip -cd -- "$tmpdir/skip.gz" >"$tmpdir/skip.txt" ||
 cat >"$tmpdir/skip.expected" <<'EOF'
 A	0.70000000	0.90
 C	0.10000000	0.10
+D	0.62500000	2.12
 EOF
 if ! cmp -s "$tmpdir/skip.expected" "$tmpdir/skip.txt"; then
     fail "--skipuncovered should omit only references with zero coverage"
