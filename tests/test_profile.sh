@@ -6,6 +6,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/test_functions.sh"
 
 fixture="$script_dir/fixtures/profile.sam"
+fractional_mincount_fixture="$script_dir/fixtures/profile_fractional_mincount.sam"
 long_qname_fixture="$script_dir/fixtures/long_qname.sam"
 tmpdir=${TMPDIR:-/tmp}/msamtools-test-profile-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
@@ -117,7 +118,7 @@ run_zero_profile()
         "$name profile should report zero multimapped inserts"
     assert_profile_contains "$output" "- Uniquely mapped :       0" \
         "$name profile should report zero uniquely mapped inserts"
-    assert_profile_contains "$output" "Effective inserts   :       0" \
+    assert_profile_contains "$output" "Effective inserts   :          0" \
         "$name profile should report zero effective inserts"
 
     assert_profile_value "$output" Unknown 0 1e-9
@@ -127,6 +128,49 @@ run_zero_profile()
 
 run_zero_profile empty "$script_dir/fixtures/profile_empty.sam"
 run_zero_profile unmapped "$script_dir/fixtures/profile_unmapped.sam"
+
+fractional_output="$tmpdir/fractional.tsv.gz"
+fractional_stderr="$tmpdir/fractional.stderr"
+if ! "$MSAMTOOLS" profile -S \
+    --label fractional \
+    --unit ab \
+    --nolen \
+    --total 3 \
+    --multi equal \
+    --pandas \
+    -o "$fractional_output" \
+    "$fractional_mincount_fixture" \
+    >/dev/null 2>"$fractional_stderr"; then
+    cat "$fractional_stderr" >&2
+    fail "fractional equal-sharing profile should succeed"
+fi
+pass_check "fractional equal-sharing profile should succeed"
+assert_profile_value "$fractional_output" Unknown 0 1e-9
+assert_profile_value "$fractional_output" A 1.333333333333 1e-6
+assert_profile_value "$fractional_output" B 1.333333333333 1e-6
+assert_profile_value "$fractional_output" C 0.333333333333 1e-6
+
+mincount_output="$tmpdir/fractional_mincount.tsv.gz"
+mincount_stderr="$tmpdir/fractional_mincount.stderr"
+if ! "$MSAMTOOLS" profile -S \
+    --label fractional_mincount \
+    --unit ab \
+    --nolen \
+    --total 3 \
+    --multi equal \
+    --mincount 1 \
+    --pandas \
+    -o "$mincount_output" \
+    "$fractional_mincount_fixture" \
+    >/dev/null 2>"$mincount_stderr"; then
+    cat "$mincount_stderr" >&2
+    fail "fractional --mincount profile should succeed"
+fi
+pass_check "fractional --mincount profile should succeed"
+assert_profile_value "$mincount_output" Unknown 0.333333333333 1e-6
+assert_profile_value "$mincount_output" A 1.333333333333 1e-6
+assert_profile_value "$mincount_output" B 1.333333333333 1e-6
+assert_profile_value "$mincount_output" C 0 1e-9
 
 report_checks
 exit 0

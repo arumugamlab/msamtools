@@ -78,8 +78,9 @@ EXTRA_DIST = README.md \
              tests/fixtures/coverage.sam \
              tests/fixtures/cigar_eqx.sam \
              tests/fixtures/long_qname.sam \
-			 tests/fixtures/profile_empty.sam \
-			 tests/fixtures/profile_unmapped.sam \
+             tests/fixtures/profile_empty.sam \
+             tests/fixtures/profile_unmapped.sam \
+             tests/fixtures/profile_fractional_mincount.sam \
              tests/fixtures/qname_coordinate.sam \
              tests/fixtures/qname_reopened.sam
 

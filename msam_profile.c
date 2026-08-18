@@ -469,6 +469,35 @@ void mPrintInsertStats(gzFile stream, int align, const char* type, int number, i
 	}
 }
 
+void mPrintInsertStatsDouble(gzFile stream, int align, const char* type, double number, int total, const char* post_text) {
+
+	/* Write the read type */
+	gzprintf(stream, "# ");
+	if (align == LEFT_ALIGN) {
+		gzprintf(stream, "%-20s: ", type);
+	} else {
+		gzprintf(stream, "%20s: ", type);
+	}
+
+	/* Write insert-equivalent count */
+	gzprintf(stream, "%10.7g (", number);
+
+	/* Write percentage */
+	if (total > 0) {
+		gzprintf(stream, "%6.2f", 100.0*number/total);
+	} else {
+		gzprintf(stream, "%6s", "NA");
+	}
+	gzprintf(stream, "%%)");
+
+	/* close */
+	if (post_text != NULL) {
+		gzprintf(stream, " %s\n", post_text);
+	} else {
+		gzprintf(stream, "\n");
+	}
+}
+
 #define subprogram "profile"
 
 int msam_profile_main(int argc, char* argv[]) {
@@ -485,7 +514,9 @@ int msam_profile_main(int argc, char* argv[]) {
 	int              length_normalize = 1;
 	int              total_inserts = -1;
 	int              mapped_inserts = 0;
-	int              effective_inserts = 0;
+	double           effective_inserts = 0;
+	double           purged_insert_equivalent = 0;
+	double           purged_inserts = 0;
 	int              this_sample = 0; /* index of this sample in the matrix is 0 */
 	int              n_targets;
 	FILE            *def_stream;
@@ -811,18 +842,15 @@ int msam_profile_main(int argc, char* argv[]) {
 	abundance      = mInsertCountToAbundanceMatrix(this_sample, arg_label->sval[0], share_type); /* Make abundance table */
 	if (arg_mincount->count > 0) {
 		int    mincount = arg_mincount->ival[0];
-		double purged_inserts = 0;
 		/* Mask features with fewer than min_count inserts */
 		/* We do that by moving inserts from them to Unknown */
 		for (i=1; i<abundance->ncols; i++) {
 			if (abundance->elem[this_sample][i] < mincount) {
-				purged_inserts += abundance->elem[this_sample][i];
+				purged_insert_equivalent += abundance->elem[this_sample][i];
 				abundance->elem[this_sample][i] = 0;
 			}
 		}
-		purged_inserts = round(purged_inserts); /* Round it */
-		fprintf(stderr, "# Purged %d inserts from low-abundance features based on --mincount.\n", (int)purged_inserts);
-		global->purged_insert_count += (int)purged_inserts;
+		fprintf(stderr, "# Purged %.7g insert-equivalents from low-abundance features based on --mincount.\n", purged_insert_equivalent);
 	}
 
 	/* Introduce unmapped if necessary */
@@ -843,7 +871,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	mPrintProfileProvenanceGzip(output, argc, argv, &qname_check);
 
 	/* Print header with insert mapping stats */
-	effective_inserts = mapped_inserts - global->purged_insert_count;
+	purged_inserts = global->purged_insert_count + purged_insert_equivalent;
+	effective_inserts = mapped_inserts - purged_inserts;
 	if (share_type == MULTI_IGNORE) {
 		effective_inserts -= global->multi_mapper_count;
 	}
@@ -851,8 +880,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	mPrintInsertStats(output, LEFT_ALIGN,  "Mapped inserts",     mapped_inserts,              total_inserts, NULL);
 	mPrintInsertStats(output, RIGHT_ALIGN, "- Multiple mapped ", global->multi_mapper_count,  total_inserts, NULL);
 	mPrintInsertStats(output, RIGHT_ALIGN, "- Uniquely mapped ", global->uniq_mapper_count,   total_inserts, NULL);
-	mPrintInsertStats(output, LEFT_ALIGN,  "Purged inserts",     global->purged_insert_count, total_inserts, "due to ambiguous mapping or low abundance features");
-	mPrintInsertStats(output, LEFT_ALIGN,  "Effective inserts",  effective_inserts,           total_inserts, NULL);
+	mPrintInsertStatsDouble(output, LEFT_ALIGN, "Purged inserts",    purged_inserts,    total_inserts, "due to ambiguous mapping or low abundance features");
+	mPrintInsertStatsDouble(output, LEFT_ALIGN, "Effective inserts", effective_inserts, total_inserts, NULL);
 
 	if (total_inserts <= 0) {
 		gzprintf(output, "# Estimated seq. length for 'Unknown': NA\n");
@@ -865,7 +894,7 @@ int msam_profile_main(int argc, char* argv[]) {
 		uint32_t *feature_len = global->feature_len;
 
 		/* We just add "purged inserts" back to Unknown */
-		abundance->elem[this_sample][0] = total_inserts - mapped_inserts + global->purged_insert_count;
+		abundance->elem[this_sample][0] = total_inserts - mapped_inserts + purged_inserts;
 
 		/* We add "multi-mapped inserts" to Unknown if multi=ignore */
 		if (share_type == MULTI_IGNORE) {
