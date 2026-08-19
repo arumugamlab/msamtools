@@ -57,9 +57,9 @@ Specific options:
                                   When using --invert or -v, be precise in what needs to be inverted.
                                   Adding -v gives you the complement of what you get without -v.
                                   Sometimes, this might be counter-intuitive.
-                                  E.g., '-l 65 -p 95' will report alignments that are (>65bp AND >95%).
+                                  E.g., '-l 65 -p 95' will report alignments that are (>=65bp AND >=95%).
                                         '-l 65 -p 95 -v' will not report (<65bp AND <95%), as one might think.
-                                        '-l 65 -p 95 -v' will report NOT(>65bp AND >95%) which is (<65bp OR <95%).
+                                        '-l 65 -p 95 -v' will report NOT(>=65bp AND >=95%) which is (<65bp OR <95%).
                                         Notice the 'OR' in the final logical operation. This means that
                                         an alignment that fails one condition will still be reported if it
                                         satisfies the other condition.
