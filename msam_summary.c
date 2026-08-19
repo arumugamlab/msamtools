@@ -175,7 +175,7 @@ int msam_summary_main(int argc, char* argv[]) {
 
 	/* Specific args */
 	arg_edge         = arg_int0("e",  "edge",  "<num>", "ignore alignment if reads map to <num> bases at the edge of target sequence (default: 0)");
-	arg_count        = arg_lit0("c",  "count",          "count number of inserts/QNAME groups in BAM file (default: false)");
+	arg_count        = arg_lit0("c",  "count",          "count number of mapped inserts/QNAME groups in BAM file (default: false)");
 	arg_stats        = arg_str0(NULL, "stats", "<string>", "{mapped|unmapped|edit|score} only report readcount distribution for specified stats, not read-level stats (default: none)\n\n"
                                                              ""
                                                              "Description\n"
@@ -183,7 +183,7 @@ int msam_summary_main(int argc, char* argv[]) {
                                                              "Prints summary of alignments in the given BAM/SAM file. By default, it prints\n"
                                                              "a summary line per alignment entry in the file. The summary is a tab-delimited\n"
                                                              "line with the following fields:\n"
-                                                             "\tqname,aligned_qlen,target_name,glocal_align_len,matches,percent_identity\n"
+                                                             "\tqname, query_length, target_name, glocal_align_len, matches, percent_identity\n"
                                                              "glocal_align_len includes the unaligned qlen mimicing a global alignment \n"
                                                              "in the query and local alignment in target, thus glocal.\n\n"
                                                              "With --stats option, summary is consolidated as distribution of read counts\n"
