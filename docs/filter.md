@@ -5,6 +5,8 @@ alignment length, aligned fraction of read length, or combinations thereof.
 For example, when mapping metagenomic reads to a database for species-level
 annotation, we typically discard alignments below 95% sequence identity.
 
+## Basic filtering
+
 Here is an example filtering command one would use after mapping metagenomic
 reads to the Integrated Gene Catalog (IGC) consisting of 9.9 million genes
 (Li *et al.*, **Nat. Biotech.** 2014).
@@ -18,7 +20,27 @@ The command selects alignments that are at least 80 bp long, have at least
 `--besthit` retains the highest-scoring alignment(s) for each read. Multiple
 alignments with the same highest alignment score are retained.
 
-A full description is given below:
+## Best-hit and unique-hit filtering
+
+The `filter` command operates at the read level. With paired-end data,
+`--besthit` and `--uniqhit` select alignments independently for READ1 and
+READ2. Output for each QNAME group is normalized so that retained READ1
+alignments are written before retained READ2 alignments.
+
+When using `--besthit` or `--uniqhit`, all alignments with the same **QNAME**
+must occur as one contiguous group in the input. Alignments belonging to
+READ1 and READ2 may be interleaved within that group; the mates do not need
+to occur as separate blocks.
+
+Typical read-mapper output may already satisfy this requirement. If the BAM
+file has subsequently been processed or reordered, sort it by QNAME before
+filtering, for example:
+
+```bash
+samtools sort -n input.bam | msamtools filter --besthit -
+```
+
+## Command-line reference
 
 ```text
 Usage:
@@ -79,22 +101,4 @@ If AS is missing, you can rescore alignments by:
 
   --besthit                 keep all highest scoring hit(s) per read (default: false)
   --uniqhit                 keep only one highest scoring hit per read, only if it is unique (default: false)
-```
-
-The `filter` command operates at the read level. With paired-end data,
-`--besthit` and `--uniqhit` select alignments independently for READ1 and
-READ2. Output for each QNAME group is normalized so that retained READ1
-alignments are written before retained READ2 alignments.
-
-When using `--besthit` or `--uniqhit`, all alignments with the same **QNAME**
-must occur as one contiguous group in the input. Alignments belonging to
-READ1 and READ2 may be interleaved within that group; the mates do not need
-to occur as separate blocks.
-
-Typical read-mapper output may already satisfy this requirement. If the BAM
-file has subsequently been processed or reordered, sort it by QNAME before
-filtering, for example:
-
-```bash
-samtools sort -n input.bam | msamtools filter --besthit -
 ```
