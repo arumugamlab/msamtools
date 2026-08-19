@@ -1,35 +1,46 @@
 # msamtools coverage
 
-**coverage** program estimates per-position or fractional coverage of each sequence in
-the BAM file.
+The **coverage** command estimates per-position or per-sequence coverage of each
+reference sequence in the SAM/BAM file.
 
-## Per-position coverage of all sequences in BAM file <a name="pos-coverage"></a>
+Coverage is defined as **aligned query-base depth on reference positions**.
+Thus CIGAR operations `M`, `=` and `X` contribute coverage, while `D` and `N`
+advance along the reference but do not contribute coverage.
 
-The per-position coverage output file is in the format of old Sanger quality files
-with fasta headers and space-delimited numbers. As this can build up into
-quite a large file, using the `-x` option will not print coverage for
-sequences that did not have a single read mapped to them. Since their coverage
-is essentially zero in each position, printing their coverage is just a
-waste of space.
+Output is always gzip-compressed. The output filename is used exactly as
+provided, so add a `.gz` suffix yourself if desired.
 
-Here is an example per-position coverage command.
+## Per-position coverage of all sequences <a name="pos-coverage"></a>
+
+Per-position coverage is written in a format similar to old Sanger quality
+files, with FASTA-style headers followed by space-delimited coverage values.
+
+For large reference databases in which only a small fraction of reference
+sequences are covered, `-x` (`--skipuncovered`) avoids writing long arrays of
+zeros for completely uncovered sequences.
+
+For example:
+
 ```bash
-msamtools coverage -x -z -o sample1.coverage.txt.gz sample1.IGC.filtered.bam
+msamtools coverage -x -o sample1.coverage.txt.gz sample1.IGC.filtered.bam
 ```
 
-## Fractional coverage of each sequence in BAM file <a name="frac-coverage"></a>
+By default, uncovered reference sequences are also reported, with zero
+coverage at every position.
 
-Sometimes it is useful to see which sequence from the BAM file has been observed in
-the sample. And if yes, it is nice to know what fraction of the sequence has been
-covered with alignments in the BAM file. For this one can use the `--summary`
-option, which outputs fractional coverage and sequencing-coverage of each sequence.
+## Coverage summary for each sequence <a name="frac-coverage"></a>
 
-Here is an example fractional coverage command.
+The `--summary` option reports one line per reference sequence rather than
+per-position coverage.
+
+For example:
+
 ```bash
-msamtools coverage -z --summary -o sample1.coverage.summary.txt.gz sample1.IGC.filtered.bam
+msamtools coverage --summary -o sample1.coverage.summary.txt.gz sample1.IGC.filtered.bam
 ```
 
-And here is an example output:
+Example output:
+
 ```text
 cluster_001_consensus_length_3171293	0.05464883	0.25
 cluster_002_consensus_length_2788722	0.99955930	10.79
@@ -37,11 +48,21 @@ cluster_003_consensus_length_6395848	0.99998921	38.10
 cluster_004_consensus_length_2025181	0.99947906	31.14
 cluster_005_consensus_length_3532514	0.99987346	70.04
 ```
-First column names the sequence, 2nd column reports the fraction of that sequence that is covered
-and the 3rd column gives sequencing-coverage. Apparently, the 5th genome has 70X coverage in
-that sample!
 
-A full description is given below:
+The columns are:
+
+1. reference sequence name
+2. fraction of reference positions with non-zero coverage
+3. mean aligned query-base depth across the complete reference sequence
+
+Thus, in the example above, the fifth reference sequence has approximately
+70× mean coverage.
+
+The `-x` (`--skipuncovered`) option can also be used with `--summary` to omit
+reference sequences with no aligned reads.
+
+## Command-line reference
+
 ```text
 Usage:
 ------
@@ -51,7 +72,7 @@ msamtools coverage [-Sxz] <bamfile> [--help] -o <file> [--summary] [-w <int>]
 General options:
 ----------------
 
-These options specify the input/output formats of BAM/SAM files 
+These options specify the input/output formats of BAM/SAM files
 (same meaning as in 'samtools view'):
   -S                        input is SAM (default: false)
   <bamfile>                 input SAM/BAM file
@@ -64,19 +85,22 @@ Specific options:
   --summary                 do not report per-position coverage but report fraction of sequence covered (default: false)
   -x, --skipuncovered       do not report coverage for sequences without aligned reads (default: false)
   -w, --wordsize=<int>      number of words (coverage values) per line (default: 17)
-  -z, --gzip                compress output file using gzip (default: true)
+  -z, --gzip                compress output file using gzip (default; option retained for backward compatibility)
 
 Description:
 ------------
 
 Produces per-position sequence coverage information for all reference sequences
-in the BAM file. Output is similar to old-style quality files from the Sanger 
-sequencing era, with a fasta-style header followed by lines of space-delimited 
+in the BAM file. Output is similar to old-style quality files from the Sanger
+sequencing era, with a fasta-style header followed by lines of space-delimited
 numbers.
 
-For large datasets, option '-x' comes in handy when only a small fraction of 
-reference sequences are covered.
+Coverage is defined as aligned query-base depth on reference positions. Thus
+CIGAR operations 'M', '=' and 'X' contribute coverage, while 'D' and 'N' do not.
 
-If using '-z', output file does NOT automatically get '.gz' extension. This is 
-up to the user to specify the correct full output file name.
+For large reference databases, option '-x' comes in handy when only a small
+fraction of reference sequences are covered.
+
+Output is always gzip-compressed, but file names do NOT automatically get a
+'.gz' extension; specify the desired full output file name.
 ```
