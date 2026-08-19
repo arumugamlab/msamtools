@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: msamtools
+message: >-
+  If you use msamtools, please cite the software using this
+  metadata.
+type: software
+authors:
+  - family-names: Arumugam
+    given-names: Mani
+    orcid: 'https://orcid.org/0000-0002-0886-9101'
+repository-code: 'https://github.com/arumugamlab/msamtools'
+url: 'https://github.com/arumugamlab/msamtools'
+abstract: >-
+  msamtools is a command-line toolkit for filtering and
+  profiling SAM/BAM alignments, with functionality tailored
+  to metagenomic and metatranscriptomic workflows. It
+  supports filtering by alignment identity and aligned
+  fraction, best-hit and unique-hit selection, and abundance
+  profiling with configurable handling of multi-mapped
+  reads, including proportional sharing.
+keywords:
+  - bioinformatics
+  - metagenomics
+  - metatranscriptomics
+  - sequence alignment
+  - SAM
+  - BAM
+  - alignment filtering
+  - abundance profiling
+  - multi-mapping
+license: MIT
+commit: bc2e9a9ba317c97a2b9057e500df57f42ea8ea9d
+version: 1.1.3
+date-released: '2023-07-06'
