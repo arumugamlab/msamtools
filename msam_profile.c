@@ -537,6 +537,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	struct arg_int  *arg_mincount;
 	struct arg_str  *arg_unit;
 	struct arg_lit  *arg_pandas;
+	struct arg_lit  *arg_no_pandas;
 	struct arg_lit  *arg_skiplen;
 	struct arg_str  *arg_multi;
 	int              set_argcount = 0;
@@ -561,11 +562,12 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_label           = arg_str1(NULL, "label",    NULL,     "label to use for the profile; typically the sample id (required)");
 	arg_genome          = arg_str0(NULL, "genome",   NULL,     "tab-delimited genome definition file - 'genome-id<tab>seq-id' (default: none)");
 	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
-	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: 0)");
+	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: unknown)");
 	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default: only sample label)");
+	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default)");
+	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy profile header without the ID column");
 	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
-	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional} (default: proportional)\n"
+	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional | ignore} (default: proportional)\n"
                                                                  "\n"
                                                                  "Description\n"
                                                                  "-----------\n"
@@ -616,7 +618,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
-	argtable = (void**) mCalloc(13, sizeof(void*));
+	argtable = (void**) mCalloc(14, sizeof(void*));
 
 	/* Common args */
 	set_argcount = 0;
@@ -632,6 +634,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	argtable[set_argcount++] = arg_mincount;
 	argtable[set_argcount++] = arg_unit;
 	argtable[set_argcount++] = arg_pandas;
+	argtable[set_argcount++] = arg_no_pandas;
 	argtable[set_argcount++] = arg_skiplen;
 	argtable[set_argcount++] = arg_multi;
 	argtable[set_argcount++] = end;
@@ -675,13 +678,25 @@ int msam_profile_main(int argc, char* argv[]) {
 		mQuit("");
 	}
 
+	if (arg_pandas->count > 0 && arg_no_pandas->count > 0) {
+		fprintf(stdout, "--pandas and --no-pandas cannot be used together\n");
+		mPrintHelp(subprogram, argtable);
+		mQuit("");
+	}
+
 	if (arg_total->count > 0) {
 		total_inserts = arg_total->ival[0];
-		if (total_inserts < 0) {
+		if (total_inserts <= 0) {
 			fprintf(stdout, "--total must be a positive integer\n");
 			mPrintHelp(subprogram, argtable);
 			mQuit("");
 		}
+	}
+
+	if (arg_mincount->count > 0 && arg_mincount->ival[0] < 0) {
+		fprintf(stdout, "--mincount must be a non-negative integer\n");
+		mPrintHelp(subprogram, argtable);
+		mQuit("");
 	}
 
 	/* Set input mode */
@@ -960,10 +975,10 @@ int msam_profile_main(int argc, char* argv[]) {
 	}
 
 	/* Write output */
-	if (arg_pandas->count > 0) {
-		mWritePandasMatrixTransposedGzip(output, abundance);
-	} else {
+	if (arg_no_pandas->count > 0) {
 		mWriteRMatrixTransposedGzip(output, abundance);
+	} else {
+		mWritePandasMatrixTransposedGzip(output, abundance);
 	}
 	/* Close output */
 	gzclose(output);

@@ -241,9 +241,6 @@ int msam_coverage_main(int argc, char* argv[]) {
 	struct arg_lit  *arg_skip_uncovered;
 	struct arg_lit  *arg_summary_only;
 	struct arg_lit  *arg_gzip;
-/*
-	struct arg_lit  *arg_share_multi_hit;
-*/
 	struct arg_int  *arg_wordsize;
 	struct arg_str  *arg_out;
 	int              set_argcount = 0;
@@ -264,13 +261,10 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	/* Specific args */
 	arg_out             = arg_str1("o",  NULL,      "<file>","name of output file (required)");
-/*
-	arg_share_multi_hit = arg_lit0("s", "sharemultihit",     "share the read that hits multiple locations equally across locations (default: true)");
-*/
 	arg_summary_only    = arg_lit0(NULL, "summary",          "do not report per-position coverage but report fraction of sequence covered (default: false)");
 	arg_skip_uncovered  = arg_lit0("x", "skipuncovered",     "do not report coverage for sequences without aligned reads (default: false)");
 	arg_wordsize        = arg_int0("w", "wordsize", NULL,    "number of words (coverage values) per line (default: 17)");
-	arg_gzip            = arg_lit0("z", "gzip",              "compress output file using gzip (default: true)\n"
+	arg_gzip            = arg_lit0("z", "gzip",              "compress output file using gzip (default; option retained for backward compatibility)\n"
                                                                  "\n"
                                                                  "Description:\n"
                                                                  "------------\n"
@@ -280,11 +274,14 @@ int msam_coverage_main(int argc, char* argv[]) {
                                                                  "sequencing era, with a fasta-style header followed by lines of space-delimited \n"
                                                                  "numbers.\n"
                                                                  "\n"
-                                                                 "For large datasets, option '-x' comes in handy when only a small fraction of \n"
-                                                                 "reference sequences are covered.\n"
+								 "Coverage is defined as aligned query-base depth on reference positions. Thus \n"
+								 "CIGAR operations 'M', '=' and 'X' contribute coverage, while 'D' and 'N' do not.\n"
+								 "\n"
+                                                                 "For large reference databases, option '-x' comes in handy when only a small \n"
+								 "fraction of reference sequences are covered.\n"
                                                                  "\n"
-                                                                 "If using '-z', output file does NOT automatically get '.gz' extension. This is \n"
-                                                                 "up to the user to specify the correct full output file name."
+                                                                 "Output is always gzip-compressed, but file names do NOT automatically get a \n"
+								 "'.gz' extension; specify the desired full output file name."
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
@@ -298,10 +295,6 @@ int msam_coverage_main(int argc, char* argv[]) {
 
 	/* Specific args */
 	argtable[set_argcount++] = arg_out;
-/* This is default, so no need to add this */
-/*
-	argtable[set_argcount++] = arg_share_multi_hit;
-*/
 	argtable[set_argcount++] = arg_summary_only;
 	argtable[set_argcount++] = arg_skip_uncovered;
 	argtable[set_argcount++] = arg_wordsize;

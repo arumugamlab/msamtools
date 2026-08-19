@@ -175,7 +175,7 @@ int msam_summary_main(int argc, char* argv[]) {
 
 	/* Specific args */
 	arg_edge         = arg_int0("e",  "edge",  "<num>", "ignore alignment if reads map to <num> bases at the edge of target sequence (default: 0)");
-	arg_count        = arg_lit0("c",  "count",          "count number of unique inserts in BAM file (default: false)");
+	arg_count        = arg_lit0("c",  "count",          "count number of inserts/QNAME groups in BAM file (default: false)");
 	arg_stats        = arg_str0(NULL, "stats", "<string>", "{mapped|unmapped|edit|score} only report readcount distribution for specified stats, not read-level stats (default: none)\n\n"
                                                              ""
                                                              "Description\n"
@@ -246,6 +246,17 @@ int msam_summary_main(int argc, char* argv[]) {
 				mQuit("");
 			}
 			edge = (uint32_t) arg_edge->ival[0];
+		}
+		if (arg_stats->count > 0 && arg_count->count > 0) {
+			fprintf(stdout, "--stats cannot be combined with --count\n");
+			mPrintHelp(subprogram, argtable);
+			mQuit("");
+		}
+
+		if (arg_edge->count > 0 && arg_count->count > 0) {
+			fprintf(stdout, "-e cannot be combined with --count\n");
+			mPrintHelp(subprogram, argtable);
+			mQuit("");
 		}
 	}
 
