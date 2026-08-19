@@ -3,6 +3,8 @@ site_name: msamtools
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Input requirements: input-requirements.md
+  - Compatibility: compatibility.md
   - Examples: examples.md
   - Commands:
       - filter: filter.md
