@@ -1,0 +1,13 @@
+site_name: msamtools
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Examples: examples.md
+  - Commands:
+      - filter: filter.md
+      - profile: profile.md
+      - coverage: coverage.md
+      - summary: summary.md
+  - Validation:
+      - Profile validation: validation/profile_validation.md
