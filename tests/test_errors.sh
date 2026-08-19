@@ -169,6 +169,26 @@ pass_check "negative edge length should fail"
 assert_contains "$tmpdir/edge.stdout" "-e must be a positive integer" \
     "negative edge error should explain the allowed values"
 
+# Summary rejects --stats and --count together.
+if "$MSAMTOOLS" summary --stats mapped --count "$summary_fixture" \
+    >"$tmpdir/stats_count.stdout" 2>"$tmpdir/stats_count.stderr"; then
+    fail "--stats and --count together should fail"
+fi
+pass_check "--stats and --count together should fail"
+assert_contains "$tmpdir/stats_count.stdout" \
+    "--stats cannot be combined with --count" \
+    "summary should explain the stats/count conflict"
+
+# Summary rejects -e and --count together.
+if "$MSAMTOOLS" summary -e 10 --count "$summary_fixture" \
+    >"$tmpdir/edge_count.stdout" 2>"$tmpdir/edge_count.stderr"; then
+    fail "-e and --count together should fail"
+fi
+pass_check "-e and --count together should fail"
+assert_contains "$tmpdir/edge_count.stdout" \
+    "-e cannot be combined with --count" \
+    "summary should explain the edge/count conflict"
+
 # Coverage rejects negative wordsize value.
 if "$MSAMTOOLS" coverage -w -1 -o "$tmpdir/wordsize_negative.gz" "$coverage_fixture" \
     >"$tmpdir/wordsize_negative.stdout" 2>"$tmpdir/wordsize_negative.stderr"; then
