@@ -564,8 +564,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
 	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: unknown)");
 	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default)");
-	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy profile header without the ID column");
+	arg_pandas          = arg_lit0(NULL, "pandas",             "use pandas-compatible two-column header: ID and sample label (default)");
+	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy header with the first column unlabeled");
 	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
 	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional | ignore} (default: proportional)\n"
                                                                  "\n"
