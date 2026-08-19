@@ -955,7 +955,7 @@ int msam_profile_main(int argc, char* argv[]) {
 			/* Altogether, *10^9/total */
 			if (total_inserts > 0) {
 				mMultiplyMatrixByScalar(abundance, 1.0E9/total_inserts);
-			} else {
+			} else if (mapped_inserts > 0) {
 				mMultiplyMatrixByScalar(abundance, 1.0E9/mapped_inserts);
 			}
 			break;

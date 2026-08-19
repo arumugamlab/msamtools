@@ -136,6 +136,9 @@ mMatrix* mMultiplyMatrices(mMatrix *a, mMatrix *b) {
 
 void mMultiplyMatrixByScalar(mMatrix *m, double d) {
 	int i, j;
+	if (!isfinite(d)) {
+		mDie("Cannot multiply matrix by non-finite scalar");
+	}
 	for (i=0; i<m->nrows; i++) {
 		for (j=0; j<m->ncols; j++) {
 			m->elem[i][j] *= d;
@@ -145,6 +148,9 @@ void mMultiplyMatrixByScalar(mMatrix *m, double d) {
 
 void mDivideMatrixByScalar(mMatrix *m, double d) {
 	int i, j;
+	if (!isfinite(d) || d == 0) {
+		mDie("Cannot divide matrix by zero or non-finite scalar");
+	}
 	for (i=0; i<m->nrows; i++) {
 		for (j=0; j<m->ncols; j++) {
 			m->elem[i][j] /= d;
@@ -159,6 +165,8 @@ void mColumnNormalizeMatrix(mMatrix *m) {
 		for (i=0; i<m->nrows; i++) {
 			sum += m->elem[i][j];
 		}
+		if (sum == 0)
+			continue;
 		for (i=0; i<m->nrows; i++) {
 			m->elem[i][j] /= sum;
 		}
@@ -172,6 +180,8 @@ void mRowNormalizeMatrix(mMatrix *m) {
 		for (j=0; j<m->ncols; j++) {
 			sum += m->elem[i][j];
 		}
+		if (sum == 0)
+			continue;
 		for (j=0; j<m->ncols; j++) {
 			m->elem[i][j] /= sum;
 		}
