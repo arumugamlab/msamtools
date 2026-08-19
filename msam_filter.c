@@ -340,9 +340,9 @@ int msam_filter_main(int argc, char* argv[]) {
 									"  (1) the alignments to be sorted by name,\n"
 									"  (2) AS field (alignment score) to be present, unless --rescore is used.\n"
 									"You can usually achieve sorting by:\n"
-									"  samtools sort -n -T tmp.sort input.bam  | "PROGRAM" -m filter --besthit -\n"
+									"  samtools sort -n -T tmp.sort input.bam | "PROGRAM" filter --besthit -\n"
 									"If AS is missing, you can rescore alignments by:\n"
-									"  samtools sort -n -T tmp.sort input.bam | "PROGRAM" -m filter --rescore --besthit -\n");
+									"  samtools sort -n -T tmp.sort input.bam | "PROGRAM" filter --rescore --besthit -\n");
 	arg_besthitonly     = arg_lit0(NULL, "besthit",                "keep all highest scoring hit(s) per read (default: false)");
 	arg_uniqbesthitonly = arg_lit0(NULL, "uniqhit",                "keep only one highest scoring hit per read, only if it is unique (default: false)");
 	end                 = arg_end(16); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
