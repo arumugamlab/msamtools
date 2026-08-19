@@ -1,34 +1,33 @@
-# msamtools:  microbiome-related extension to samtools
+# msamtools: microbiome-related extension to samtools
 
-**msamtools** provides useful functions that are commonly used in microbiome
-data analysis, especially when analyzing shotgun metagenomics
-or metatranscriptomics data.
+**msamtools** provides functions commonly used when processing SAM/BAM
+alignments in microbiome data analysis, particularly shotgun metagenomics and
+metatranscriptomics.
 
-# Using msamtools
+It is designed to work with alignment streams in a similar spirit to
+**samtools**, allowing filtering, profiling, coverage estimation, and alignment
+summarization to be combined in pipelines without creating unnecessary
+intermediate files.
 
-This is the master program that you call with the subprogram options. There
-are currently 4 subprograms that you can call as shown below.
+## Commands
 
-```text
-Program: msamtools (Metagenomics-related extension to samtools)
-Version: 1.1.3 (git 3fd8379a7189; using htslib 1.24)
+msamtools provides four main commands:
 
-Usage:   msamtools <command> [options]
+- [`filter`](filter.md) — filter alignments based on alignment statistics
+- [`profile`](profile.md) — estimate abundance profiles of reference sequences or genomes
+- [`coverage`](coverage.md) — estimate per-position or per-sequence coverage
+- [`summary`](summary.md) — summarize alignment statistics
 
-Commands:
- -- Filtering
-     filter         filter alignments based on alignment statistics
+See the [example workflows](examples.md) for ways to combine msamtools commands
+with each other and with samtools.
 
- -- Profiling
-     profile        estimate relative abundance profile of reference sequences or genomes in bam file
+## Getting started
 
- -- Coverage
-     coverage       estimate per-base or per-sequence read coverage of each reference sequence
+Start with:
 
- -- Summary
-     summary        summarize alignment statistics per read in a table format
-```
+- [Installation](installation.md)
+- [Input requirements](input-requirements.md)
+- [Compatibility](compatibility.md)
 
-These represent the different analysis of SAM/BAM files you can perform using
-**msamtools**.
-The [example workflows](examples.md) show how to combine them with each other or **samtools**. The command pages explain [filter](filter.md), [profile](profile.md), [coverage](coverage.md), and [summary](summary.md) in detail.
+For reproducible validation of the profiling functionality, see the
+[profile validation report](validation/profile_validation.md).

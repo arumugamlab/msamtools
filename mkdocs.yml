@@ -1,4 +1,5 @@
 site_name: msamtools
+site_description: Microbiome-related extension to samtools
 
 nav:
   - Home: index.md
