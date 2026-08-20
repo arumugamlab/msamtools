@@ -4,9 +4,8 @@ Similar to **samtools**, **msamtools** is designed to work on a stream,
 avoiding creation of intermediate files. Here are some example
 workflows using streams that **msamtools** will be useful in.
 
-> **NOTE:** Workflows using `--besthit` or `--uniqhit` require all alignments
-> sharing a QNAME to occur as one contiguous group. Direct output from the
-> aligner may already satisfy this; otherwise, sort by QNAME before filtering.
+> **NOTE:** Workflows using `--besthit` or `--uniqhit` require contiguous
+> QNAME grouping. See [Input requirements](input-requirements.md#qname-grouping).
 
 ## Alignment and filtering in one step
 

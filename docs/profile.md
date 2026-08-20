@@ -13,16 +13,14 @@ can be handled in four different ways (see below).
 Finally, abundance is estimated in one of four units:
 abundance (`ab`), relative abundance (`rel`),
 fragments per kilobase of sequence per million reads (`fpkm`),
-or transcripts per million (`tpm`). As you probably understand, *tpm* and
-*fpkm* are probably not suitable for profiling genomes, but do not let me
+or transcripts per million (`tpm`). As you probably understand, `tpm` and
+`fpkm` are probably not suitable for profiling genomes, but do not let me
 stop you!
 
-> **WARNING:** The profiler requires all alignments sharing a QNAME to occur
-> as one contiguous group so that inserts and multi-mapping can be processed
-> correctly. QNAME grouping is checked when the input is opened.
-> Coordinate-sorted BAM files will therefore generally need to be name-sorted
-> before profiling.
-
+> **WARNING:** `profile` requires contiguous QNAME groups to identify inserts
+> and multi-mapping correctly. See
+> [Input requirements](input-requirements.md#qname-grouping).
+>
 > **NOTE:** From **v1.0.0**, profile output is always gzip-compressed.
 > Arguments `--gzip` or `-z` are therefore not used.
 

@@ -27,10 +27,10 @@ The `filter` command operates at the read level. With paired-end data,
 READ2. Output for each QNAME group is normalized so that retained READ1
 alignments are written before retained READ2 alignments.
 
-When using `--besthit` or `--uniqhit`, all alignments with the same **QNAME**
-must occur as one contiguous group in the input. Alignments belonging to
-READ1 and READ2 may be interleaved within that group; the mates do not need
-to occur as separate blocks.
+`--besthit` and `--uniqhit` require contiguous QNAME grouping. READ1 and
+READ2 records may be interleaved within each group. See
+[Input requirements](input-requirements.md#qname-grouping) for details and
+sorting examples.
 
 Typical read-mapper output may already satisfy this requirement. If the BAM
 file has subsequently been processed or reordered, sort it by QNAME before
