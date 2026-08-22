@@ -13,9 +13,7 @@ can be handled in four different ways (see below).
 Finally, abundance is estimated in one of four units:
 abundance (`ab`), relative abundance (`rel`),
 fragments per kilobase of sequence per million reads (`fpkm`),
-or transcripts per million (`tpm`). As you probably understand, `tpm` and
-`fpkm` are probably not suitable for profiling genomes, but do not let me
-stop you!
+or transcripts per million (`tpm`).
 
 > **WARNING:** `profile` requires contiguous QNAME groups to identify inserts
 > and multi-mapping correctly. See
@@ -38,24 +36,10 @@ msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC
 The command estimates relative abundance of IGC genes after sharing
 multi-mapper inserts proportionally between the genes (see below).
 
-In the spirit of **samtools**, **msamtools** commands can also stream between
-each other. Therefore, a single command to **filter** and **profile** would
-look like:
+See [Example workflows](examples.md) for examples of streaming `filter` and
+`profile` together.
 
-```bash
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam \
-  | msamtools profile --multi=proportional --label=sample1 --unit=rel -o sample1.IGC.profile.txt.gz -
-```
-
-For mapping to scaffolds that are grouped into metagenome-assembled genomes
-(MAGs), you can use:
-
-```bash
-msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam \
-  | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
-```
-
-## Profiling genomes or MAGs <a name="profiling-genomes"></a>
+## Profiling genomes or MAGs
 
 Starting from **v1.0.0**, the **profile** command supports profiling of genomes
 defined by sets of sequences. This requires a tab-delimited definition file of
@@ -83,7 +67,7 @@ msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam \
   | msamtools profile --multi=proportional --label=sample1 --unit=rel --genome myMAGs.genome.def -o sample1.myMAGs.profile.txt.gz -
 ```
 
-## Units of abundance <a name="abundance-units"></a>
+## Units of abundance
 
 By default, the **profile** command generates relative abundances that sum to
 `1` across the reported features.
@@ -101,11 +85,15 @@ The optional `--nolen` flag turns off sequence-length normalization for
 When combining `--unit=ab` and `--nolen`, the reported values represent
 insert counts assigned to each feature. With `--multi=equal` or
 `--multi=proportional`, multi-mapping inserts may contribute fractional
-insert-equivalents to individual features. But under these two modes,
-summing up individual values is guaranteed to match total number of
-mapped reads (within machine precision).
+insert-equivalents to individual features. Under these two modes, summing the
+individual values is guaranteed to match the total number of mapped inserts
+(within machine precision).
 
-## Keeping track of unmapped reads <a name="track-unmapped"></a>
+> **NOTE:** FPKM and TPM are conventionally used for gene- or transcript-level
+> abundance. For genome/MAG profiling, consider whether `ab` or `rel` is more
+> appropriate for the intended downstream analysis.
+
+## Keeping track of unmapped reads
 
 By default, the **profile** command generates relative abundances that sum to
 `1` across the features represented in the BAM file. In metagenomic data,
@@ -165,7 +153,7 @@ msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.IGC.bam \
 
 If `--total` is omitted, tracking of the **Unknown** fraction is disabled.
 
-## Avoiding extremely-low-abundant features <a name="profile-mincount"></a>
+## Avoiding extremely-low-abundant features
 
 When only a small number of inserts are assigned to a feature (genome,
 contig, or gene), it may not be clear whether the feature is genuinely present
@@ -186,7 +174,7 @@ The appropriate threshold depends on sequencing depth. For metagenomes or
 metatranscriptomes with more than 10 million paired-end reads, we have
 typically used a threshold of `10`.
 
-## Output format and useful information <a name="profile-output"></a>
+## Output format and useful information
 
 Profile output is always gzip-compressed, irrespective of the filename used.
 
@@ -200,7 +188,7 @@ The header section of the output also includes commented provenance and
 summary information about the profiling process, including the command used,
 QNAME-grouping status, and insert-mapping statistics.
 
-For example, output contains information of this general form:
+For example:
 
 ```text
 # msamtools version: 1.1.3
@@ -236,9 +224,10 @@ sequence length for **Unknown**.
 The sample label supplied through `--label` is included in the table header,
 which makes it convenient to combine profiles from multiple samples.
 
-A standalone script for combining multiple msamtools profile files is also
-available as part of the
-[MIntO](https://github.com/arumugamlab/MIntO) pipeline:
+## Combining multiple profiles
+
+A standalone script for combining multiple msamtools profile files is available
+as part of the [MIntO](https://github.com/arumugamlab/MIntO) pipeline:
 
 [merge_profiles.R](https://github.com/arumugamlab/MIntO/blob/main/scripts/merge_profiles.R)
 
@@ -297,9 +286,8 @@ is used as the first line, so that reading or 'joining' these files is easier.
 --total option:      In metagenomics, an unmapped insert could still be a valid
                      sequence, just missing in the database being mapped against.
                      This is the purpose of the '--total' option to track the
-                     fraction of 'unknown' entities in the sample. If --total
-                     is ignored or specified as --total=0, then tracking the
-                     'unknown' fraction is disabled. However, if the total
+                     fraction of 'unknown' entities in the sample. Skipping --total
+                     disables tracking the 'unknown' fraction. However, if the total
                      sequenced inserts were given, then there will be a new
                      feature added to denote the 'unknown' fraction.
 Units of abundance:  Currently four different units are available.
@@ -318,7 +306,7 @@ Alignment filtering: 'profile' expects that every alignment listed is considered
 Multi-mapper inserts: Inserts mapping to multiple references need to be considered
                      carefully, as spurious mappings of promiscuous regions or
                      short homology could lead to incorrect abundances of
-                     sequences. 'profile' offers three options for this purpose.
+                     sequences. 'profile' offers four options for this purpose.
                      If an insert maps to N references at the same time:
                 'ignore': insert is ignored.
                    'all': each reference gets 1 insert added.
