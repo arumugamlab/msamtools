@@ -32,9 +32,9 @@ The six fields are:
 5. number of matches
 6. percent identity
 
-The glocal alignment length includes unaligned query bases, corresponding to a
-global alignment with respect to the query and a local alignment with respect
-to the reference.
+The query length spans the full query from beginning to end, including clipped
+bases. The glocal alignment length additionally includes deletion positions, so
+it can be longer than the query length when the CIGAR contains `D` operations.
 
 ## Alignment-statistic distributions
 
@@ -98,9 +98,8 @@ msamtools summary --count input.bam
 
 Unmapped records are not counted.
 
-Because counting is based on QNAME groups, records belonging to the same QNAME
-must occur contiguously in the input. QNAME-sorted input is therefore the
-appropriate input organization when using `--count`.
+`--count` requires contiguous QNAME grouping. See
+[Input requirements](input-requirements.md#qname-grouping) for details.
 
 `--count` cannot be combined with either `--stats` or `-e`.
 
