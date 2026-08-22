@@ -29,8 +29,8 @@ conda activate msamtools
 msamtools help
 ```
 
-If you also need the **samtools** executable for your analysis, it can be
-installed in the same environment:
+If you also need the **samtools** executable for your analysis, install it in
+the same environment:
 
 ```bash
 conda create -n msamtools -c conda-forge -c bioconda msamtools samtools
@@ -47,7 +47,7 @@ If you cannot install through Conda, see
 **msamtools** is available in container images that can be used, for example,
 in workflow systems such as Snakemake.
 
-There are two possibilities.
+Two container options are available.
 
 ### Bioconda container
 
@@ -67,8 +67,8 @@ The image can then be used by Snakemake with container support enabled.
 For workflows that pipe between **msamtools** and **samtools**, we also provide
 a container containing both programs.
 
-The samtools version in this image is built to match the HTSlib version used
-by msamtools. For current development version, this is samtools/HTSlib 1.24.
+The samtools version in this image is built to match the HTSlib version used by
+msamtools. For the current development version, this is samtools/HTSlib 1.24.
 
 For example, if a BAM file is coordinate-sorted and needs to be name-sorted
 before profiling:
@@ -86,22 +86,22 @@ rule profile_sample:
         """
 ```
 
-The Bioconda container contains just `msamtools` executable, whereas this custom image also
-provides the `samtools` executable.
+The Bioconda container contains the `msamtools` executable, whereas the custom
+image also provides the `samtools` executable.
 
 ### Container URLs
 
 The exact Bioconda and arumugamlab container image URLs are release-specific
-and are listed in the corresponding GitHub release notes. Use those
-published URLs rather than guessing the build tag.
+and are listed in the corresponding GitHub release notes. Use those published
+URLs rather than guessing the build tag.
 
-# Advanced installation
+## Advanced installation
 
-You can also download the source code and build msamtools yourself.
+You can also download the source code and build **msamtools** yourself.
 
-## Required tools
+### Required tools
 
-Building **msamtools** from source requires:
+Building from source requires:
 
 1. a C compiler such as `gcc`
 2. `make`
@@ -112,7 +112,7 @@ Building **msamtools** from source requires:
 
 Source builds automatically download and build the required HTSlib release.
 
-## Required libraries
+### Required libraries
 
 The following development libraries are required:
 
@@ -123,7 +123,7 @@ The following development libraries are required:
 
 The latter two are normally provided by the system C environment.
 
-## Building from a release tarball
+### Building from a release tarball
 
 For normal installation from source, obtain a release tarball and build it
 directly:
@@ -145,11 +145,11 @@ To install under the configured installation prefix:
 make install
 ```
 
-## Building from the Git repository
+### Building from the Git repository
 
 Developers and contributors can build directly from the Git repository.
 
-### Getting the source code
+#### Getting the source code
 
 Clone the repository:
 
@@ -161,7 +161,7 @@ cd msamtools
 Repository snapshots can alternatively be downloaded from GitHub, although
 cloning with Git is recommended for development work.
 
-### Bootstrapping the build system
+#### Bootstrapping the build system
 
 The generated `configure` script is not stored in the Git repository.
 
@@ -171,7 +171,7 @@ Generate the Autotools build files with:
 autoreconf -fi
 ```
 
-### Building and testing
+#### Building and testing
 
 Configure, build, and run the test suite with:
 
@@ -186,7 +186,7 @@ exact behavior of filtering, best-hit and unique-hit selection, profiling,
 coverage, alignment summaries, command-line validation, QNAME grouping,
 integration between commands, and streaming behavior.
 
-### Checking a source distribution
+#### Checking a source distribution
 
 Maintainers preparing a source distribution can run:
 
@@ -197,13 +197,13 @@ make distcheck
 This creates a source archive, performs an out-of-tree build from that
 distribution, and runs the complete test suite against it.
 
-## Building the Docker image
+### Building the Docker image
 
 The repository Dockerfile normally builds from a published msamtools release
 tarball:
 
 ```bash
-docker build -t msamtools:1.1.3 .
+docker build --build-arg MSAM_VERSION=MSAM_VERSION -t msamtools:MSAM_VERSION .
 ```
 
 A local release tarball can also be used for testing before publication.
@@ -219,7 +219,7 @@ docker build \
 The resulting image contains msamtools together with a samtools executable
 built to match the HTSlib version used by that msamtools release.
 
-## Validation
+### Validation
 
 Reproducible profile validation using synthetic metagenomic alignments is
 described in the [profile validation report](validation/profile_validation.md).
