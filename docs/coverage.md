@@ -7,10 +7,10 @@ Coverage is defined as **aligned query-base depth on reference positions**.
 Thus CIGAR operations `M`, `=` and `X` contribute coverage, while `D` and `N`
 advance along the reference but do not contribute coverage.
 
-Output is always gzip-compressed. The output filename is used exactly as
-provided, so add a `.gz` suffix yourself if desired.
+Output is always gzip-compressed. The filename is used exactly as provided;
+msamtools does not automatically append `.gz`.
 
-## Per-position coverage of all sequences <a name="pos-coverage"></a>
+## Per-position coverage of all sequences
 
 Per-position coverage is written in a format similar to old Sanger quality
 files, with FASTA-style headers followed by space-delimited coverage values.
@@ -28,7 +28,7 @@ msamtools coverage -x -o sample1.coverage.txt.gz sample1.IGC.filtered.bam
 By default, uncovered reference sequences are also reported, with zero
 coverage at every position.
 
-## Coverage summary for each sequence <a name="frac-coverage"></a>
+## Coverage summary for each sequence
 
 The `--summary` option reports one line per reference sequence rather than
 per-position coverage.
@@ -52,14 +52,14 @@ cluster_005_consensus_length_3532514	0.99987346	70.04
 The columns are:
 
 1. reference sequence name
-2. fraction of reference positions with non-zero coverage
+2. fraction of reference positions covered by at least one aligned query base
 3. mean aligned query-base depth across the complete reference sequence
 
 Thus, in the example above, the fifth reference sequence has approximately
 70× mean coverage.
 
 The `-x` (`--skipuncovered`) option can also be used with `--summary` to omit
-reference sequences with no aligned reads.
+reference sequences with no covered positions.
 
 ## Command-line reference
 
