@@ -2,8 +2,8 @@
 
 The **filter** command provides alignment filtering based on percent identity,
 alignment length, aligned fraction of read length, or combinations thereof.
-For example, when mapping metagenomic reads to a database for species-level
-annotation, we typically discard alignments below 95% sequence identity.
+For example, species-level annotation workflows may require alignments to meet
+a minimum sequence-identity threshold such as 95%.
 
 ## Basic filtering
 
@@ -15,10 +15,10 @@ reads to the Integrated Gene Catalog (IGC) consisting of 9.9 million genes
 msamtools filter -b -l 80 -p 95 -z 80 --besthit sample1.IGC.bam > sample1.IGC.filtered.bam
 ```
 
-The command selects alignments that are at least 80 bp long, have at least
-95% sequence identity, and cover at least 80% of the read. Additionally,
-`--besthit` retains the highest-scoring alignment(s) for each read. Multiple
-alignments with the same highest alignment score are retained.
+The command selects alignments with an alignment length of at least 80 bp,
+at least 95% sequence identity, and at least 80% of the query aligned.
+Additionally, `--besthit` retains the highest-scoring alignment(s) for each
+read. Multiple alignments tied for the highest score are retained.
 
 ## Best-hit and unique-hit filtering
 
@@ -31,14 +31,6 @@ alignments are written before retained READ2 alignments.
 READ2 records may be interleaved within each group. See
 [Input requirements](input-requirements.md#qname-grouping) for details and
 sorting examples.
-
-Typical read-mapper output may already satisfy this requirement. If the BAM
-file has subsequently been processed or reordered, sort it by QNAME before
-filtering, for example:
-
-```bash
-samtools sort -n input.bam | msamtools filter --besthit -
-```
 
 ## Command-line reference
 
