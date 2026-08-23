@@ -105,6 +105,13 @@ Unmapped records are not counted.
 
 ## Command-line reference
 
+The following reference is generated directly from:
+
+```bash
+./msamtools summary --help
+```
+
+<!-- BEGIN GENERATED HELP: summary -->
 ```text
 Usage:
 ------
@@ -132,7 +139,7 @@ Description
 Prints summary of alignments in the given BAM/SAM file. By default, it prints
 a summary line per alignment entry in the file. The summary is a tab-delimited
 line with the following fields:
-        qname, query_length, target_name, glocal_align_len, matches, percent_identity
+	qname, query_length, target_name, glocal_align_len, matches, percent_identity
 glocal_align_len includes the unaligned qlen mimicing a global alignment
 in the query and local alignment in target, thus glocal.
 
@@ -143,3 +150,4 @@ for a given measure.
    --stats=edit     - distribution for edit distances
    --stats=score    - distribution for score=match-edit
 ```
+<!-- END GENERATED HELP: summary -->

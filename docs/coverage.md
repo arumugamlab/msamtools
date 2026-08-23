@@ -63,6 +63,13 @@ reference sequences with no covered positions.
 
 ## Command-line reference
 
+The following reference is generated directly from:
+
+```bash
+./msamtools coverage --help
+```
+
+<!-- BEGIN GENERATED HELP: coverage -->
 ```text
 Usage:
 ------
@@ -104,3 +111,4 @@ fraction of reference sequences are covered.
 Output is always gzip-compressed, but file names do NOT automatically get a
 '.gz' extension; specify the desired full output file name.
 ```
+<!-- END GENERATED HELP: coverage -->

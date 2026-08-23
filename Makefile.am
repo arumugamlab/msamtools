@@ -45,14 +45,26 @@ TESTS = tests/test_smoke.sh \
         tests/test_errors.sh \
         tests/test_integration.sh \
         tests/test_streaming.sh \
-        tests/test_coverage.sh
+        tests/test_coverage.sh \
+        tests/test_cli_docs.sh
 TESTS_ENVIRONMENT = MSAMTOOLS='$(abs_builddir)/msamtools'
 
 # These are the installed programs
 mymaui_PROGRAMS = msamtools
 
-# We will also distribute a README.md markdown file
+# Documentation and other files included in source distributions.
 EXTRA_DIST = README.md \
+             CITATION.cff \
+             docs/index.md \
+             docs/installation.md \
+             docs/input-requirements.md \
+             docs/compatibility.md \
+             docs/examples.md \
+             docs/filter.md \
+             docs/profile.md \
+             docs/coverage.md \
+             docs/summary.md \
+             scripts/update_cli_docs.sh \
              LICENSE \
              zoe-LICENSE \
              THIRD_PARTY_NOTICES.md \
@@ -66,6 +78,7 @@ EXTRA_DIST = README.md \
              tests/test_errors.sh \
              tests/test_integration.sh \
              tests/test_streaming.sh \
+             tests/test_cli_docs.sh \
              tests/test_coverage.sh \
              tests/fixtures/profile.sam \
              tests/fixtures/filter.sam \

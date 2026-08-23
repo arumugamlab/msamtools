@@ -241,6 +241,13 @@ following R packages:
 
 ## Command-line reference
 
+The following reference is generated directly from:
+
+```bash
+./msamtools profile --help
+```
+
+<!-- BEGIN GENERATED HELP: profile -->
 ```text
 Usage:
 ------
@@ -316,3 +323,4 @@ Multi-mapper inserts: Inserts mapping to multiple references need to be consider
                           abundance estimated only based on uniquely
                           mapped inserts.
 ```
+<!-- END GENERATED HELP: profile -->

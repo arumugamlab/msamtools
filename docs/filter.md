@@ -34,9 +34,16 @@ sorting examples.
 
 ## Command-line reference
 
+The following reference is generated directly from:
+
+```bash
+./msamtools filter --help
+```
+
+<!-- BEGIN GENERATED HELP: filter -->
 ```text
 Usage:
--------
+------
 
 msamtools filter [-buhSkv] <bamfile> [--help] [-l <int>] [-p <int>] [--ppt=<int>] [-z <int>] [--rescore] [--besthit] [--uniqhit]
 
@@ -94,3 +101,4 @@ If AS is missing, you can rescore alignments by:
   --besthit                 keep all highest scoring hit(s) per read (default: false)
   --uniqhit                 keep only one highest scoring hit per read, only if it is unique (default: false)
 ```
+<!-- END GENERATED HELP: filter -->
