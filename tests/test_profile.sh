@@ -95,12 +95,13 @@ run_zero_profile()
 {
     name=$1
     input=$2
+    unit=$3
     output="$tmpdir/$name.tsv.gz"
     stderr="$tmpdir/$name.stderr"
 
     if ! "$MSAMTOOLS" profile -S \
         --label "$name" \
-        --unit ab \
+        --unit $unit \
         --nolen \
         --multi equal \
         --pandas \
@@ -126,8 +127,14 @@ run_zero_profile()
     assert_profile_value "$output" B 0 1e-9
 }
 
-run_zero_profile empty "$script_dir/fixtures/profile_empty.sam"
-run_zero_profile unmapped "$script_dir/fixtures/profile_unmapped.sam"
+run_zero_profile empty_ab "$script_dir/fixtures/profile_empty.sam" "ab"
+run_zero_profile empty_rel "$script_dir/fixtures/profile_empty.sam" "rel"
+run_zero_profile empty_tpm "$script_dir/fixtures/profile_empty.sam" "tpm"
+run_zero_profile empty_fpkm "$script_dir/fixtures/profile_empty.sam" "fpkm"
+run_zero_profile unmapped_ab "$script_dir/fixtures/profile_unmapped.sam" "ab"
+run_zero_profile unmapped_rel "$script_dir/fixtures/profile_unmapped.sam" "rel"
+run_zero_profile unmapped_tpm "$script_dir/fixtures/profile_unmapped.sam" "tpm"
+run_zero_profile unmapped_fpkm "$script_dir/fixtures/profile_unmapped.sam" "fpkm"
 
 fractional_output="$tmpdir/fractional.tsv.gz"
 fractional_stderr="$tmpdir/fractional.stderr"
