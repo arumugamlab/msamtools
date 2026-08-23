@@ -51,7 +51,7 @@ void mPrintHelp (const char *subprogram, void **argtable) {
 	arg_print_syntax(stdout, argtable, "\n");
 	fprintf(stdout, "\nGeneral options:\n"
 				"----------------\n\n"
-				"These options specify the input/output formats of BAM/SAM files \n"
+				"These options specify the input/output formats of BAM/SAM files\n"
 				"(same meaning as in 'samtools view'):\n");
 	arg_print_glossary(stdout, argtable, "  %-25s %s\n");
 }
