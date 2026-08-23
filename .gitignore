@@ -1,0 +1,43 @@
+# MkDocs build output
+site/
+
+# Autotools-generated files
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+build-aux/
+configure
+config.log
+config.status
+.deps/
+
+# Generated files in dependency directories
+deps/Makefile
+deps/Makefile.in
+deps/htslib/Makefile
+deps/htslib/Makefile.in
+deps/htslib/dep.complete
+deps/htslib/untar.complete
+
+# Downloaded/extracted HTSlib source
+deps/htslib/htslib-*.tar.bz2
+deps/htslib/htslib-*/
+
+# Build products
+*.o
+*.lo
+*.la
+.libs/
+msamtools
+
+# Generated version header
+msam_version.h
+
+# Distribution archives
+msamtools-*.tar.gz
+
+# Editor / OS files
+*~
+*.swp
+.DS_Store

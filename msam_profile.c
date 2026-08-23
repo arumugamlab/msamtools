@@ -564,8 +564,8 @@ int msam_profile_main(int argc, char* argv[]) {
 	arg_mincount        = arg_int0(NULL, "mincount", NULL,     "minimum number of inserts mapped to a feature, below which the feature is counted as absent (default: 0)");
 	arg_total           = arg_int0(NULL, "total",    NULL,     "number of high-quality inserts (mate-pairs/paired-ends) that were input to the aligner (default: unknown)");
 	arg_unit            = arg_str0(NULL, "unit",     NULL,     "unit of abundance to report {ab | rel | fpkm | tpm} (default: rel)");
-	arg_pandas          = arg_lit0(NULL, "pandas",             "print two columns (ID, sample-label) as header compatible with python pandas (default)");
-	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy profile header without the ID column");
+	arg_pandas          = arg_lit0(NULL, "pandas",             "use pandas-compatible two-column header: ID and sample label (default)");
+	arg_no_pandas       = arg_lit0(NULL, "no-pandas",          "use legacy header with the first column unlabeled");
 	arg_skiplen         = arg_lit0(NULL, "nolen",              "do not normalize the abundance (only relevant for ab or rel) for sequence length (default: normalize)");
 	arg_multi           = arg_str0(NULL, "multi",    NULL,     "how to deal with multi-mappers {all | equal | proportional | ignore} (default: proportional)\n"
                                                                  "\n"
@@ -574,7 +574,7 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "\n"
                                                                  "Produces an abundance profile of all reference sequences in a BAM file\n"
                                                                  "based on the number of read-pairs (inserts) mapping to each reference sequence.\n"
-                                                                 "It can work with genome-scale reference sequences while mapping to a database \n"
+                                                                 "It can work with genome-scale reference sequences while mapping to a database\n"
                                                                  "of sequenced genomes, but can also work with gene-scale sequences such as in the\n"
                                                                  "Integrated Gene Catalog from human gut microbiome (Li et al, Nat biotech 2014).\n"
                                                                  "\n"
@@ -585,9 +585,8 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "--total option:      In metagenomics, an unmapped insert could still be a valid\n"
                                                                  "                     sequence, just missing in the database being mapped against.\n"
                                                                  "                     This is the purpose of the '--total' option to track the\n"
-                                                                 "                     fraction of 'unknown' entities in the sample. If --total\n"
-                                                                 "                     is ignored or specified as --total=0, then tracking the \n"
-                                                                 "                     'unknown' fraction is disabled. However, if the total \n"
+                                                                 "                     fraction of 'unknown' entities in the sample. Skipping --total\n"
+                                                                 "                     disables tracking the 'unknown' fraction. However, if the total\n"
                                                                  "                     sequenced inserts were given, then there will be a new\n"
                                                                  "                     feature added to denote the 'unknown' fraction.\n"
                                                                  "Units of abundance:  Currently four different units are available.\n"
@@ -598,21 +597,21 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                     If number of inserts input to the aligner is given via --total,\n"
                                                                  "                     fpkm and tpm will behave differently than in RNAseq data,\n"
                                                                  "                     as there is now a new entity called 'unknown'.\n"
-                                                                 "Alignment filtering: 'profile' expects that every alignment listed is considered \n"
-                                                                 "                     valid. For example, if one needs to filter alignments \n"
+                                                                 "Alignment filtering: 'profile' expects that every alignment listed is considered\n"
+                                                                 "                     valid. For example, if one needs to filter alignments\n"
                                                                  "                     based on alignment length, read length, alignment percent\n"
-                                                                 "                     identity, etc, this should have been done prior to \n"
+                                                                 "                     identity, etc, this should have been done prior to\n"
                                                                  "                     '"subprogram"'. Please see 'filter' for such filtering.\n"
                                                                  "Multi-mapper inserts: Inserts mapping to multiple references need to be considered\n"
                                                                  "                     carefully, as spurious mappings of promiscuous regions or\n"
-                                                                 "                     short homology could lead to incorrect abundances of \n"
-                                                                 "                     sequences. '"subprogram"' offers three options for this purpose.\n"
+                                                                 "                     short homology could lead to incorrect abundances of\n"
+                                                                 "                     sequences. '"subprogram"' offers four options for this purpose.\n"
                                                                  "                     If an insert maps to N references at the same time:\n"
                                                                  "                'ignore': insert is ignored.\n"
                                                                  "                   'all': each reference gets 1 insert added.\n"
                                                                  "                 'equal': each reference gets 1/N insert added.\n"
-                                                                 "          'proportional': each reference gets a fraction proportional to its \n"
-                                                                 "                          reference-sequence-length-normalized relative \n"
+                                                                 "          'proportional': each reference gets a fraction proportional to its\n"
+                                                                 "                          reference-sequence-length-normalized relative\n"
                                                                  "                          abundance estimated only based on uniquely\n"
                                                                  "                          mapped inserts."
                                                                  );
