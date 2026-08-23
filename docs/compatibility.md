@@ -8,8 +8,8 @@ CRAM is currently unsupported and there are no plans to add CRAM support.
 
 ## CIGAR compatibility
 
-Current msamtools versions support both traditional `M` CIGAR operations and
-the extended `=` / `X` notation.
+Current develoption version of msamtools supports both traditional `M`
+CIGAR operations and the extended `=` / `X` notation.
 
 Where alignment matches and mismatches are relevant:
 
@@ -24,16 +24,23 @@ contribute coverage.
 
 ## Compatibility with older msamtools versions
 
-Earlier msamtools releases were primarily developed and tested with alignments
-using traditional `M` CIGAR notation.
+Releases up to and including v1.1.3 were primarily developed and tested with
+alignments using traditional `M` CIGAR notation.
 
-Some operations in versions prior to the forthcoming corrected release could
-produce incorrect results when input alignments used extended `=` / `X` CIGAR
-notation. Alignments using traditional `M` notation were not affected by this
-specific issue.
+Some operations in those releases could produce incorrect results when input
+alignments used extended `=` / `X` CIGAR notation. Alignments using
+traditional `M` notation were not affected by this specific issue.
 
 For reproducible analysis of alignments containing `=` or `X`, use a version
-that includes the extended-CIGAR fixes.
+newer than v1.1.3 that includes the extended-CIGAR fixes.
+
+### Impact on common metagenomic aligners
+
+Common short-read aligners such as BWA-MEM, BWA-MEM2, and Bowtie2 use
+traditional `M` CIGAR notation by default. Current Strobealign versions also
+use `M` by default, although versions before 0.10.0 emitted `=`/`X` by
+default. Bowtie2 and Strobealign can explicitly be configured to emit
+extended `=`/`X` CIGAR notation.
 
 ## HTSlib and samtools
 

@@ -3,7 +3,7 @@
 **msamtools** reads SAM or BAM alignment files. SAM input should be indicated
 with `-S`; BAM input is used by default.
 
-Some msamtools operations process alignments independently and do not require
+Some msamtools operations process each alignment independently and do not require
 any particular record ordering. Others need all alignments belonging to the
 same read or insert to occur together.
 
@@ -47,7 +47,7 @@ For `filter --besthit` and `filter --uniqhit`, alignments are selected
 independently for READ1 and READ2 within each QNAME group.
 
 The `profile` command uses QNAME groups to identify inserts and correctly
-handle reads mapping to multiple references.
+handle inserts mapping to multiple references.
 
 The `summary --count` option counts mapped inserts represented by contiguous
 QNAME groups.
@@ -79,8 +79,8 @@ For SAM input, use `-S` where supported:
 msamtools filter -S input.sam
 ```
 
-Most msamtools commands also accept `-` as input, allowing SAM/BAM data to be
-streamed from another program.
+msamtools commands that accept alignment input also accept `-` as input,
+allowing SAM/BAM data to be streamed from another program.
 
 ## Alignment metadata requirements
 
