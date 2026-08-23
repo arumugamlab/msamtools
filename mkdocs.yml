@@ -1,5 +1,10 @@
 site_name: msamtools
 site_description: Microbiome-related extension to samtools
+repo_url: https://github.com/arumugamlab/msamtools
+repo_name: arumugamlab/msamtools
+
+theme:
+  name: readthedocs
 
 nav:
   - Home: index.md
