@@ -15,6 +15,10 @@
 #define LEFT_ALIGN (1)
 #define RIGHT_ALIGN (2)
 
+#define PROP_MAX_ITERATIONS 200
+#define PROP_ZERO_THRESHOLD 1e-20
+#define PROP_CONVERGENCE_THRESHOLD 1e-10
+
 void mInitInsertCounts(int share_type);
 int  mEstimateInsertCountOnFile(mSamFile *input, int share_type);
 void mWriteCompressedSeqAbundance();
@@ -319,20 +323,22 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 			int j, k;
 			double *abundance_t_k         = (double*) mMalloc(n_features*sizeof(double));
 			double *abundance_t_k_minus_1 = (double*) mMalloc(n_features*sizeof(double));
+			double *increment             = (double*) mMalloc(n_features*sizeof(double));
 
 			/* 2.1. Initialize Abundance at t(k), denoted a(i, k), with U(i): *
 			 *                     a(i, k) = U(i), for each i                 */
 
 			memcpy(abundance_t_k, abundance, n_features*sizeof(double));
 
-			/* 2.2. Iterate for max 20 times */
+			/* 2.2. Iterate until convergence or the maximum iteration count */
 
 			fprintf(stderr, "# Start PropSharing:\n"); 
-			for (k=1; k<20; k++) {
-				double delta = 0;
-				double *increment = (double*) mMalloc(n_features*sizeof(double));
+			for (k=0; k<PROP_MAX_ITERATIONS; k++) {
+				double  delta     = 0.0;
+				double  max_delta = 0.0;
 
-				for (j=0; j<n_features; j++) increment[j] = 0.0f;
+				/* Initialize increment */
+				memset(increment, 0, n_features * sizeof(double));
 
 				/* 2.2.1. In a new iteration, a(i,k-1) <-- a(i,k) */
 				memcpy(abundance_t_k_minus_1, abundance_t_k, n_features*sizeof(double));
@@ -343,7 +349,7 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 					int* elem = multi->elem;
 
 					/* 2.2.2.1. Get S = Sigma{ a(i,k) } for all the hits of this multimapper */
-					double sum = 0;
+					double sum = 0.0;
 					for (i=0; i<multi->size; i++) {
 						sum += abundance_t_k[elem[i]];
 					}
@@ -365,27 +371,36 @@ mMatrix* mInsertCountToAbundanceMatrix(int row, const char* label, int share_typ
 				}
 
 				/* Did this iteration do anything useful? */
-				delta = 0;
+				/* Quantify max-absolute-diff and mean-squared-diff */
 				for (j=0; j<n_features; j++) {
 					double diff;
+					double adiff;
 					abundance_t_k[j] = abundance[j] + increment[j];
-					/* In my observations, very low numbers are just movements 
-					 * towards 0 over many iterations. Better help them converge. */
-					if (abundance_t_k[j] < 1e-20) {
+
+					/* Clamp numerically negligible positive values to zero to avoid
+					 * long tails of convergence caused by values approaching zero. */
+					if (abundance_t_k[j] < PROP_ZERO_THRESHOLD) {
 						abundance_t_k[j] = 0;
 					}
+
 					diff = abundance_t_k[j] - abundance_t_k_minus_1[j];
+					adiff = fabs(diff);
+					if (adiff > max_delta)
+						max_delta = adiff;
 					delta += diff*diff;
 				}
 				delta /= n_features;
-				fprintf(stderr, "#     PropSharing Iteration: %2d; DELTA^2=%g", k, delta); 
-				mFree(increment);
-				if (delta < 1e-10) {
+				fprintf(stderr, "#     PropSharing Iteration: %3d; MAX_ABS_DELTA=%g;\tMEAN_SQ_DELTA=%g", k+1, max_delta, delta);
+				if (delta < PROP_CONVERGENCE_THRESHOLD) {
 					fprintf(stderr, ". CONVERGED!\n");
 					break;
 				} else {
 					fprintf(stderr, "\n");
 				}
+			}
+			mFree(increment);
+			if (k == PROP_MAX_ITERATIONS) {
+				fprintf(stderr, "# WARNING: PropSharing reached the maximum of %d iterations without convergence.\n", PROP_MAX_ITERATIONS);
 			}
 			fprintf(stderr, "# End   PropSharing!\n"); 
 			memcpy(m->elem[row], abundance_t_k, n_features*sizeof(double));
