@@ -30,9 +30,6 @@ function run_command() {
 
   # Run command
   #echo -e "\tPROG2:\t"$({ time eval $command; } 2>&1)
-  if [ $verbose -gt 1 ]; then
-    echo $command
-  fi
   if [ ! -z "$timeit" ]; then
     (time eval $command) 2>/tmp/msamtools.time.out
   else
@@ -44,12 +41,10 @@ function run_command() {
   if [ $exit_code -ne 0 ]; then
     message "ERROR: Exit code $exit_code" "$verbose"
     return $exit_code
-  else
-    message "OK" "$verbose"
   fi
 
   # Print output
-  if [ $verbose -gt 1 ]; then
+  if [ $verbose -gt 4 ]; then
     echo -e $(cat /tmp/msamtools.time.out)
   fi
 
@@ -133,10 +128,10 @@ function compare_two_versions() {
 
   # Run command
 
-  if [ $verbose -gt 0 ]; then
-    echo -n "PROG1: "
-  fi
   run_command "$command" "$verbose" "time-me"
+  if [ $verbose -gt 0 ]; then
+    echo "PROG1: $command"
+  fi
   local exit_code1=$?
 
   ##########
@@ -149,10 +144,10 @@ function compare_two_versions() {
 
   # Run command
 
-  if [ $verbose -gt 0 ]; then
-    echo -n "PROG2: "
-  fi
   run_command "$command" "$verbose" "time-me"
+  if [ $verbose -gt 0 ]; then
+    echo "PROG2: $command"
+  fi
   local exit_code2=$?
 
   # Compare
@@ -170,12 +165,16 @@ function compare_two_versions() {
     local digest2=$(eval "$viewer $new_file" | md5sum - | cut -f1 -d' ');
   fi
 
-  if [ $verbose -gt 1 ]; then
-    echo "$old_file - $digest1"
-    echo "$new_file - $digest2"
-  fi
-
   if [ "$digest1" != "$digest2" ]; then
+    if [ $verbose -gt 2 ]; then
+      echo "$old_file:"
+      zcat $old_file | head -20
+      echo "$new_file:"
+      zcat $new_file | head -20
+    elif [ $verbose -gt 1 ]; then
+      echo "$old_file - $digest1"
+      echo "$new_file - $digest2"
+    fi
     return 255
   else
     return $(expr $exit_code1 + $exit_code2)
@@ -191,13 +190,13 @@ function run_pairwise_test() {
 
   local hline="--------------------------------------------------------------------------------";
 
-  echo -n "Test $tnum: ";
   local viewer="grep -Ev '^Unknown|^#'";
   if [ ! -z "$(echo $command | grep ' --gzip ')" ]; then viewer="zgrep -Ev '^Unknown|^#'"; fi
   compare_two_versions "$prog1" "$prog2" "$command" "$verbose";
   #echo "$prog1" "$prog2" "$command" "$viewer" "$verbose";
   local status=$?;
-  message "Test $tnum: " "$verbose";
+  #message "Test $tnum: " "$verbose";
+  echo -n "Test $tnum: ";
   report_status $status;
   message "$hline" "$verbose";
 }

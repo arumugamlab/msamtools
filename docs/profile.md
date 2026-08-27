@@ -82,12 +82,31 @@ Four abundance units are available:
 The optional `--nolen` flag turns off sequence-length normalization for
 **ab** and **rel**.
 
-When combining `--unit=ab` and `--nolen`, the reported values represent
-insert counts assigned to each feature. With `--multi=equal` or
-`--multi=proportional`, multi-mapping inserts may contribute fractional
-insert-equivalents to individual features. Under these two modes, summing the
-individual values is guaranteed to match the total number of mapped inserts
-(within machine precision).
+When combining `--unit=ab` and `--nolen`, the reported feature values are
+insert-equivalents assigned to each feature before sequence-length
+normalization. Their sum is reported in the profile header as **Effective
+insert-equivalents**.
+
+How this quantity relates to the number of physical mapped inserts depends on
+the selected multi-mapper handling mode:
+
+* With `--multi=ignore`, only uniquely mapped inserts contribute to the profile.
+* With `--multi=equal`, each successfully assigned multi-mapping insert
+  contributes fractions that sum to one insert-equivalent across its matched
+  features.
+* With `--multi=proportional`, each successfully assigned multi-mapping insert
+  likewise contributes fractions that sum to one insert-equivalent, but the
+  fractions are assigned according to the iteratively estimated feature
+  abundances.
+* With `--multi=all`, each matched feature receives one full
+  insert-equivalent. A single physical insert can therefore contribute more
+  than one insert-equivalent, and the summed profile abundance can exceed both
+  the number of mapped inserts and the total number of input inserts.
+
+If `--mincount` removes low-abundance features, their assigned contributions
+are removed from the retained profile and counted as **Purged
+insert-equivalents**. The remaining feature values still sum exactly to the
+reported **Effective insert-equivalents**.
 
 > **NOTE:** FPKM and TPM are conventionally used for gene- or transcript-level
 > abundance. For genome/MAG profiling, consider whether `ab` or `rel` is more
@@ -174,6 +193,58 @@ The appropriate threshold depends on sequencing depth. For metagenomes or
 metatranscriptomes with more than 10 million paired-end reads, we have
 typically used a threshold of `10`.
 
+## Physical inserts and profile insert-equivalents
+
+The profiling summary distinguishes between **physical inserts** and
+**insert-equivalents**.
+
+The total, mapped, uniquely mapped, and multiply mapped counts describe
+physical inserts in the alignment input. In contrast, the abundance profile
+contains feature-level contributions. These contributions are reported as
+insert-equivalents before sequence-length or unit normalization.
+
+For `--multi=equal` and `--multi=proportional`, a successfully assigned
+multi-mapping insert contributes fractions that sum to one insert-equivalent.
+For `--multi=all`, however, every matched feature receives one full
+insert-equivalent. The number of effective insert-equivalents can therefore
+exceed the number of mapped or even total input inserts. This is expected
+behavior for `--multi=all` and does not indicate that additional physical
+inserts were observed.
+
+When `--mincount` removes a feature, its feature-level contribution is counted
+as a **Purged insert-equivalent**. The **Effective insert-equivalents** reported
+in the header are calculated directly from the contributions remaining in the
+retained profile.
+
+When `--total` is supplied, contributions that are not represented by retained
+features are included in the **Unknown** feature. This includes physically
+unmapped inserts and, where applicable, contributions removed during
+multi-mapper handling or by `--mincount`.
+
+For example, suppose 1000 physical inserts were sequenced and 990 mapped.
+Under `--multi=all`, multi-mapping could cause those 990 mapped inserts to
+produce 1200 feature-level insert-equivalents. If `--mincount` subsequently
+removes 50 insert-equivalents, the retained profile contains 1150 effective
+insert-equivalents and:
+```
+Unknown = 10 unmapped inserts + 50 purged insert-equivalents = 60
+```
+
+The total pre-normalization profile mass is therefore:
+```
+1150 retained + 60 Unknown = 1210 insert-equivalents
+```
+
+This is the same profile mass as before `--mincount`:
+```
+1200 mapped feature contributions + 10 unmapped inserts = 1210
+```
+
+Thus, with `--multi=all`, profile mass is deliberately not constrained to the
+number of physical inserts. `Unknown` should be interpreted as profile
+contribution not represented by retained reference features, rather than
+strictly as a count of physically unmapped inserts.
+
 ## Output format and useful information
 
 Profile output is always gzip-compressed, irrespective of the filename used.
@@ -192,16 +263,21 @@ For example:
 
 ```text
 # msamtools version: 1.1.3
-# msamtools git commit: 3fd8379a7189
+# msamtools git commit: 737e769439cb
 # Command line: msamtools profile --label test --unit rel --multi prop --total 110000 --genome genome.tsv -o test.profile.txt.gz alignments.bam
 # QNAME grouping check: confirmed by input header SO:queryname
+#
+# Insert mapping statistics:
 # Total inserts       : 110000 (100.00%)
 # Mapped inserts      : 100000 ( 90.91%)
 #   - Multiple mapped :   4423 (  4.02%)
 #   - Uniquely mapped :  95577 ( 86.89%)
-# Purged inserts      :          0 (  0.00%) due to ambiguous mapping or low abundance features
-# Effective inserts   :     100000 ( 90.91%)
-# Estimated seq. length for 'Unknown': 4228447bp
+#
+# Profile statistics:
+# Purged insert-equivalents    :       0.00 (  0.00%) due to ambiguous mapping or low abundance features
+# Effective insert-equivalents :  100000.00 ( 90.91%)
+# Estimated sequence length for 'Unknown': 4228447 bp
+#
 ID      test
 Unknown 0.09749158
 Bacteroides_thetaiotaomicron__VPI-5482__GCF_000011065.1	0.18166258
