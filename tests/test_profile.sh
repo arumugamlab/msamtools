@@ -12,6 +12,51 @@ tmpdir=${TMPDIR:-/tmp}/msamtools-test-profile-$$
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 mkdir -p "$tmpdir" || exit 1
 
+assert_profile_values_nonnegative()
+{
+    file=$1
+    message=$2
+
+    if gzip -cd -- "$file" |
+        awk '
+            !/^#/ && NR > 1 {
+                value = $NF
+                if (value ~ /^[+-]?(nan|inf)$/ ||
+                    value + 0 < 0) {
+                    exit 1
+                }
+            }
+        '
+    then
+        pass_check "$message"
+    else
+        fail "$message"
+    fi
+}
+
+assert_profile_stats_nonnegative()
+{
+    file=$1
+    message=$2
+
+    if gzip -cd -- "$file" |
+        awk '
+            /^# (Total inserts|Mapped inserts|  - Multiple mapped|  - Uniquely mapped|Purged insert-equivalents|Effective insert-equivalents)/ {
+                line = $0
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                split(line, x, /[[:space:]]+/)
+
+                if (x[1] != "NA" && x[1] + 0 < 0)
+                    exit 1
+            }
+        '
+    then
+        pass_check "$message"
+    else
+        fail "$message"
+    fi
+}
+
 run_profile()
 {
     mode=$1
@@ -36,6 +81,10 @@ run_profile()
     assert_profile_contains "$output" \
         "QNAME grouping check: confirmed by input header SO:queryname" \
         "profile should record trusted queryname ordering"
+    assert_profile_values_nonnegative "$output" \
+        "profile --multi $mode should contain only finite non-negative values"
+    assert_profile_stats_nonnegative "$output" \
+        "profile --multi $mode should report only non-negative statistics"
     assert_profile_contains "$output" "Total inserts       : 7" \
         "profile should report seven total inserts"
     assert_profile_contains "$output" "Mapped inserts      : 7" \
@@ -65,6 +114,41 @@ run_profile proportional
 assert_profile_value "$tmpdir/proportional.tsv.gz" Unknown 0 1e-9
 assert_profile_value "$tmpdir/proportional.tsv.gz" A 5.833333333333 1e-6
 assert_profile_value "$tmpdir/proportional.tsv.gz" B 1.166666666667 1e-6
+
+all_mincount_output="$tmpdir/all_mincount.tsv.gz"
+all_mincount_stderr="$tmpdir/all_mincount.stderr"
+
+if ! "$MSAMTOOLS" profile -S \
+    --label all_mincount \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi all \
+    --mincount 10 \
+    --pandas \
+    -o "$all_mincount_output" \
+    "$fixture" \
+    >/dev/null 2>"$all_mincount_stderr"; then
+    cat "$all_mincount_stderr" >&2
+    fail "profile --multi all with --mincount should succeed"
+fi
+pass_check "profile --multi all with --mincount should succeed"
+
+assert_profile_contains "$all_mincount_output" \
+    "Mapped inserts      : 7" \
+    "all/mincount profile should report seven mapped inserts"
+
+assert_profile_contains "$all_mincount_output" \
+    "Purged insert-equivalents    :       8.00" \
+    "all/mincount profile should report eight purged insert-equivalents"
+
+assert_profile_contains "$all_mincount_output" \
+    "Effective insert-equivalents :       0.00" \
+    "all/mincount profile should report zero effective insert-equivalents"
+
+assert_profile_value "$all_mincount_output" Unknown 8 1e-9
+assert_profile_value "$all_mincount_output" A 0 1e-9
+assert_profile_value "$all_mincount_output" B 0 1e-9
 
 long_qname_output="$tmpdir/long_qname.tsv.gz"
 long_qname_stderr="$tmpdir/long_qname.stderr"
@@ -113,13 +197,18 @@ run_zero_profile()
     fi
     pass_check "profile should handle $name input"
 
+    assert_profile_values_nonnegative "$output" \
+        "profile --multi $mode should contain only finite non-negative values"
+    assert_profile_stats_nonnegative "$output" \
+        "profile --multi $mode should report only non-negative statistics"
+
     assert_profile_contains "$output" "Mapped inserts      :       0" \
         "$name profile should report zero mapped inserts"
     assert_profile_contains "$output" "- Multiple mapped :       0" \
         "$name profile should report zero multimapped inserts"
     assert_profile_contains "$output" "- Uniquely mapped :       0" \
         "$name profile should report zero uniquely mapped inserts"
-    assert_profile_contains "$output" "Effective inserts   :          0" \
+    assert_profile_contains "$output" "Effective insert-equivalents :       0.00" \
         "$name profile should report zero effective inserts"
 
     assert_profile_value "$output" Unknown 0 1e-9
