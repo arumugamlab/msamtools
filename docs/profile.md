@@ -395,8 +395,8 @@ Multi-mapper inserts: Inserts mapping to multiple references need to be consider
                    'all': each reference gets 1 insert added.
                  'equal': each reference gets 1/N insert added.
           'proportional': each reference gets a fraction proportional to its
-                          reference-sequence-length-normalized relative
-                          abundance estimated only based on uniquely
-                          mapped inserts.
+                          current assigned insert count; counts are initialized
+                          from uniquely mapped inserts and refined iteratively.
+
 ```
 <!-- END GENERATED HELP: profile -->

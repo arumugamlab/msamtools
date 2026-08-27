@@ -562,7 +562,7 @@ int msam_profile_main(int argc, char* argv[]) {
 	int i;
 	zoeHash sequences = NULL;
 	zoeHash genomes = NULL;
-	zoeTVec keys;
+	zoeTVec keys = NULL;
 
 	gzFile  output = NULL;
 
@@ -626,9 +626,8 @@ int msam_profile_main(int argc, char* argv[]) {
                                                                  "                   'all': each reference gets 1 insert added.\n"
                                                                  "                 'equal': each reference gets 1/N insert added.\n"
                                                                  "          'proportional': each reference gets a fraction proportional to its\n"
-                                                                 "                          reference-sequence-length-normalized relative\n"
-                                                                 "                          abundance estimated only based on uniquely\n"
-                                                                 "                          mapped inserts."
+                                                                 "                          current assigned insert count; counts are initialized\n"
+                                                                 "                          from uniquely mapped inserts and refined iteratively.\n"
                                                                  );
 	end    = arg_end(20); /* this needs to be even, otherwise each element in end->parent[] crosses an 8-byte boundary */
 
@@ -776,74 +775,68 @@ int msam_profile_main(int argc, char* argv[]) {
 
 	/* Assign seq->genome maps for counting */
 	if (arg_genome->count > 0) {
-		char *key;
+
+		/* Make hash for BAM features */
 		sequences = zoeNewHash();
-		for (i=0; i<n_targets; i++) {
-			int *code = (int*) mMalloc(sizeof(int));
-			*code = i;
-			zoeSetHash(sequences, global->header->target_name[i], code);
+		for (i = 0; i < n_targets; i++) {
+			int *seq_id = (int*) mMalloc(sizeof(int));
+			*seq_id = i;
+			zoeSetHash(sequences, global->header->target_name[i], seq_id);
 		}
-
-		/* Make a hash of genomes from the def file */
-		def_stream = mSafeOpenFile(arg_genome->sval[0], "r", 0);
+		
+		/* Init hash for genomes */
 		genomes = zoeNewHash();
-		key  = (char*) mMalloc(LINE_MAX*sizeof(char));
-		while (fgets(line, LINE_MAX, def_stream) != NULL) {
-			int  *code = (int*) mMalloc(sizeof(int));
-			char *seqname  = (char*) mMalloc(LINE_MAX*sizeof(char));
-			char  *genome_name  = (char*) mMalloc(LINE_MAX*sizeof(char));
-			if (sscanf(line, "%s\t%s", genome_name, seqname) != 2) {
-				mDie("GENOME DEFINITION LINE ERROR");
-			}
-
-			*code = 1;
-			zoeSetHash(genomes, genome_name, code);
-			mFree(seqname);
-		}
-		mSafeCloseFile(def_stream, 0);
-
-		keys = zoeKeysOfHash(genomes);
-		global->n_features = keys->size;
-		for (i=0; i<keys->size; i++) {
-			int  *code = (int*) mMalloc(sizeof(int));
-			key = keys->elem[i];
-			*code = i;
-			zoeSetHash(genomes, key, code);
-		}
-		/* Now genome_name ==> index */
-
-		/* Make a hash of sequence names from the list file */
+		global->n_features = 0;
+		
+		/* Open genome definition file */
 		def_stream = mSafeOpenFile(arg_genome->sval[0], "r", 0);
+		
+		/* Parse genome definition file */
 		while (fgets(line, LINE_MAX, def_stream) != NULL) {
+			char genome_name[LINE_MAX];
+			char seqname[LINE_MAX];
 			int *genome_id;
 			int *seq_id;
-			char  *genome_name  = (char*) mMalloc(LINE_MAX*sizeof(char));
-			char  *seqname = (char*) mMalloc(LINE_MAX*sizeof(char));
+		
 			if (sscanf(line, "%s\t%s", genome_name, seqname) != 2) {
 				mDie("GENOME DEFINITION LINE ERROR");
 			}
-
-			genome_id = (int*) zoeGetHash(genomes, genome_name);
-			seq_id    = (int*) zoeGetHash(sequences, seqname);
-			if (genome_id == NULL) {
-				mDie("Genome '%s' not found in BAM file", genome_name);
-			}
+		
+			/* Sequence must exist in BAM header. */
+			seq_id = (int*) zoeGetHash(sequences, seqname);
 			if (seq_id == NULL) {
 				mDie("Sequence '%s' not found in BAM file", seqname);
 			}
+		
+			/* Each BAM feature may occur only once in the genome definition. */
+			if (global->fmap[*seq_id] != -1) {
+				mDie("Sequence '%s' occurs more than once in genome definition", seqname);
+			}
+		
+			/* Assign a new genome ID on first encounter. */
+			genome_id = (int*) zoeGetHash(genomes, genome_name);
+			if (genome_id == NULL) {
+				genome_id = (int*) mMalloc(sizeof(int));
+				*genome_id = global->n_features++;
+				zoeSetHash(genomes, genome_name, genome_id);
+			}
+		
 			global->fmap[*seq_id] = *genome_id;
 		}
+		
+		/* Close genome definition file */
 		mSafeCloseFile(def_stream, 0);
 
-		/* Estimate feature lengths */
-		global->feature_len = (uint32_t*) mMalloc(global->n_features*sizeof(uint32_t));
-		for (i=0; i<global->n_features; i++) {
-			global->feature_len[i] = 0;
-		}
+		/* Make sure every BAM target was assigned. */
 		for (i=0; i<n_targets; i++) {
 			if (global->fmap[i] == -1) {
 				mDie("Sequence '%s' not found in genome definition", global->header->target_name[i]);
 			}
+		}
+
+		/* Estimate feature lengths */
+		global->feature_len = (uint32_t*) mCalloc(global->n_features, sizeof(uint32_t));
+		for (i=0; i<n_targets; i++) {
 			global->feature_len[global->fmap[i]] += global->header->target_len[i];
 		}
 
@@ -1006,9 +999,15 @@ int msam_profile_main(int argc, char* argv[]) {
 	mFreeMatrix(abundance);
 	mFree(abundance);
 
-	/* Free the hashes */
+	/* Free genome-related stuff */
 	if (arg_genome->count > 0) {
-		keys = zoeKeysOfHash(genomes);
+
+		/* Free conditional globals */
+		for (i=0; i<global->n_features; i++) mFree(global->feature_name[i]);
+		mFree(global->feature_name);
+		mFree(global->feature_len);
+
+		/* Free the hashes */
 		for (i=0; i<keys->size; i++) {
 			mFree(zoeGetHash(genomes, keys->elem[i]));
 		}
