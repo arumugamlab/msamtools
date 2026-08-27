@@ -150,6 +150,114 @@ assert_profile_value "$all_mincount_output" Unknown 8 1e-9
 assert_profile_value "$all_mincount_output" A 0 1e-9
 assert_profile_value "$all_mincount_output" B 0 1e-9
 
+# Genome-definition tests
+genome_def="$tmpdir/genome.tsv"
+cat >"$genome_def" <<'EOF'
+Genome1	A
+Genome2	B
+EOF
+
+genome_output="$tmpdir/genome.tsv.gz"
+genome_stderr="$tmpdir/genome.stderr"
+
+if ! "$MSAMTOOLS" profile -S \
+    --label genome \
+    --unit ab \
+    --nolen \
+    --total 7 \
+    --multi equal \
+    --genome "$genome_def" \
+    --pandas \
+    -o "$genome_output" \
+    "$fixture" \
+    >/dev/null 2>"$genome_stderr"; then
+    cat "$genome_stderr" >&2
+    fail "profile with valid genome definition should succeed"
+fi
+pass_check "profile with valid genome definition should succeed"
+
+assert_profile_value "$genome_output" Genome1 5.5 1e-9
+assert_profile_value "$genome_output" Genome2 1.5 1e-9
+
+missing_genome_def="$tmpdir/genome_missing.tsv"
+cat >"$missing_genome_def" <<'EOF'
+Genome1	A
+EOF
+
+missing_stderr="$tmpdir/genome_missing.stderr"
+if "$MSAMTOOLS" profile -S \
+    --label genome_missing \
+    --unit ab \
+    --nolen \
+    --multi equal \
+    --genome "$missing_genome_def" \
+    -o "$tmpdir/genome_missing.tsv.gz" \
+    "$fixture" \
+    >/dev/null 2>"$missing_stderr"; then
+    fail "profile should reject genome definitions missing a BAM target"
+fi
+pass_check "profile should reject genome definitions missing a BAM target"
+
+if ! grep -F "B" "$missing_stderr" >/dev/null; then
+    cat "$missing_stderr" >&2
+    fail "missing-target genome-definition error should mention B"
+fi
+pass_check "missing-target genome-definition error should mention B"
+
+duplicate_genome_def="$tmpdir/genome_duplicate.tsv"
+cat >"$duplicate_genome_def" <<'EOF'
+Genome1	A
+Genome2	A
+Genome2	B
+EOF
+
+duplicate_stderr="$tmpdir/genome_duplicate.stderr"
+if "$MSAMTOOLS" profile -S \
+    --label genome_duplicate \
+    --unit ab \
+    --nolen \
+    --multi equal \
+    --genome "$duplicate_genome_def" \
+    -o "$tmpdir/genome_duplicate.tsv.gz" \
+    "$fixture" \
+    >/dev/null 2>"$duplicate_stderr"; then
+    fail "profile should reject duplicate sequence names in genome definitions"
+fi
+pass_check "profile should reject duplicate sequence names in genome definitions"
+
+if ! grep -F "A" "$duplicate_stderr" >/dev/null; then
+    cat "$duplicate_stderr" >&2
+    fail "duplicate-sequence genome-definition error should mention A"
+fi
+pass_check "duplicate-sequence genome-definition error should mention A"
+
+unknown_genome_def="$tmpdir/genome_unknown.tsv"
+cat >"$unknown_genome_def" <<'EOF'
+Genome1	A
+Genome2	B
+Genome3	C
+EOF
+
+unknown_stderr="$tmpdir/genome_unknown.stderr"
+if "$MSAMTOOLS" profile -S \
+    --label genome_unknown \
+    --unit ab \
+    --nolen \
+    --multi equal \
+    --genome "$unknown_genome_def" \
+    -o "$tmpdir/genome_unknown.tsv.gz" \
+    "$fixture" \
+    >/dev/null 2>"$unknown_stderr"; then
+    fail "profile should reject genome definitions containing unknown BAM targets"
+fi
+pass_check "profile should reject genome definitions containing unknown BAM targets"
+
+if ! grep -F "C" "$unknown_stderr" >/dev/null; then
+    cat "$unknown_stderr" >&2
+    fail "unknown-target genome-definition error should mention C"
+fi
+pass_check "unknown-target genome-definition error should mention C"
+
 long_qname_output="$tmpdir/long_qname.tsv.gz"
 long_qname_stderr="$tmpdir/long_qname.stderr"
 if ! "$MSAMTOOLS" profile -S \
