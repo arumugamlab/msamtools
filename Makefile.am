@@ -55,6 +55,7 @@ mymaui_PROGRAMS = msamtools
 # Documentation and other files included in source distributions.
 EXTRA_DIST = README.md \
              CITATION.cff \
+             CONTRIBUTING.md \
              docs/index.md \
              docs/installation.md \
              docs/input-requirements.md \
