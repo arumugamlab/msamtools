@@ -258,6 +258,175 @@ if ! grep -F "C" "$unknown_stderr" >/dev/null; then
 fi
 pass_check "unknown-target genome-definition error should mention C"
 
+# Genome-definition hash-expansion regression test.
+#
+# Create 3000 reference features grouped into 300 genomes:
+#   f1-f10       -> g1
+#   f11-f20      -> g2
+#   ...
+#   f2991-f3000  -> g300
+#
+# Only a small number of references receive alignments. Distinct nonzero
+# counts are distributed across the genome-ID range so that any mismatch
+# between stored genome IDs and hash key order becomes visible.
+genome_hash_sam="$tmpdir/genome_hash.sam"
+genome_hash_def="$tmpdir/genome_hash.tsv"
+genome_hash_output="$tmpdir/genome_hash.profile.tsv.gz"
+genome_hash_stderr="$tmpdir/genome_hash.stderr"
+
+{
+    printf '@HD\tVN:1.6\tSO:queryname\n'
+
+    i=1
+    while test "$i" -le 3000; do
+        printf '@SQ\tSN:f%d\tLN:1000\n' "$i"
+        i=$((i + 1))
+    done
+
+    q=1
+
+    # Helper pattern used below:
+    # genome gN is represented by feature f((N-1)*10 + 1).
+
+    # Give selected genomes distinct unique-insert counts.
+    # g1 -> 1
+    i=1
+    while test "$i" -le 1; do
+        printf 'q%d\t0\tf1\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g17 -> 2
+    i=1
+    while test "$i" -le 2; do
+        printf 'q%d\t0\tf161\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g33 -> 3
+    i=1
+    while test "$i" -le 3; do
+        printf 'q%d\t0\tf321\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g48 -> 4
+    i=1
+    while test "$i" -le 4; do
+        printf 'q%d\t0\tf471\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g77 -> 5
+    i=1
+    while test "$i" -le 5; do
+        printf 'q%d\t0\tf761\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g108 -> 6
+    i=1
+    while test "$i" -le 6; do
+        printf 'q%d\t0\tf1071\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g134 -> 7
+    i=1
+    while test "$i" -le 7; do
+        printf 'q%d\t0\tf1331\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g151 -> 8
+    i=1
+    while test "$i" -le 8; do
+        printf 'q%d\t0\tf1501\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g201 -> 9
+    i=1
+    while test "$i" -le 9; do
+        printf 'q%d\t0\tf2001\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g250 -> 10
+    i=1
+    while test "$i" -le 10; do
+        printf 'q%d\t0\tf2491\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # g300 -> 11
+    i=1
+    while test "$i" -le 11; do
+        printf 'q%d\t0\tf2991\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+        q=$((q + 1))
+        i=$((i + 1))
+    done
+
+    # One insert maps to two different features in the same genome.
+    # Both f1001 and f1002 belong to g101, so after feature-to-genome
+    # collapsing this must contribute exactly one insert to g101.
+    printf 'q%d\t0\tf1001\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+    printf 'q%d\t0\tf1002\t1\t60\t50M\t*\t0\t0\tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\tIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n' "$q"
+
+} >"$genome_hash_sam"
+
+i=1
+while test "$i" -le 3000; do
+    genome=$(( (i - 1) / 10 + 1 ))
+    printf 'g%d\tf%d\n' "$genome" "$i"
+    i=$((i + 1))
+done >"$genome_hash_def"
+
+if ! "$MSAMTOOLS" profile -S \
+    --label genome_hash \
+    --multi all \
+    --unit ab \
+    --nolen \
+    --genome "$genome_hash_def" \
+    --pandas \
+    -o "$genome_hash_output" \
+    "$genome_hash_sam" \
+    >/dev/null 2>"$genome_hash_stderr"; then
+    cat "$genome_hash_stderr" >&2
+    fail "profile genome mapping should remain correct after hash expansion"
+fi
+pass_check "profile genome mapping should remain correct after hash expansion"
+
+# Distinct counts distributed across the genome-ID range. These should all
+# fail if genome names become detached from their stored genome IDs.
+assert_profile_value "$genome_hash_output" g1   1  1e-9
+assert_profile_value "$genome_hash_output" g17  2  1e-9
+assert_profile_value "$genome_hash_output" g33  3  1e-9
+assert_profile_value "$genome_hash_output" g48  4  1e-9
+assert_profile_value "$genome_hash_output" g77  5  1e-9
+assert_profile_value "$genome_hash_output" g108 6  1e-9
+assert_profile_value "$genome_hash_output" g134 7  1e-9
+assert_profile_value "$genome_hash_output" g151 8  1e-9
+assert_profile_value "$genome_hash_output" g201 9  1e-9
+assert_profile_value "$genome_hash_output" g250 10 1e-9
+assert_profile_value "$genome_hash_output" g300 11 1e-9
+
+# Two alignments from the same insert map to different features of the same
+# genome and must collapse to one genome-level hit.
+assert_profile_value "$genome_hash_output" g101 1 1e-9
+
+# Long QNAME tests
+
 long_qname_output="$tmpdir/long_qname.tsv.gz"
 long_qname_stderr="$tmpdir/long_qname.stderr"
 if ! "$MSAMTOOLS" profile -S \

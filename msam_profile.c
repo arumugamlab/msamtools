@@ -844,9 +844,11 @@ int msam_profile_main(int argc, char* argv[]) {
 		keys = zoeKeysOfHash(genomes);
 		global->feature_name = (char**) mMalloc(keys->size*sizeof(char*));
 		for (i=0; i<keys->size; i++) {
-			char *fname = (char*)keys->elem[i];
-			global->feature_name[i] = (char*) mMalloc((1+strlen(fname))*sizeof(char));
-			strcpy(global->feature_name[i], fname);
+			char *feat_name = (char*)keys->elem[i];
+			int  *genome_id = (int*) zoeGetHash(genomes, feat_name);
+
+			global->feature_name[*genome_id] = (char*) mMalloc((1+strlen(feat_name))*sizeof(char));
+			strcpy(global->feature_name[*genome_id], feat_name);
 		}
 
 	} else {
