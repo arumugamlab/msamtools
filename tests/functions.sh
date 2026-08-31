@@ -156,6 +156,10 @@ function compare_two_versions() {
     local viewer="samtools view";
     local digest1=$(eval "$viewer $old_file" | md5sum - | cut -f1 -d' ');
     local digest2=$(eval "$viewer $new_file" | md5sum - | cut -f1 -d' ');
+  elif [ ! -z "$(echo $command | grep ' profile ')" ]; then
+    local viewer="zgrep -Ev '^Unknown|^#'";
+    local digest1=$(eval "$viewer $old_file" | sort | md5sum - | cut -f1 -d' ');
+    local digest2=$(eval "$viewer $new_file" | sort | md5sum - | cut -f1 -d' ');
   else
     local viewer="grep -Ev '^Unknown|^#'";
     if [ ! -z "$(file $old_file | grep 'gzip')" ]; then viewer="zgrep -Ev '^Unknown|^#'"; fi
@@ -225,8 +229,10 @@ function get_profile_commands() {
         for unit in "" "--unit=rel" "--unit=ab" "--unit=tpm" "--unit=fpkm"; do
           for mincount in "" "--mincount=10"; do
             for outformat in "" "--pandas"; do
-              command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount $outformat -o __OUTFILE__ $infile";
-              echo "$command";
+              for genome in "" "--genome=genomes.def"; do
+                command="__PROGRAM__ profile --label test --multi=$multi $total $unit $mincount $outformat $genome -o __OUTFILE__ $infile";
+                echo "$command";
+              done
             done
           done
         done
