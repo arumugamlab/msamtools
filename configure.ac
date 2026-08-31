@@ -6,7 +6,7 @@ AC_PREREQ([2.69])
 
 AC_INIT(
     [msamtools],
-    [1.1.3],
+    [1.2.0],
     [https://github.com/arumugamlab/msamtools/issues],
     [msamtools],
     [https://github.com/arumugamlab/msamtools])

@@ -1,7 +1,7 @@
 ################## BUILDING NOTES ######################
 #
 # Build from the published GitHub release (default):
-#   docker build -t msamtools:1.1.3 .
+#   docker build -t msamtools:1.2.0 .
 #
 # Build from a local release tarball for testing:
 #   Place msamtools-<version>.tar.gz in the build context, then run:
@@ -10,7 +10,7 @@
 # MSAM_SOURCE may be "remote" (default) or "local".
 
 ################## BUILD ARGUMENTS ######################
-ARG MSAM_VERSION=1.1.3
+ARG MSAM_VERSION=1.2.0
 ARG MSAM_SOURCE=remote
 
 ################## REMOTE SOURCE ######################
