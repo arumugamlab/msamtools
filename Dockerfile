@@ -64,13 +64,12 @@ COPY --from=source /msamtools.tar.gz /tmp/msamtools.tar.gz
 
 RUN apk --no-cache update \
     && apk --no-cache upgrade \
-    && apk add --no-cache argtable2 \
+    && apk add --no-cache argtable2 bash \
     && apk add --no-cache --virtual .build_deps \
         gcc \
         libc-dev \
         zlib-dev \
         make \
-        bash \
         wget \
         bzip2 \
         argtable2-dev \

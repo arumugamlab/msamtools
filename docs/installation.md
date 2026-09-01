@@ -45,7 +45,7 @@ If you cannot install through Conda, see
 ## Using container images without installing locally
 
 **msamtools** is available in container images that can be used, for example,
-in workflow systems such as Snakemake.
+in workflow systems such as `Snakemake`.
 
 Two container options are available.
 
@@ -70,8 +70,8 @@ a container containing both programs.
 The samtools version in this image is built to match the HTSlib version used by
 msamtools. For the current development version, this is samtools/HTSlib 1.24.
 
-For example, if a BAM file is coordinate-sorted and needs to be name-sorted
-before profiling:
+For example, here is a `Snakemake` rule if a BAM file is coordinate-sorted and
+needs to be name-sorted before profiling:
 
 ```snakemake
 rule profile_sample:
@@ -197,29 +197,82 @@ make distcheck
 This creates a source archive, performs an out-of-tree build from that
 distribution, and runs the complete test suite against it.
 
-### Building the Docker image
+## Building the Docker image
 
-The repository Dockerfile normally builds from a published msamtools release
-tarball:
+Docker images can be built either from a published msamtools release or from
+a local release tarball. The resulting image contains msamtools together
+with a samtools executable built to match the HTSlib version used by that
+msamtools release.
+
+The Dockerfile uses multi-stage source selection and therefore requires
+Docker Buildx/BuildKit. Check that Buildx is available with:
 
 ```bash
-docker build --build-arg MSAM_VERSION=MSAM_VERSION -t msamtools:MSAM_VERSION .
+docker buildx version
 ```
 
-A local release tarball can also be used for testing before publication.
-Place `msamtools-<version>.tar.gz` in the Docker build context and run:
+### Build from a published release
+
+Set the msamtools version to build:
 
 ```bash
-docker build \
+VERSION=1.2.0
+```
+
+To build and load an image for the current platform:
+
+```bash
+sudo docker buildx build \
+    --load \
+    --build-arg MSAM_SOURCE=remote \
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t msamtools:${VERSION} .
+```
+
+This downloads the corresponding release tarball from GitHub.
+
+### Test a local release tarball
+
+Release tarballs can be tested before publication by placing
+`msamtools-${VERSION}.tar.gz` in the Docker build context and selecting the
+local source:
+
+```bash
+VERSION=1.2.0
+
+sudo docker buildx build \
+    --load \
     --build-arg MSAM_SOURCE=local \
-    --build-arg MSAM_VERSION=<version> \
-    -t msamtools:test .
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t msamtools:${VERSION}-test .
 ```
 
-The resulting image contains msamtools together with a samtools executable
-built to match the HTSlib version used by that msamtools release.
+This builds the image from the local tarball instead of downloading it from
+GitHub.
 
-### Validation
+### Build a multi-platform image
+
+For release images intended for a registry, both supported architectures can
+be built and pushed together. The following is our release build command:
+
+```bash
+VERSION=1.2.0
+
+sudo docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --provenance=false \
+    --build-arg MSAM_SOURCE=remote \
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t quay.io/arumugamlab/msamtools:${VERSION}_0 \
+    --push .
+```
+
+The same multi-platform build can be tested against a local release tarball
+before publication by changing `MSAM_SOURCE=remote` to
+`MSAM_SOURCE=local`.
+
+
+## Validation
 
 Reproducible profile validation using synthetic metagenomic alignments is
 described in the [profile validation report](validation/profile_validation.md).
