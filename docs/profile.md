@@ -262,8 +262,8 @@ QNAME-grouping status, and insert-mapping statistics.
 For example:
 
 ```text
-# msamtools version: 1.1.3
-# msamtools git commit: 737e769439cb
+# msamtools version: 1.2.0
+# msamtools git commit: bedf810bcdaa
 # Command line: msamtools profile --label test --unit rel --multi prop --total 110000 --genome genome.tsv -o test.profile.txt.gz alignments.bam
 # QNAME grouping check: confirmed by input header SO:queryname
 #

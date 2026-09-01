@@ -6,8 +6,8 @@
 is also available through Bioconda.
 
 **msamtools** uses HTSlib for reading and writing SAM/BAM files. Source builds
-download and build the HTSlib version specified by the release. The current
-development version uses HTSlib 1.24.
+download and build the HTSlib version specified by the release. msamtools v1.2.0
+uses HTSlib 1.24.
 
 ## Recommended installation using Conda
 
@@ -68,7 +68,7 @@ For workflows that pipe between **msamtools** and **samtools**, we also provide
 a container containing both programs.
 
 The samtools version in this image is built to match the HTSlib version used by
-msamtools. For the current development version, this is samtools/HTSlib 1.24.
+msamtools. For msamtools v1.2.0, this is samtools/HTSlib 1.24.
 
 For example, here is a `Snakemake` rule if a BAM file is coordinate-sorted and
 needs to be name-sorted before profiling:
