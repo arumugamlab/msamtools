@@ -4,6 +4,8 @@
 
 It is designed to work with alignment streams in a similar spirit to **samtools**, allowing filtering, profiling, coverage estimation, and alignment summarization to be combined in pipelines without creating unnecessary intermediate files.
 
+**Documentation:** [https://msamtools.readthedocs.io/](https://msamtools.readthedocs.io/)
+
 ## Installation
 
 The easiest way to install **msamtools** is through [Bioconda](https://bioconda.github.io/):
