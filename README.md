@@ -4,9 +4,11 @@
 
 It is designed to work with alignment streams in a similar spirit to **samtools**, allowing filtering, profiling, coverage estimation, and alignment summarization to be combined in pipelines without creating unnecessary intermediate files.
 
+**Documentation:** [https://msamtools.readthedocs.io/](https://msamtools.readthedocs.io/)
+
 ## Installation
 
-The easiest way to install **msamtools** is through [Bioconda](https://bioconda.github.io/):
+The easiest way to install msamtools is through [Bioconda](https://bioconda.github.io/):
 
 ```bash
 conda install -c bioconda msamtools
@@ -23,7 +25,7 @@ Source builds and container-based usage are described in the [installation docum
 
 ## Commands
 
-**msamtools** provides four commands:
+msamtools provides four commands:
 
 - **`filter`** — filter alignments based on alignment statistics
 - **`profile`** — estimate abundance profiles of reference sequences or genomes
@@ -77,8 +79,8 @@ mkdocs serve
 
 ## Citation
 
-If you use **msamtools** in your work, please see [`CITATION.cff`](CITATION.cff) for citation information.
+If you use msamtools in your work, please see [`CITATION.cff`](CITATION.cff) for citation information.
 
 ## License
 
-**msamtools** is distributed under the terms described in [`LICENSE`](LICENSE).
+msamtools is distributed under the terms described in [`LICENSE`](LICENSE).

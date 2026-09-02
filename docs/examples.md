@@ -1,8 +1,8 @@
 # Example workflows using msamtools
 
-Similar to **samtools**, **msamtools** is designed to work on a stream,
+Similar to `samtools`, `msamtools` is designed to work on a stream,
 avoiding creation of intermediate files. The examples below show common
-workflows that combine msamtools with aligners and samtools.
+workflows that combine `msamtools` with aligners and `samtools`.
 
 > **NOTE:** Workflows using `--besthit` or `--uniqhit` require contiguous
 > QNAME grouping. See [Input requirements](input-requirements.md#qname-grouping).
@@ -13,7 +13,7 @@ examples focus on the options most relevant to each task.
 ## Alignment and filtering in one step
 
 If your aligner can write to `stdout`, its output can be piped directly to
-**msamtools** and filtered on the fly.
+`msamtools` and filtered on the fly.
 
 ### Task
 

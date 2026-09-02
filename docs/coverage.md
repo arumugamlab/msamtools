@@ -1,6 +1,6 @@
 # msamtools coverage
 
-The **coverage** command estimates per-position or per-sequence coverage of each
+The `coverage` command estimates per-position or per-sequence coverage of each
 reference sequence in the SAM/BAM file.
 
 Coverage is defined as **aligned query-base depth on reference positions**.

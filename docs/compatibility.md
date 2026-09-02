@@ -8,8 +8,8 @@ CRAM is currently unsupported and there are no plans to add CRAM support.
 
 ## CIGAR compatibility
 
-Current develoption version of msamtools supports both traditional `M`
-CIGAR operations and the extended `=` / `X` notation.
+msamtools v1.2.0 supports both traditional `M` CIGAR operations and the
+extended `=` / `X` notation.
 
 Where alignment matches and mismatches are relevant:
 
@@ -31,8 +31,8 @@ Some operations in those releases could produce incorrect results when input
 alignments used extended `=` / `X` CIGAR notation. Alignments using
 traditional `M` notation were not affected by this specific issue.
 
-For reproducible analysis of alignments containing `=` or `X`, use a version
-newer than v1.1.3 that includes the extended-CIGAR fixes.
+For reproducible analysis of alignments containing `=` or `X`, use msamtools
+v1.2.0 or later.
 
 ### Impact on common metagenomic aligners
 
@@ -47,7 +47,7 @@ extended `=`/`X` CIGAR notation.
 msamtools uses HTSlib internally for SAM/BAM I/O.
 
 The HTSlib version used for a particular release is defined by the msamtools
-build configuration. The accompanying msamtools + samtools container uses a
+build configuration. The accompanying **msamtools + samtools** container uses a
 samtools executable matched to that HTSlib version.
 
 Exact dependency and container versions for a release are given in the

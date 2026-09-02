@@ -1,6 +1,6 @@
 # msamtools filter
 
-The **filter** command provides alignment filtering based on percent identity,
+The `filter` command provides alignment filtering based on percent identity,
 alignment length, aligned fraction of read length, or combinations thereof.
 For example, species-level annotation workflows may require alignments to meet
 a minimum sequence-identity threshold such as 95%.

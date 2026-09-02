@@ -5,13 +5,13 @@
 **msamtools** is intended for Linux and other UNIX-like systems. A macOS build
 is also available through Bioconda.
 
-**msamtools** uses HTSlib for reading and writing SAM/BAM files. Source builds
-download and build the HTSlib version specified by the release. The current
-development version uses HTSlib 1.24.
+msamtools uses HTSlib for reading and writing SAM/BAM files. Source builds
+download and build the HTSlib version specified by the release. msamtools v1.2.0
+uses HTSlib 1.24.
 
 ## Recommended installation using Conda
 
-The easiest way to install **msamtools** and its required dependencies is
+The easiest way to install msamtools and its required dependencies is
 through the Bioconda channel.
 
 If you are already within a Conda environment:
@@ -29,8 +29,8 @@ conda activate msamtools
 msamtools help
 ```
 
-If you also need the **samtools** executable for your analysis, install it in
-the same environment:
+If you also need the `samtools` executable for your analysis, install
+samtools package in the same environment:
 
 ```bash
 conda create -n msamtools -c conda-forge -c bioconda msamtools samtools
@@ -44,15 +44,17 @@ If you cannot install through Conda, see
 
 ## Using container images without installing locally
 
-**msamtools** is available in container images that can be used, for example,
+msamtools is available in container images that can be used, for example,
 in workflow systems such as Snakemake.
 
-Two container options are available.
+Two container options are available. The Bioconda container contains only
+the `msamtools` executable, whereas the custom image provides both
+`msamtools` and `samtools` executables.
 
 ### Bioconda container
 
 The Bioconda release provides a corresponding container image containing
-**msamtools**.
+msamtools.
 
 For example:
 
@@ -62,16 +64,16 @@ singularity: 'docker://quay.io/biocontainers/msamtools:MSAM_VERSION--BIOCONDA_BU
 
 The image can then be used by Snakemake with container support enabled.
 
-### msamtools + samtools container
+### Custom msamtools + samtools container
 
-For workflows that pipe between **msamtools** and **samtools**, we also provide
+For workflows that pipe between `msamtools` and `samtools`, we also provide
 a container containing both programs.
 
 The samtools version in this image is built to match the HTSlib version used by
-msamtools. For the current development version, this is samtools/HTSlib 1.24.
+msamtools. For msamtools v1.2.0, this is samtools/HTSlib 1.24.
 
-For example, if a BAM file is coordinate-sorted and needs to be name-sorted
-before profiling:
+For example, here is a Snakemake rule if a BAM file is coordinate-sorted and
+needs to be name-sorted before profiling:
 
 ```snakemake
 rule profile_sample:
@@ -86,9 +88,6 @@ rule profile_sample:
         """
 ```
 
-The Bioconda container contains the `msamtools` executable, whereas the custom
-image also provides the `samtools` executable.
-
 ### Container URLs
 
 The exact Bioconda and arumugamlab container image URLs are release-specific
@@ -97,7 +96,7 @@ URLs rather than guessing the build tag.
 
 ## Advanced installation
 
-You can also download the source code and build **msamtools** yourself.
+You can also download the source code and build msamtools yourself.
 
 ### Required tools
 
@@ -197,29 +196,100 @@ make distcheck
 This creates a source archive, performs an out-of-tree build from that
 distribution, and runs the complete test suite against it.
 
-### Building the Docker image
+## Building the Docker image
 
-The repository Dockerfile normally builds from a published msamtools release
-tarball:
+Docker images can be built either from a published msamtools release or from
+a local release tarball. The resulting image contains msamtools together
+with a samtools executable built to match the HTSlib version used by that
+msamtools release.
+
+The Dockerfile uses multi-stage source selection and therefore requires
+Docker Buildx/BuildKit. Check that Buildx is available with:
 
 ```bash
-docker build --build-arg MSAM_VERSION=MSAM_VERSION -t msamtools:MSAM_VERSION .
+docker buildx version
 ```
 
-A local release tarball can also be used for testing before publication.
-Place `msamtools-<version>.tar.gz` in the Docker build context and run:
+### Build from a published release
+
+Set the msamtools version to build:
 
 ```bash
-docker build \
+VERSION=1.2.0
+```
+
+To build and load an image for the current platform:
+
+```bash
+sudo docker buildx build \
+    --load \
+    --build-arg MSAM_SOURCE=remote \
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t msamtools:${VERSION} .
+```
+
+This downloads the corresponding release tarball from GitHub.
+
+### Test a local release tarball
+
+Release tarballs can be tested before publication by placing
+`msamtools-${VERSION}.tar.gz` in the Docker build context and selecting the
+local source:
+
+```bash
+VERSION=1.2.0
+
+cp /original/location/msamtools-${VERSION}.tar.gz .
+
+sudo docker buildx build \
+    --load \
     --build-arg MSAM_SOURCE=local \
-    --build-arg MSAM_VERSION=<version> \
-    -t msamtools:test .
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t msamtools:${VERSION}-test .
 ```
 
-The resulting image contains msamtools together with a samtools executable
-built to match the HTSlib version used by that msamtools release.
+This builds the image from the local tarball instead of downloading it from
+GitHub.
 
-### Validation
+### Build a multi-platform image
+
+For release images intended for a registry, both supported architectures can
+be built and pushed together.
+
+Before building for multiple architectures on a host that does not already
+provide emulation, enable QEMU emulation for the required platforms if not
+done already:
+
+```bash
+sudo docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+Then create or use a Buildx builder that supports multi-platform builds:
+```bash
+sudo docker buildx create --use
+sudo docker buildx inspect --bootstrap
+```
+
+The following is our release build command:
+
+```bash
+VERSION=1.2.0
+
+sudo docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --provenance=false \
+    --build-arg MSAM_SOURCE=remote \
+    --build-arg MSAM_VERSION=${VERSION} \
+    -t quay.io/arumugamlab/msamtools:${VERSION}_0 \
+    --push .
+```
+
+The same multi-platform build can be tested against a local release tarball
+before publication by changing `MSAM_SOURCE=remote` to
+`MSAM_SOURCE=local`.
+
+
+## Validation
 
 Reproducible profile validation using synthetic metagenomic alignments is
 described in the [profile validation report](validation/profile_validation.md).
