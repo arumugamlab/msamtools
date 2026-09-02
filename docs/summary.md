@@ -1,6 +1,6 @@
 # msamtools summary
 
-The **summary** command reports alignment-level statistics from a SAM/BAM file.
+The `summary` command reports alignment-level statistics from a SAM/BAM file.
 It can also report distributions of selected alignment statistics or count
 mapped inserts/QNAME groups.
 

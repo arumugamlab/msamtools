@@ -5,13 +5,13 @@
 **msamtools** is intended for Linux and other UNIX-like systems. A macOS build
 is also available through Bioconda.
 
-**msamtools** uses HTSlib for reading and writing SAM/BAM files. Source builds
+msamtools uses HTSlib for reading and writing SAM/BAM files. Source builds
 download and build the HTSlib version specified by the release. msamtools v1.2.0
 uses HTSlib 1.24.
 
 ## Recommended installation using Conda
 
-The easiest way to install **msamtools** and its required dependencies is
+The easiest way to install msamtools and its required dependencies is
 through the Bioconda channel.
 
 If you are already within a Conda environment:
@@ -29,8 +29,8 @@ conda activate msamtools
 msamtools help
 ```
 
-If you also need the **samtools** executable for your analysis, install it in
-the same environment:
+If you also need the `samtools` executable for your analysis, install
+samtools package in the same environment:
 
 ```bash
 conda create -n msamtools -c conda-forge -c bioconda msamtools samtools
@@ -44,15 +44,17 @@ If you cannot install through Conda, see
 
 ## Using container images without installing locally
 
-**msamtools** is available in container images that can be used, for example,
-in workflow systems such as `Snakemake`.
+msamtools is available in container images that can be used, for example,
+in workflow systems such as Snakemake.
 
-Two container options are available.
+Two container options are available. The Bioconda container contains only
+the `msamtools` executable, whereas the custom image provides both
+`msamtools` and `samtools` executables.
 
 ### Bioconda container
 
 The Bioconda release provides a corresponding container image containing
-**msamtools**.
+msamtools.
 
 For example:
 
@@ -62,15 +64,15 @@ singularity: 'docker://quay.io/biocontainers/msamtools:MSAM_VERSION--BIOCONDA_BU
 
 The image can then be used by Snakemake with container support enabled.
 
-### msamtools + samtools container
+### Custom msamtools + samtools container
 
-For workflows that pipe between **msamtools** and **samtools**, we also provide
+For workflows that pipe between `msamtools` and `samtools`, we also provide
 a container containing both programs.
 
 The samtools version in this image is built to match the HTSlib version used by
 msamtools. For msamtools v1.2.0, this is samtools/HTSlib 1.24.
 
-For example, here is a `Snakemake` rule if a BAM file is coordinate-sorted and
+For example, here is a Snakemake rule if a BAM file is coordinate-sorted and
 needs to be name-sorted before profiling:
 
 ```snakemake
@@ -86,9 +88,6 @@ rule profile_sample:
         """
 ```
 
-The Bioconda container contains the `msamtools` executable, whereas the custom
-image also provides the `samtools` executable.
-
 ### Container URLs
 
 The exact Bioconda and arumugamlab container image URLs are release-specific
@@ -97,7 +96,7 @@ URLs rather than guessing the build tag.
 
 ## Advanced installation
 
-You can also download the source code and build **msamtools** yourself.
+You can also download the source code and build msamtools yourself.
 
 ### Required tools
 

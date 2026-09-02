@@ -1,6 +1,6 @@
 # msamtools profile
 
-The **profile** command provides sequence abundance profiling functionality.
+The `profile` command provides sequence abundance profiling functionality.
 By default, relative abundance of each sequence in the BAM file is reported.
 However, using the `--genome` option, you can associate database sequences in
 the BAM file with larger features, e.g. genomes or MAGs.
@@ -19,11 +19,11 @@ or transcripts per million (`tpm`).
 > and multi-mapping correctly. See
 > [Input requirements](input-requirements.md#qname-grouping).
 >
-> **NOTE:** From **v1.0.0**, profile output is always gzip-compressed.
-> Arguments `--gzip` or `-z` are therefore not used.
+> **NOTE:** From **v1.0.0**, `profile` command's output is always gzip-compressed.
+> Arguments `--gzip` or `-z` are therefore not accepted.
 
 We highly recommend that you filter the alignments before sending them to the
-**profile** command, as it considers each alignment to be valid and does not,
+`profile` command, as it considers each alignment to be valid and does not,
 for example, apply alignment-quality filtering itself.
 
 Here is an example profiling command one would use after mapping metagenomic
@@ -41,7 +41,7 @@ See [Example workflows](examples.md) for examples of streaming `filter` and
 
 ## Profiling genomes or MAGs
 
-Starting from **v1.0.0**, the **profile** command supports profiling of genomes
+Starting from **v1.0.0**, the `profile` command supports profiling of genomes
 defined by sets of sequences. This requires a tab-delimited definition file of
 the following format:
 
@@ -69,7 +69,7 @@ msamtools filter -b -u -l 80 -p 95 -z 80 --besthit sample1.myMAGs.bam \
 
 ## Units of abundance
 
-By default, the **profile** command generates relative abundances that sum to
+By default, the `profile` command generates relative abundances that sum to
 `1` across the reported features.
 
 Four abundance units are available:
@@ -114,7 +114,7 @@ reported **Effective insert-equivalents**.
 
 ## Keeping track of unmapped reads
 
-By default, the **profile** command generates relative abundances that sum to
+By default, the `profile` command generates relative abundances that sum to
 `1` across the features represented in the BAM file. In metagenomic data,
 however, it can be useful to retain information about the fraction of the
 sequenced inserts that did not map to the reference database.
