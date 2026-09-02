@@ -240,6 +240,8 @@ local source:
 ```bash
 VERSION=1.2.0
 
+cp /original/location/msamtools-${VERSION}.tar.gz .
+
 sudo docker buildx build \
     --load \
     --build-arg MSAM_SOURCE=local \
@@ -253,7 +255,23 @@ GitHub.
 ### Build a multi-platform image
 
 For release images intended for a registry, both supported architectures can
-be built and pushed together. The following is our release build command:
+be built and pushed together.
+
+Before building for multiple architectures on a host that does not already
+provide emulation, enable QEMU emulation for the required platforms if not
+done already:
+
+```bash
+sudo docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+Then create or use a Buildx builder that supports multi-platform builds:
+```bash
+sudo docker buildx create --use
+sudo docker buildx inspect --bootstrap
+```
+
+The following is our release build command:
 
 ```bash
 VERSION=1.2.0
