@@ -15,17 +15,6 @@ abundance (`ab`), relative abundance (`rel`),
 fragments per kilobase of sequence per million reads (`fpkm`),
 or transcripts per million (`tpm`).
 
-> **WARNING:** `profile` requires contiguous QNAME groups to identify inserts
-> and multi-mapping correctly. See
-> [Input requirements](input-requirements.md#qname-grouping).
->
-> **NOTE:** From **v1.0.0**, `profile` command's output is always gzip-compressed.
-> Arguments `--gzip` or `-z` are therefore not accepted.
-
-We highly recommend that you filter the alignments before sending them to the
-`profile` command, as it considers each alignment to be valid and does not,
-for example, apply alignment-quality filtering itself.
-
 Here is an example profiling command one would use after mapping metagenomic
 reads to IGC.
 
@@ -38,6 +27,22 @@ multi-mapper inserts proportionally between the genes (see below).
 
 See [Example workflows](examples.md) for examples of streaming `filter` and
 `profile` together.
+
+## Important usage notes
+
+- `profile` requires contiguous QNAME groups to identify inserts and
+  multi-mapping correctly. See
+  [Input requirements](input-requirements.md#qname-grouping).
+
+- From v1.0.0, `profile` output is always gzip-compressed. The `--gzip` and
+  `-z` arguments are therefore not accepted.
+
+- From v1.2.0, pandas-style output is the default. Use `--no-pandas` to obtain
+  the previous default output format.
+
+- We highly recommend filtering alignments using `msamtools filter` before sending them to `profile`,
+  because each input alignment is treated as valid and `profile` does not, for
+  example, apply alignment-quality filtering itself.
 
 ## Profiling genomes or MAGs
 
