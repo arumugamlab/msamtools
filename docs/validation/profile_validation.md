@@ -2,9 +2,9 @@
 
 > **Generated automatically by `validation/validate_profiles.py`. Do not edit numerical results manually.**
 
-- **msamtools version:** `1.1.3`
-- **Git commit:** `3fd8379a7189bcbd562b408b0322870075721a78`
-- **Validation date:** 2026-08-15
+- **msamtools version:** `1.2.0`
+- **Git commit:** `b21ac461a56b6630290c82266477699afbba545c`
+- **Validation date:** 2026-09-01
 
 ## Validation design
 
